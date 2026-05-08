@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com 'sha256-WwIACa4J9p1tqCjlGh943LquZw3M3lippWnMdW0DuaM=' 'sha256-ZswfTY7H35rbv8WC7NXBoiC7WNu86vSzCDChNWwZZDM='; style-src 'self' https://fonts.googleapis.com 'unsafe-hashes' 'sha256-p8ikK5g/HidpFMqRLsYWTks74JnQdAT68WyHPYi4mxk='; font-src 'self' https://fonts.gstatic.com" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com 'sha256-WwIACa4J9p1tqCjlGh943LquZw3M3lippWnMdW0DuaM=' 'sha256-ZswfTY7H35rbv8WC7NXBoiC7WNu86vSzCDChNWwZZDM=' 'sha256-Q9JEumoGxNXY/hgeueAT+NeeiqcdV3mes5Zpw3CX1p8='; style-src 'self' https://fonts.googleapis.com 'unsafe-hashes' 'sha256-p8ikK5g/HidpFMqRLsYWTks74JnQdAT68WyHPYi4mxk=' 'sha256-Yhfn/MQxfgyla38ccwHQasOtZFIbJ2PU14JHwUuYis0='; font-src 'self' https://fonts.gstatic.com" />
   <title>Larsil — Gestão de Usuários</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -144,7 +144,22 @@
     .btn-warning { background: #e67e22; color: #fff; }
     .btn-warning:hover { filter: brightness(1.1); }
     .btn-sm { padding: 6px 14px; font-size: .75rem; }
+    .btn-cancel { background: #eee; color: #444; }
+    .btn-cancel:hover { background: #ddd; }
     .form-actions { margin-top: 6px; display: flex; gap: 10px; align-items: center; }
+
+    /* ── TABELA ── */
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { font-weight: 900; color: var(--primary); background: #f9faf9; }
+    .table-actions { width: 180px; text-align: center; }
+    .cell-center-padded { text-align: center; color: var(--muted); padding: 24px; }
+    .cell-error { color: var(--danger); padding: 20px; text-align: center; }
+    code { font-family: monospace; font-size: .85rem; }
+
+    /* ── MODAL ── */
+    .label-small-muted { font-size: .85rem; color: var(--muted); margin-bottom: 18px; }
+    .form-group-spacer { margin-top: 12px; }
 
     /* ── TOAST ── */
     #toast {
@@ -259,11 +274,11 @@
           <tr>
             <th>Login</th>
             <th>Nome</th>
-            <th style="width:180px">Ações</th>
+            <th class="table-actions">Ações</th>
           </tr>
         </thead>
         <tbody id="tbodyUsuarios">
-          <tr><td colspan="3" style="text-align:center;color:var(--muted);padding:24px">Carregando...</td></tr>
+          <tr><td colspan="3" class="cell-center-padded">Carregando...</td></tr>
         </tbody>
       </table>
     </div>
@@ -274,18 +289,18 @@
 <div class="modal-overlay" id="modalSenha">
   <div class="modal">
     <h3>Alterar Senha</h3>
-    <p style="font-size:.85rem;color:var(--muted);margin-bottom:18px">Usuário: <strong id="modalLogin"></strong></p>
+    <p class="label-small-muted">Usuário: <strong id="modalLogin"></strong></p>
     <div class="form-group">
       <label for="modalNovaSenha">Nova senha</label>
       <input type="password" id="modalNovaSenha" placeholder="Nova senha" maxlength="128" autocomplete="new-password" />
     </div>
-    <div class="form-group" style="margin-top:12px">
+    <div class="form-group form-group-spacer">
       <label for="modalConfSenha">Confirmar senha</label>
       <input type="password" id="modalConfSenha" placeholder="Repita a senha" maxlength="128" />
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" id="btnConfSenha">Salvar</button>
-      <button class="btn" style="background:#eee;color:#444" id="btnCancelarModal">Cancelar</button>
+      <button class="btn btn-cancel" id="btnCancelarModal">Cancelar</button>
     </div>
   </div>
 </div>
@@ -330,14 +345,14 @@
     const tbody = document.getElementById('tbodyUsuarios');
     try {
       const data = await api('GET');
-      if (!data.success) { tbody.innerHTML = `<tr><td colspan="3" style="color:var(--danger);padding:20px;text-align:center">${data.message}</td></tr>`; return; }
+      if (!data.success) { tbody.innerHTML = `<tr><td colspan="3" class="cell-error">${data.message}</td></tr>`; return; }
       if (data.usuarios.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:24px">Nenhum usuário cadastrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="3" class="cell-center-padded">Nenhum usuário cadastrado.</td></tr>';
         return;
       }
       tbody.innerHTML = data.usuarios.map(u => `
         <tr>
-          <td><code style="font-size:.85rem">${esc(u.LOGIN)}</code></td>
+          <td><code>${esc(u.LOGIN)}</code></td>
           <td>${esc(u.NOME)}</td>
           <td>
             <div class="td-actions">
@@ -347,7 +362,7 @@
           </td>
         </tr>`).join('');
     } catch {
-      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--danger);padding:20px;text-align:center">Erro ao carregar usuários.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" class="cell-error">Erro ao carregar usuários.</td></tr>';
     }
   }
 
