@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Larsil — Gestão de Usuários</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary:   #2c5529;
+      --accent:    #4db55e;
+      --light:     #a0d063;
+      --branco:    #fafcfa;
+      --card:      #ffffff;
+      --muted:     #6b7a6b;
+      --border:    #d4e4d4;
+      --danger:    #c0392b;
+      --danger-h:  #a93226;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #f0f5f0;
+      color: #1e2e1e;
+      min-height: 100vh;
+    }
+
+    /* ── NAVBAR ── */
+    nav {
+      background: linear-gradient(135deg, #1a3318, var(--primary));
+      color: #fff;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(0,0,0,.3);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    nav .brand { display: flex; align-items: center; gap: 12px; font-weight: 900; font-size: 1.1rem; letter-spacing: .5px; text-transform: uppercase; }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    #navUser { font-size: .82rem; opacity: .85; font-weight: 400; }
+    .nav-link {
+      color: rgba(255,255,255,.85);
+      text-decoration: none;
+      font-size: .8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      transition: background .2s;
+    }
+    .nav-link:hover { background: rgba(255,255,255,.15); }
+    .nav-link.active { background: rgba(255,255,255,.22); color: #fff; }
+    #btnLogout {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.35);
+      color: #fff;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: .8rem;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      transition: background .2s;
+    }
+    #btnLogout:hover { background: rgba(255,255,255,.28); }
+
+    /* ── MAIN ── */
+    main { max-width: 960px; margin: 36px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 28px; }
+
+    h2 {
+      font-size: 1.35rem;
+      color: var(--primary);
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 4px;
+    }
+    .subtitle { color: var(--muted); font-size: .88rem; font-weight: 400; }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(44,85,41,.1);
+      padding: 28px 28px;
+    }
+    .card h3 {
+      font-size: 1rem;
+      font-weight: 900;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    /* ── FORM ── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+    .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .form-group { display: flex; flex-direction: column; gap: 5px; }
+    label { font-size: .78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+    input[type="text"], input[type="password"] {
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: .9rem;
+      color: #1e2e1e;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+      background: #fff;
+    }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(77,181,94,.18); }
+
+    /* ── BOTÕES ── */
+    .btn {
+      padding: 11px 24px;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 900;
+      font-size: .85rem;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      cursor: pointer;
+      transition: filter .2s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-danger  { background: var(--danger); color: #fff; }
+    .btn-danger:hover  { background: var(--danger-h); }
+    .btn-warning { background: #e67e22; color: #fff; }
+    .btn-warning:hover { filter: brightness(1.1); }
+    .btn-sm { padding: 6px 14px; font-size: .75rem; }
+    .form-actions { margin-top: 6px; display: flex; gap: 10px; align-items: center; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: var(--primary);
+      color: #fff;
+      padding: 13px 22px;
+      border-radius: 10px;
+      font-size: .88rem;
+      font-weight: 700;
+      box-shadow: 0 4px 20px rgba(0,0,0,.25);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity .3s, transform .3s;
+      pointer-events: none;
+      z-index: 999;
+      max-width: 320px;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.error { background: var(--danger); }
+
+    /* ── TABELA ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+    thead tr { background: var(--primary); color: #fff; }
+    thead th { padding: 12px 14px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: .75rem; letter-spacing: .4px; }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+    tbody tr:hover { background: #f5faf5; }
+    tbody td { padding: 12px 14px; vertical-align: middle; }
+    .td-actions { display: flex; gap: 8px; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.25);
+    }
+    .modal h3 { font-size: 1rem; font-weight: 900; color: var(--primary); text-transform: uppercase; margin-bottom: 20px; }
+    .modal .form-group { margin-bottom: 14px; }
+    .modal .form-actions { margin-top: 20px; }
+
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid.cols-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="brand">
+    <img src="img/logo-branca.png" alt="Larsil" class="nav-brand-logo" />
+  </div>
+  <div class="nav-right">
+    <a href="conversor.html" class="nav-link">Conversor</a>
+    <a href="gestao-usuarios.html" class="nav-link active">Usuários</a>
+    <span id="navUser"></span>
+    <button id="btnLogout">Sair</button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main>
+  <div>
+    <h2>Gestão de Usuários</h2>
+    <p class="subtitle">Crie, remova e altere senhas dos usuários do sistema</p>
+  </div>
+
+  <!-- Criar usuário -->
+  <div class="card">
+    <h3>Novo Usuário</h3>
+    <div class="form-grid cols-3">
+      <div class="form-group">
+        <label for="newLogin">Login</label>
+        <input type="text" id="newLogin" placeholder="ex: joao.silva" maxlength="100" autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <label for="newNome">Nome completo</label>
+        <input type="text" id="newNome" placeholder="ex: João Silva" maxlength="200" />
+      </div>
+      <div class="form-group">
+        <label for="newSenha">Senha</label>
+        <input type="password" id="newSenha" placeholder="Senha inicial" maxlength="128" autocomplete="new-password" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="btnCriar">Criar Usuário</button>
+    </div>
+  </div>
+
+  <!-- Tabela de usuários -->
+  <div class="card">
+    <h3>Usuários cadastrados</h3>
+    <div class="table-wrap">
+      <table id="tblUsuarios">
+        <thead>
+          <tr>
+            <th>Login</th>
+            <th>Nome</th>
+            <th style="width:180px">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyUsuarios">
+          <tr><td colspan="3" style="text-align:center;color:var(--muted);padding:24px">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Modal: trocar senha -->
+<div class="modal-overlay" id="modalSenha">
+  <div class="modal">
+    <h3>Alterar Senha</h3>
+    <p style="font-size:.85rem;color:var(--muted);margin-bottom:18px">Usuário: <strong id="modalLogin"></strong></p>
+    <div class="form-group">
+      <label for="modalNovaSenha">Nova senha</label>
+      <input type="password" id="modalNovaSenha" placeholder="Nova senha" maxlength="128" autocomplete="new-password" />
+    </div>
+    <div class="form-group" style="margin-top:12px">
+      <label for="modalConfSenha">Confirmar senha</label>
+      <input type="password" id="modalConfSenha" placeholder="Repita a senha" maxlength="128" />
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" id="btnConfSenha">Salvar</button>
+      <button class="btn" style="background:#eee;color:#444" id="btnCancelarModal">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+  /* ── Auth guard ─────────────────────────────────────────────────────── */
+  if (!sessionStorage.getItem('cf_loggedIn')) {
+    window.location.href = 'index.html';
+  }
+  const cfUser = sessionStorage.getItem('cf_username') || '';
+  document.getElementById('navUser').textContent = cfUser;
+
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    try { await fetch('api/logout.php', { credentials: 'same-origin' }); } catch {}
+    sessionStorage.clear();
+    window.location.href = 'index.html';
+  });
+
+  /* ── Toast ──────────────────────────────────────────────────────────── */
+  let toastTimer = null;
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show' + (isError ? ' error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = ''; }, 3200);
+  }
+
+  /* ── API helper ─────────────────────────────────────────────────────── */
+  async function api(method, body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch('api/usuarios.php', opts);
+    return res.json();
+  }
+
+  /* ── Carregar tabela ─────────────────────────────────────────────────── */
+  async function carregarUsuarios() {
+    const tbody = document.getElementById('tbodyUsuarios');
+    try {
+      const data = await api('GET');
+      if (!data.success) { tbody.innerHTML = `<tr><td colspan="3" style="color:var(--danger);padding:20px;text-align:center">${data.message}</td></tr>`; return; }
+      if (data.usuarios.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:24px">Nenhum usuário cadastrado.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.usuarios.map(u => `
+        <tr>
+          <td><code style="font-size:.85rem">${esc(u.LOGIN)}</code></td>
+          <td>${esc(u.NOME)}</td>
+          <td>
+            <div class="td-actions">
+              <button class="btn btn-warning btn-sm" onclick="abrirModalSenha('${esc(u.LOGIN)}')">Trocar Senha</button>
+              <button class="btn btn-danger btn-sm" onclick="excluirUsuario('${esc(u.LOGIN)}')">Excluir</button>
+            </div>
+          </td>
+        </tr>`).join('');
+    } catch {
+      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--danger);padding:20px;text-align:center">Erro ao carregar usuários.</td></tr>';
+    }
+  }
+
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Criar ───────────────────────────────────────────────────────────── */
+  document.getElementById('btnCriar').addEventListener('click', async () => {
+    const login = document.getElementById('newLogin').value.trim();
+    const nome  = document.getElementById('newNome').value.trim();
+    const senha = document.getElementById('newSenha').value;
+
+    if (!login || !nome || !senha) { showToast('Preencha todos os campos.', true); return; }
+    if (senha.length < 4) { showToast('A senha deve ter ao menos 4 caracteres.', true); return; }
+
+    const btn = document.getElementById('btnCriar');
+    btn.disabled = true; btn.textContent = 'Criando...';
+    try {
+      const data = await api('POST', { login, nome, senha });
+      showToast(data.message, !data.success);
+      if (data.success) {
+        document.getElementById('newLogin').value = '';
+        document.getElementById('newNome').value  = '';
+        document.getElementById('newSenha').value = '';
+        carregarUsuarios();
+      }
+    } catch { showToast('Erro de comunicação.', true); }
+    finally { btn.disabled = false; btn.textContent = 'Criar Usuário'; }
+  });
+
+  /* ── Excluir ─────────────────────────────────────────────────────────── */
+  async function excluirUsuario(login) {
+    if (!confirm(`Excluir o usuário "${login}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      const data = await api('DELETE', { login });
+      showToast(data.message, !data.success);
+      if (data.success) carregarUsuarios();
+    } catch { showToast('Erro de comunicação.', true); }
+  }
+
+  /* ── Modal: trocar senha ─────────────────────────────────────────────── */
+  let loginAlvo = '';
+
+  function abrirModalSenha(login) {
+    loginAlvo = login;
+    document.getElementById('modalLogin').textContent = login;
+    document.getElementById('modalNovaSenha').value = '';
+    document.getElementById('modalConfSenha').value = '';
+    document.getElementById('modalSenha').classList.add('open');
+    document.getElementById('modalNovaSenha').focus();
+  }
+
+  document.getElementById('btnCancelarModal').addEventListener('click', () => {
+    document.getElementById('modalSenha').classList.remove('open');
+  });
+
+  document.getElementById('modalSenha').addEventListener('click', e => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+  });
+
+  document.getElementById('btnConfSenha').addEventListener('click', async () => {
+    const nova  = document.getElementById('modalNovaSenha').value;
+    const conf  = document.getElementById('modalConfSenha').value;
+
+    if (!nova) { showToast('Informe a nova senha.', true); return; }
+    if (nova.length < 4) { showToast('A senha deve ter ao menos 4 caracteres.', true); return; }
+    if (nova !== conf) { showToast('As senhas não coincidem.', true); return; }
+
+    const btn = document.getElementById('btnConfSenha');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    try {
+      const data = await api('PATCH', { login: loginAlvo, nova_senha: nova });
+      showToast(data.message, !data.success);
+      if (data.success) document.getElementById('modalSenha').classList.remove('open');
+    } catch { showToast('Erro de comunicação.', true); }
+    finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+  });
+
+  /* ── Init ─────────────────────────────────────────────────────────────── */
+  carregarUsuarios();
+</script>
+</body>
+</html>

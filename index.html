@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Larsil — Conversor de Fatura</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --verde-escuro: #2c5529;
+      --verde-medio:  #4db55e;
+      --verde-claro:  #a0d063;
+      --branco:       #fafcfa;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(150deg, #1a3318 0%, var(--verde-escuro) 60%, #3a7a3a 100%);
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .card {
+      background: var(--branco);
+      border-radius: 18px;
+      padding: 48px 40px 40px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.45);
+      animation: fadeUp .5s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logo img {
+      height: 96px;
+      width: auto;
+      max-width: 100%;
+      object-fit: contain;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .logo p {
+      font-size: .8rem;
+      color: #6b7b6a;
+      margin-top: 12px;
+      font-weight: 400;
+      text-align: center;
+    }
+
+    label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 700;
+      color: var(--verde-escuro);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #c4d8c3;
+      border-radius: 8px;
+      font-size: .95rem;
+      font-family: 'Montserrat', sans-serif;
+      color: #1a2e1a;
+      background: #fff;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      border-color: var(--verde-medio);
+      box-shadow: 0 0 0 3px rgba(77,181,94,.2);
+    }
+
+    .field { margin-bottom: 20px; }
+
+    .field-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .field-row a {
+      font-size: .76rem;
+      color: var(--verde-medio);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .field-row a:hover { text-decoration: underline; }
+
+    .toggle-pw { position: relative; }
+    .toggle-pw input { padding-right: 44px; }
+
+    .toggle-pw button {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #9ca3af;
+      padding: 0;
+      display: flex;
+    }
+
+    .toggle-pw button:hover { color: var(--verde-escuro); }
+
+    .remember {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .82rem;
+      color: #557055;
+      margin-bottom: 24px;
+      cursor: pointer;
+      font-weight: 400;
+    }
+
+    .remember input { accent-color: var(--verde-medio); width: 16px; height: 16px; cursor: pointer; }
+
+    .btn-login {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--verde-escuro), #3d7a3a);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 900;
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      transition: opacity .2s, transform .1s;
+    }
+
+    .btn-login:hover:not(:disabled) { opacity: .88; }
+    .btn-login:active:not(:disabled) { transform: scale(.98); }
+    .btn-login:disabled { opacity: .55; cursor: not-allowed; }
+
+    .error-msg {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #b91c1c;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .84rem;
+      margin-top: 16px;
+      text-align: center;
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: .74rem;
+      color: #8fa88e;
+      margin-top: 28px;
+      font-weight: 400;
+    }
+
+    .accent-bar {
+      height: 4px;
+      background: linear-gradient(90deg, var(--verde-escuro), var(--verde-medio), var(--verde-claro));
+      border-radius: 18px 18px 0 0;
+      margin: -48px -40px 40px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="accent-bar"></div>
+  <div class="logo">
+    <img src="img/logo-cores.png" alt="Larsil Serviços Florestais" />
+    <p>Conversor de PDF para Excel &mdash; faça login para continuar</p>
+  </div>
+
+  <form id="loginForm" novalidate>
+    <div class="field">
+      <label for="username">Usuário</label>
+      <input type="text" id="username" placeholder="Digite seu usuário" autocomplete="username" />
+    </div>
+
+    <div class="field">
+      <div class="field-row">
+        <label for="password">Senha</label>
+        <a href="#" tabindex="-1">Esqueceu a senha?</a>
+      </div>
+      <div class="toggle-pw">
+        <input type="password" id="password" placeholder="Digite sua senha" autocomplete="current-password" />
+        <button type="button" id="togglePw" aria-label="Mostrar/ocultar senha">
+          <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <label class="remember">
+      <input type="checkbox" id="remember" /> Lembrar-me
+    </label>
+
+    <button type="submit" class="btn-login">Entrar</button>
+
+    <div class="error-msg" id="errorMsg">Usuário ou senha incorretos. Tente novamente.</div>
+  </form>
+
+  <div class="footer-note">Versão 1.0 &bull; Uso interno</div>
+</div>
+
+<script>
+  // ── toggle visibilidade da senha ─────────────────────────────────────────
+  const toggleBtn = document.getElementById('togglePw');
+  const pwInput   = document.getElementById('password');
+  const eyeIcon   = document.getElementById('eyeIcon');
+
+  const eyeOpenSVG = `
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>`;
+
+  const eyeClosedSVG = `
+    <path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+    <line x1="1" y1="1" x2="23" y2="23"/>`;
+
+  toggleBtn.addEventListener('click', () => {
+    const show = pwInput.type === 'password';
+    pwInput.type = show ? 'text' : 'password';
+    eyeIcon.innerHTML = show ? eyeClosedSVG : eyeOpenSVG;
+  });
+
+  // ── lembrar usuário ──────────────────────────────────────────────────────
+  const usernameInput = document.getElementById('username');
+  const rememberCheck = document.getElementById('remember');
+  const savedUser     = localStorage.getItem('cf_user');
+
+  if (savedUser) {
+    usernameInput.value   = savedUser;
+    rememberCheck.checked = true;
+  }
+
+  // ── submit do formulário → chama api/auth.php ────────────────────────────
+  document.getElementById('loginForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    const user    = usernameInput.value.trim();
+    const pass    = pwInput.value;
+    const errorEl = document.getElementById('errorMsg');
+    const btnEl   = document.querySelector('.btn-login');
+
+    if (!user || !pass) {
+      errorEl.textContent = 'Preencha usuário e senha.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    // Desabilita botão durante a requisição
+    btnEl.disabled    = true;
+    btnEl.textContent = 'Aguarde…';
+    errorEl.style.display = 'none';
+
+    try {
+      const controller = new AbortController();
+      const timeoutId  = setTimeout(() => controller.abort(), 12000); // 12s
+
+      const response = await fetch('api/auth.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      const data = await response.json();
+
+      if (data.success) {
+        if (rememberCheck.checked) {
+          localStorage.setItem('cf_user', user);
+        } else {
+          localStorage.removeItem('cf_user');
+        }
+
+        sessionStorage.setItem('cf_loggedIn', '1');
+        sessionStorage.setItem('cf_username', data.username || user);
+        window.location.href = 'conversor.html';
+      } else {
+        errorEl.textContent = data.message || 'Usuário ou senha incorretos.';
+        errorEl.style.display = 'block';
+        pwInput.value = '';
+        pwInput.focus();
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        errorEl.textContent = 'Tempo esgotado ao conectar ao banco de dados. Verifique a conexão com o Azure SQL.';
+      } else {
+        errorEl.textContent = 'Não foi possível conectar ao servidor. Verifique se o XAMPP está ativo.';
+      }
+      errorEl.style.display = 'block';
+    } finally {
+      btnEl.disabled    = false;
+      btnEl.textContent = 'Entrar';
+    }
+  });
+</script>
+</body>
+</html>

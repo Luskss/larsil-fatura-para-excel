@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Larsil — Conversor de Fatura</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <!-- PDF.js via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- SheetJS (xlsx) via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:      #2c5529;
+      --primary-mid:  #3d7a3a;
+      --accent:       #4db55e;
+      --accent-light: #a0d063;
+      --danger:       #ef4444;
+      --bg:           #f0f5f0;
+      --card:         #fafcfa;
+      --border:       #c4d8c3;
+      --text:         #1a2e1a;
+      --muted:        #557055;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      font-family: 'Montserrat', sans-serif;
+      color: var(--text);
+    }
+
+    /* ── NAVBAR ─────────────────────────────────────────────────────────── */
+    nav {
+      background: linear-gradient(135deg, #1a3318, var(--primary));
+      color: #fff;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(0,0,0,.3);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    nav .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 900;
+      font-size: 1.1rem;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    .nav-brand-logo { height: 38px; width: auto; }
+
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+
+    #navUser { font-size: .82rem; opacity: .85; font-weight: 400; }
+
+    .nav-link {
+      color: rgba(255,255,255,.85);
+      text-decoration: none;
+      font-size: .8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      padding: 6px 14px;
+      border-radius: 6px;
+      transition: background .2s;
+    }
+    .nav-link:hover { background: rgba(255,255,255,.15); }
+    .nav-link.active { background: rgba(255,255,255,.22); color: #fff; }
+
+    #btnLogout {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.35);
+      color: #fff;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: .8rem;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      transition: background .2s;
+    }
+
+    #btnLogout:hover { background: rgba(255,255,255,.28); }
+
+    /* ── MAIN ────────────────────────────────────────────────────────────── */
+    main {
+      max-width: 900px;
+      margin: 36px auto;
+      padding: 0 16px;
+    }
+
+    h2 {
+      font-size: 1.35rem;
+      color: var(--primary);
+      margin-bottom: 6px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .subtitle { color: var(--muted); font-size: .88rem; margin-bottom: 28px; font-weight: 400; }
+
+    /* ── UPLOAD ZONE ─────────────────────────────────────────────────────── */
+    .upload-zone {
+      border: 2.5px dashed var(--border);
+      border-radius: 14px;
+      padding: 52px 24px;
+      text-align: center;
+      background: var(--card);
+      transition: border-color .25s, background .25s;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .upload-zone.dragover {
+      border-color: var(--primary);
+      background: #eaf3f7;
+    }
+
+    .upload-zone svg { color: var(--primary); margin-bottom: 14px; }
+
+    .upload-zone p { color: var(--muted); font-size: .95rem; }
+    .upload-zone p strong { color: var(--primary); }
+
+    .upload-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .file-hint { font-size: .78rem; color: #9ca3af; margin-top: 8px; }
+
+    /* ── LISTA DE ARQUIVOS SELECIONADOS ──────────────────────────────────── */
+    .files-list {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 10px;
+      padding: 11px 16px;
+      animation: fadeIn .2s;
+    }
+
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+
+    .file-item svg { color: var(--accent); flex-shrink: 0; }
+
+    .file-item .file-name {
+      font-weight: 600;
+      font-size: .88rem;
+      color: #166534;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 380px;
+    }
+
+    .file-item .file-size { font-size: .75rem; color: #4ade80; }
+
+    .file-count {
+      font-size: .78rem;
+      color: var(--muted);
+      padding: 4px 0 2px;
+      font-weight: 600;
+    }
+
+    .btn-remove {
+      margin-left: auto;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #dc2626;
+      padding: 4px;
+      border-radius: 4px;
+      display: flex;
+      flex-shrink: 0;
+    }
+
+    .btn-remove:hover { background: #fee2e2; }
+
+    /* ── OPÇÕES ──────────────────────────────────────────────────────────── */
+    .options-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px 24px;
+      margin-top: 20px;
+    }
+
+    .options-card h3 {
+      font-size: .9rem;
+      color: var(--primary);
+      margin-bottom: 16px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+    }
+
+    .opt-group label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    .opt-group input[type="text"],
+    .opt-group select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      font-size: .88rem;
+      font-family: 'Montserrat', sans-serif;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .opt-group input:focus, .opt-group select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(77,181,94,.15);
+    }
+
+    /* ── BOTÃO CONVERTER ─────────────────────────────────────────────────── */
+    .btn-convert {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      margin-top: 22px;
+      padding: 14px;
+      background: linear-gradient(135deg, #1a3318, var(--primary));
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 900;
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      transition: opacity .2s, transform .1s;
+    }
+
+    .btn-convert:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-convert:not(:disabled):hover { opacity: .88; }
+    .btn-convert:not(:disabled):active { transform: scale(.98); }
+
+    /* ── PROGRESSO ───────────────────────────────────────────────────────── */
+    .progress-wrap {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .82rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary), var(--accent), var(--accent-light));
+      border-radius: 999px;
+      transition: width .3s ease;
+    }
+
+    /* ── RESULTADO ───────────────────────────────────────────────────────── */
+    .result-section {
+      display: none;
+      margin-top: 28px;
+    }
+
+    .result-section h3 {
+      font-size: .95rem;
+      color: var(--primary);
+      margin-bottom: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    .preview-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      max-height: 340px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .82rem;
+    }
+
+    thead th {
+      background: var(--primary);
+      color: #fafcfa;
+      padding: 10px 12px;
+      text-align: left;
+      position: sticky;
+      top: 0;
+      white-space: nowrap;
+      font-weight: 700;
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    tbody tr:nth-child(even) { background: #f0f5f0; }
+    tbody td { padding: 8px 12px; border-top: 1px solid #deeede; white-space: nowrap; }
+
+    .btn-export {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 26px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 900;
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      transition: background .2s;
+      text-decoration: none;
+    }
+
+    .btn-export:hover { background: var(--primary); }
+
+    .export-actions {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .export-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .btn-export-secondary {
+      background: #2c5529;
+      padding: 12px 16px;
+      margin-top: 0;
+    }
+
+    .btn-export-secondary:hover { background: #1f3e1d; }
+
+    .export-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      min-width: 260px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.16);
+      padding: 12px;
+      z-index: 30;
+    }
+
+    .export-menu.open { display: block; }
+
+    .export-menu-title {
+      font-size: .78rem;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 8px;
+    }
+
+    .export-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 2px;
+      font-size: .85rem;
+      color: #1f2937;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .export-option input { accent-color: #2c5529; }
+
+    .btn-export-small {
+      width: 100%;
+      justify-content: center;
+      margin-top: 10px;
+      padding: 10px 12px;
+      font-size: .8rem;
+    }
+
+    /* ── ERROS ───────────────────────────────────────────────────────────── */
+    .error-box {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #b91c1c;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: .88rem;
+      margin-top: 20px;
+    }
+
+    /* ── SPINNER ─────────────────────────────────────────────────────────── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 3px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── FOOTER ──────────────────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      font-size: .75rem;
+      color: var(--muted);
+      padding: 32px 0 20px;
+      font-weight: 400;
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="brand">
+    <img src="img/logo-branca.png" alt="Larsil" class="nav-brand-logo" />
+  </div>
+  <div class="nav-right">
+    <a href="conversor.html" class="nav-link active">Conversor</a>
+    <a href="gestao-usuarios.html" class="nav-link">Usuários</a>
+    <span id="navUser"></span>
+    <button id="btnLogout">Sair</button>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main>
+  <h2>Converter PDF de Fatura em Excel</h2>
+  <p class="subtitle">Extrai automaticamente as transações da fatura (Data, Descrição, Parcela e Valor) e exporta para Excel</p>
+
+  <!-- Upload -->
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="pdfInput" accept="application/pdf" multiple />
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    <p><strong>Clique para selecionar</strong> ou arraste os PDFs aqui</p>
+    <p class="file-hint">Vários arquivos PDF — máximo 20 MB cada</p>
+  </div>
+
+  <!-- Lista de arquivos selecionados -->
+  <div class="files-list" id="filesList">
+    <div class="file-count" id="fileCount"></div>
+    <!-- itens injetados pelo JS -->
+  </div>
+
+  <!-- Opções -->
+  <div class="options-card">
+    <h3>Opções de exportação</h3>
+    <div class="options-grid">
+      <div class="opt-group">
+        <label>Nome do arquivo</label>
+        <input type="text" id="outFileName" value="fatura" placeholder="fatura" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Botão converter -->
+  <button class="btn-convert" id="btnConvert" disabled>
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 4 23 10 17 10"/>
+      <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+    </svg>
+    <span id="btnLabel">Converter PDF em Excel</span>
+    <div class="spinner" id="spinner"></div>
+  </button>
+
+  <!-- Barra de progresso -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label">
+      <span id="progressText">Processando…</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <!-- Erro -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Resultado -->
+  <div class="result-section" id="resultSection">
+    <h3>Pré-visualização das transações extraídas</h3>
+    <div class="preview-table-wrap">
+      <table id="previewTable">
+        <thead id="previewHead"></thead>
+        <tbody id="previewBody"></tbody>
+      </table>
+    </div>
+    <div class="export-actions">
+      <button class="btn-export" id="btnExport">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Baixar planilha Excel (.xlsx)
+      </button>
+
+      <div class="export-dropdown">
+        <button class="btn-export btn-export-secondary" id="btnExportMenu" type="button">Filtrar exportação</button>
+        <div class="export-menu" id="exportMenu">
+          <div class="export-menu-title">Exportar somente</div>
+          <label class="export-option"><input type="checkbox" id="expTransacoes" checked /> Transações</label>
+          <label class="export-option"><input type="checkbox" id="expPagamentos" checked /> Pagamentos</label>
+          <label class="export-option"><input type="checkbox" id="expDespesas" checked /> Despesas</label>
+          <button class="btn-export btn-export-small" id="btnExportFiltered" type="button">Exportar selecionados</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>Conversor de Fatura &bull; Versão 1.0 &bull; Uso interno</footer>
+
+<script>
+  // ── Guarda a planilha para exportar depois ─────────────────────────────
+  let workbook = null;
+
+  // ── Verificar sessão ───────────────────────────────────────────────────
+  if (!sessionStorage.getItem('cf_loggedIn')) {
+    window.location.href = 'index.html';
+  }
+
+  const userName = sessionStorage.getItem('cf_username') || 'usuário';
+  document.getElementById('navUser').textContent = 'Olá, ' + userName;
+
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    try { await fetch('api/logout.php', { credentials: 'same-origin' }); } catch {}
+    sessionStorage.clear();
+    window.location.href = 'index.html';
+  });
+
+  // ── PDF.js worker ──────────────────────────────────────────────────────
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  // ── Elementos ──────────────────────────────────────────────────────────
+  const pdfInput      = document.getElementById('pdfInput');
+  const uploadZone    = document.getElementById('uploadZone');
+  const filesList     = document.getElementById('filesList');
+  const fileCount     = document.getElementById('fileCount');
+  const btnConvert    = document.getElementById('btnConvert');
+  const btnLabel      = document.getElementById('btnLabel');
+  const spinner       = document.getElementById('spinner');
+  const progressWrap  = document.getElementById('progressWrap');
+  const progressFill  = document.getElementById('progressFill');
+  const progressText  = document.getElementById('progressText');
+  const progressPct   = document.getElementById('progressPct');
+  const errorBox      = document.getElementById('errorBox');
+  const resultSection = document.getElementById('resultSection');
+  const btnExport     = document.getElementById('btnExport');
+  const btnExportMenu = document.getElementById('btnExportMenu');
+  const exportMenu    = document.getElementById('exportMenu');
+  const btnExportFiltered = document.getElementById('btnExportFiltered');
+  const expTransacoes = document.getElementById('expTransacoes');
+  const expPagamentos = document.getElementById('expPagamentos');
+  const expDespesas   = document.getElementById('expDespesas');
+  const outFileName   = document.getElementById('outFileName');
+
+  let selectedFiles = []; // Array de File
+  let currentSheetsMap = null;
+
+  // ── Drag & Drop ────────────────────────────────────────────────────────
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    const files = [...e.dataTransfer.files].filter(f => f.type === 'application/pdf');
+    if (!files.length) { showError('Apenas arquivos PDF são aceitos.'); return; }
+    handleFiles(files);
+  });
+
+  pdfInput.addEventListener('change', () => {
+    if (pdfInput.files.length) handleFiles([...pdfInput.files]);
+    pdfInput.value = '';
+  });
+
+  function handleFiles(newFiles) {
+    let rejected = 0;
+    for (const f of newFiles) {
+      if (f.size > 20 * 1024 * 1024) { rejected++; continue; }
+      // Evita duplicatas pelo nome+tamanho
+      if (!selectedFiles.some(x => x.name === f.name && x.size === f.size)) {
+        selectedFiles.push(f);
+      }
+    }
+    if (rejected) showError(`${rejected} arquivo(s) ignorado(s) por exceder 20 MB.`);
+    else hideError();
+    renderFileList();
+  }
+
+  function renderFileList() {
+    // Remove itens antigos (mantém o #fileCount)
+    [...filesList.children].forEach(c => { if (c.id !== 'fileCount') c.remove(); });
+
+    if (!selectedFiles.length) {
+      filesList.style.display = 'none';
+      btnConvert.disabled = true;
+      resultSection.style.display = 'none';
+      workbook = null;
+      currentSheetsMap = null;
+      return;
+    }
+
+    filesList.style.display = 'flex';
+    btnConvert.disabled = false;
+
+    fileCount.textContent = `${selectedFiles.length} arquivo(s) selecionado(s)`;
+
+    selectedFiles.forEach((file, idx) => {
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <div>
+          <div class="file-name">${esc(file.name)}</div>
+          <div class="file-size">${formatBytes(file.size)}</div>
+        </div>
+        <button class="btn-remove" title="Remover">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>`;
+      item.querySelector('.btn-remove').addEventListener('click', () => {
+        selectedFiles.splice(idx, 1);
+        renderFileList();
+      });
+      filesList.appendChild(item);
+    });
+  }
+
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── CONVERTER ─────────────────────────────────────────────────────────
+  btnConvert.addEventListener('click', async () => {
+    if (!selectedFiles.length) return;
+
+    setLoading(true);
+    hideError();
+    resultSection.style.display = 'none';
+    workbook = null;
+    currentSheetsMap = null;
+
+    try {
+      // Processa cada PDF e acumula as abas num mapa global
+      const globalSheets = {};
+      const sheetNameCount = {};
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const { sheetsMap, periodLabel } = await extractRowsFromPDF(selectedFiles[i], i, selectedFiles.length);
+        for (const cardLabel in sheetsMap) {
+          const baseLabel = periodLabel ? `${cardLabel} - ${periodLabel}` : cardLabel;
+          let finalLabel = baseLabel;
+          if (globalSheets[finalLabel]) {
+            sheetNameCount[baseLabel] = (sheetNameCount[baseLabel] || 1) + 1;
+            finalLabel = `${baseLabel} (${sheetNameCount[baseLabel]})`;
+          } else {
+            sheetNameCount[baseLabel] = 1;
+          }
+          globalSheets[finalLabel] = sheetsMap[cardLabel];
+        }
+      }
+
+      // Garante que linhas sem data herdem a data anterior válida.
+      applyDateBackfill(globalSheets);
+
+      const totalLinhas = Object.values(globalSheets).reduce((s, r) => s + Math.max(0, r.length - 1), 0);
+      if (totalLinhas === 0) {
+        showError('Nenhuma transação foi reconhecida nos PDFs. Verifique se os arquivos contêm texto selecionável.');
+        setLoading(false);
+        return;
+      }
+
+      workbook = buildWorkbook(globalSheets);
+      currentSheetsMap = globalSheets;
+      renderPreview(globalSheets);
+      resultSection.style.display = 'block';
+    } catch (err) {
+      showError('Erro ao processar os PDFs: ' + err.message);
+    }
+
+    setLoading(false);
+  });
+
+  // ── EXPORTAR ───────────────────────────────────────────────────────────
+  btnExport.addEventListener('click', () => {
+    if (!workbook) return;
+    const name = (outFileName.value.trim() || 'fatura') + '.xlsx';
+    XLSX.writeFile(workbook, name);
+  });
+
+  btnExportMenu.addEventListener('click', e => {
+    e.stopPropagation();
+    exportMenu.classList.toggle('open');
+  });
+
+  document.addEventListener('click', e => {
+    if (!exportMenu.contains(e.target) && e.target !== btnExportMenu) {
+      exportMenu.classList.remove('open');
+    }
+  });
+
+  btnExportFiltered.addEventListener('click', () => {
+    if (!currentSheetsMap) return;
+
+    const filters = {
+      transacoes: expTransacoes.checked,
+      pagamentos: expPagamentos.checked,
+      despesas: expDespesas.checked,
+    };
+
+    if (!filters.transacoes && !filters.pagamentos && !filters.despesas) {
+      showError('Selecione ao menos uma opção para exportar.');
+      return;
+    }
+
+    const filteredSheets = filterSheetsForExport(currentSheetsMap, filters);
+    const hasRows = Object.values(filteredSheets).some(rows => rows.length > 1);
+    if (!hasRows) {
+      showError('Nenhuma linha encontrada para os filtros selecionados.');
+      return;
+    }
+
+    const filteredWb = buildWorkbook(filteredSheets);
+    const nameBase = outFileName.value.trim() || 'fatura';
+    XLSX.writeFile(filteredWb, `${nameBase}_filtrado.xlsx`);
+    exportMenu.classList.remove('open');
+    hideError();
+  });
+
+  // ── EXTRAIR LINHAS DO PDF ──────────────────────────────────────────────
+  async function extractRowsFromPDF(file, fileIdx = 0, totalFiles = 1) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const totalPages = pdf.numPages;
+
+    const allLines = [];
+
+    const baseProgress = Math.round((fileIdx / totalFiles) * 80);
+    const fileShare    = Math.round(80 / totalFiles);
+
+    for (let p = 1; p <= totalPages; p++) {
+      const pct = baseProgress + Math.round(((p - 1) / totalPages) * fileShare * 0.9);
+      setProgress(pct, `Arquivo ${fileIdx + 1}/${totalFiles} — página ${p} de ${totalPages}…`);
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+
+      // Agrupa itens por posição Y (mesma linha)
+      const lineMap = {};
+      for (const item of content.items) {
+        const y = Math.round(item.transform[5]);
+        if (!lineMap[y]) lineMap[y] = [];
+        lineMap[y].push(item);
+      }
+
+      const sortedYs = Object.keys(lineMap).map(Number).sort((a, b) => b - a);
+      for (const y of sortedYs) {
+        const items = lineMap[y].sort((a, b) => a.transform[4] - b.transform[4]);
+        const lineText = items.map(i => i.str.trim()).filter(Boolean).join('\t');
+        if (lineText.trim()) allLines.push(lineText);
+      }
+    }
+
+    const analyzePct = baseProgress + Math.round(fileShare * 0.95);
+    setProgress(analyzePct, `Arquivo ${fileIdx + 1}/${totalFiles} — analisando dados…`);
+
+    return {
+      periodLabel: detectInvoicePeriod(allLines, file.name),
+      sheetsMap: parseLinesToRows(allLines),
+    };
+  }
+
+  // ── PARSER DE FATURA → AGRUPADO POR CARTÃO E SEÇÃO ───────────────────
+  // Detecta cartões (ex.: "RODRIGO D DA SILVA - 4258 XXXX XXXX 1883") e
+  // seções (Pagamento e Demais Créditos / Despesas / Parcelamentos).
+  // Retorna: { "Cartão XXXX": [ [Data, Descrição, Parcela, Valor], ... ], ... }
+  // com linhas de separador "── SEÇÃO ──" entre os grupos.
+  function parseLinesToRows(lines) {
+    const HEADER = ['Data', 'Descrição', 'Parcela', 'Valor (R$)'];
+
+    // Regex de cartão: nome em maiúsculas + 4 dígitos finais
+    //   ex: "RODRIGO D DA SILVA - 4258 XXXX XXXX 1883"
+    //   ex: "@ RODRIGO D DA SILV - 4258 XXXX XXXX 9940"
+    const cardRegex = /(?:@\s+)?([A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ\s.]+?)\s*-\s*(\d{4})\s*X{4}\s*X{4}\s*(\d{4})/i;
+
+    // Seções conhecidas
+    const sections = {
+      'pagamento e demais créditos': 'PAGAMENTO E DEMAIS CRÉDITOS',
+      'parcelamentos':                'PARCELAMENTOS',
+      'despesas':                     'DESPESAS',
+    };
+
+    const blacklist = [
+      'compra', 'data', 'descrição', 'parcela', 'r$', 'us$',
+      'valor total', 'saldo', 'total ', 'cotação dolar', 'iof despesa',
+      'limite', 'anuidade', 'cartão',
+      'detalhamento', 'resumo', 'histórico', 'opções', 'central',
+      'declaração', 'juros', 'cet', 'santander', 'esfera'
+    ];
+
+    // groups[cardLabel] = { sections: { sectionName: [linhas...] }, order: [sectionName,...] }
+    const groups   = {};
+    const groupOrder = [];
+
+    let currentCard    = 'Geral';
+    let currentSection = 'TRANSAÇÕES';
+    let lastDate       = '';   // ← herda data da linha anterior
+
+    // Inicializa grupo padrão
+    ensureGroup(groups, groupOrder, currentCard);
+
+    for (let raw of lines) {
+      const line = raw.replace(/\t+/g, ' ').replace(/\s+/g, ' ').trim();
+      if (line.length < 4) continue;
+
+      // 1) Detecta troca de cartão
+      const cardMatch = line.match(cardRegex);
+      if (cardMatch && line.length < 80) {
+        const nome  = cardMatch[1].trim();
+        const final = cardMatch[3];
+        currentCard = `${nome} - final ${final}`;
+        ensureGroup(groups, groupOrder, currentCard);
+        continue;
+      }
+
+      // 2) Detecta troca de seção
+      const lower = line.toLowerCase();
+      let matchedSection = null;
+      for (const key in sections) {
+        if (lower === key || lower.startsWith(key)) {
+          matchedSection = sections[key];
+          break;
+        }
+      }
+      if (matchedSection) {
+        currentSection = matchedSection;
+        continue;
+      }
+
+      // 3) Ignora cabeçalhos/rodapés
+      if (blacklist.some(w => lower.startsWith(w))) continue;
+
+      // 4) EXTRAÇÃO RIGOROSA — quebra a linha em todas as transações que
+      //    couberem nela. Usa as DATAS como pontos de corte.
+      //    Padrão: <DD/MM> <descrição> [parcela NN/NN] <valor BR>
+      const txGlobalRegex = /(\d{2}\/\d{2})\s+([A-Z@*][^\d]*?(?:\s+[A-Z@*0-9.\-,*\/]+)*?)\s+(?:(\d{1,2}\/\d{1,2})\s+)?(-?\d{1,3}(?:\.\d{3})*,\d{2})(?=\s|$)/g;
+
+      let found = false;
+      let match;
+      while ((match = txGlobalRegex.exec(line)) !== null) {
+        const data       = match[1];
+        let   descricao  = match[2].replace(/^@\s*/, '').replace(/\s+/g, ' ').trim();
+        const parcela    = match[3] || '';
+        const valorNum   = parseFloat(match[4].replace(/\./g, '').replace(',', '.'));
+
+        // Validações de qualidade
+        if (descricao.length < 3) continue;
+        if (descricao.length > 60) descricao = descricao.slice(0, 60).trim();
+        if (isNaN(valorNum) || valorNum === 0) continue;
+        if (!isValidDate(data)) continue;
+
+        lastDate = data;
+        pushTx(groups, currentCard, currentSection, [data, descricao, parcela, valorNum]);
+        found = true;
+      }
+
+      if (found) continue;
+
+      // 5) Linha SEM data → herda data anterior (apenas 1 valor permitido)
+      if (lastDate) {
+        const noDateMatch = line.match(/^([A-Z@*][A-Z0-9 .,\-\*\/]{2,60}?)(?:\s+(\d{1,2}\/\d{1,2}))?\s+(-?\d{1,3}(?:\.\d{3})*,\d{2})\s*$/);
+        if (noDateMatch) {
+          const descricao = noDateMatch[1].replace(/^@\s*/, '').replace(/\s+/g, ' ').trim();
+          const parcela   = noDateMatch[2] || '';
+          const valorNum  = parseFloat(noDateMatch[3].replace(/\./g, '').replace(',', '.'));
+
+          if (descricao.length >= 3 && !isNaN(valorNum) && valorNum !== 0) {
+            pushTx(groups, currentCard, currentSection, [lastDate, descricao, parcela, valorNum]);
+          }
+        }
+      }
+    }
+
+    // Monta resultado: para cada cartão, monta matriz com header + separadores + linhas
+    const result = {};
+    for (const card of groupOrder) {
+      const g = groups[card];
+      const totalLinhas = g.sectionOrder.reduce((s, n) => s + g.sections[n].length, 0);
+      if (totalLinhas === 0) continue;
+
+      const sheet = [HEADER];
+      for (const sec of g.sectionOrder) {
+        const linhas = g.sections[sec];
+        if (!linhas.length) continue;
+        // Linha separadora (mescla visual feita no buildWorkbook)
+        sheet.push([`── ${sec} ──`, '', '', '']);
+        for (const r of linhas) sheet.push(r);
+      }
+      result[card] = sheet;
+    }
+
+    // Se nenhum cartão foi detectado, retorna apenas o "Geral"
+    return Object.keys(result).length ? result : { 'Fatura': [HEADER] };
+  }
+
+  function ensureGroup(groups, order, name) {
+    if (!groups[name]) {
+      groups[name] = { sections: {}, sectionOrder: [] };
+      order.push(name);
+    }
+  }
+
+  function pushTx(groups, card, section, row) {
+    const grp = groups[card];
+    if (!grp.sections[section]) {
+      grp.sections[section] = [];
+      grp.sectionOrder.push(section);
+    }
+    grp.sections[section].push(row);
+  }
+
+  function isValidDate(str) {
+    const m = str.match(/^(\d{2})\/(\d{2})$/);
+    if (!m) return false;
+    const dia = parseInt(m[1], 10);
+    const mes = parseInt(m[2], 10);
+    return dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12;
+  }
+
+  // ── MONTAR WORKBOOK (uma aba por cartão) ──────────────────────────────
+  function buildWorkbook(sheetsMap) {
+    setProgress(90, 'Gerando planilha…');
+    const wb = XLSX.utils.book_new();
+    const usedSheetNames = new Set();
+
+    let sheetIdx = 0;
+    for (const cardLabel in sheetsMap) {
+      const rows = sheetsMap[cardLabel];
+      const titleRows = [[cardLabel, '', '', ''], ...rows];
+      const ws   = XLSX.utils.aoa_to_sheet(titleRows);
+
+      ws['!cols'] = [
+        { wch: 12 },
+        { wch: 50 },
+        { wch: 10 },
+        { wch: 16 },
+      ];
+
+      const range  = XLSX.utils.decode_range(ws['!ref']);
+      const merges = [];
+
+      // Linha de título da aba (A1:D1)
+      merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } });
+      const titleCell = ws[XLSX.utils.encode_cell({ r: 0, c: 0 })];
+      if (titleCell) {
+        titleCell.s = {
+          font:      { bold: true, color: { rgb: 'FFFFFF' }, sz: 12 },
+          fill:      { fgColor: { rgb: '1A3318' } },
+          alignment: { horizontal: 'left', vertical: 'center' },
+        };
+      }
+
+      for (let R = 1; R <= range.e.r; R++) {
+        const cellA = ws[XLSX.utils.encode_cell({ r: R, c: 0 })];
+        const cellD = ws[XLSX.utils.encode_cell({ r: R, c: 3 })];
+
+        // Linha de separador de seção
+        if (cellA && typeof cellA.v === 'string' && cellA.v.startsWith('── ')) {
+          merges.push({ s: { r: R, c: 0 }, e: { r: R, c: 3 } });
+          cellA.s = {
+            font:      { bold: true, color: { rgb: 'FFFFFF' } },
+            fill:      { fgColor: { rgb: '2C5529' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+          };
+          continue;
+        }
+
+        // Coluna Valor → moeda
+        if (cellD && typeof cellD.v === 'number') {
+          cellD.t = 'n';
+          cellD.z = '"R$" #,##0.00;[Red]"-R$" #,##0.00';
+        }
+      }
+
+      // Estiliza cabeçalho (linha 1, pois a linha 0 é o título)
+      for (let c = 0; c <= 3; c++) {
+        const addr = XLSX.utils.encode_cell({ r: 1, c });
+        if (ws[addr]) {
+          ws[addr].s = {
+            font:      { bold: true, color: { rgb: 'FFFFFF' } },
+            fill:      { fgColor: { rgb: '4DB55E' } },
+            alignment: { horizontal: 'center' },
+          };
+        }
+      }
+
+      ws['!merges'] = merges;
+
+      // Nome da aba: usa apenas os 2 primeiros nomes da pessoa
+      // Padrão: "NOME SOBRENOME - final XXXX - MM-AAAA"
+      let baseName = compactSheetLabel(cardLabel).replace(/[\\\/\?\*\[\]:]/g, '').trim();
+      if (!baseName) baseName = 'Cartao_' + (++sheetIdx);
+
+      let sheetName = baseName.slice(0, 31);
+      if (!sheetName) sheetName = 'Cartao_' + (++sheetIdx);
+
+      // Garante nome único mesmo após truncamento para 31 chars.
+      if (usedSheetNames.has(sheetName)) {
+        let n = 2;
+        while (true) {
+          const suffix = ` (${n})`;
+          const candidate = baseName.slice(0, Math.max(1, 31 - suffix.length)) + suffix;
+          if (!usedSheetNames.has(candidate)) {
+            sheetName = candidate;
+            break;
+          }
+          n++;
+        }
+      }
+      usedSheetNames.add(sheetName);
+
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    }
+
+    setProgress(100, 'Concluído!');
+    return wb;
+  }
+
+  // ── PRÉ-VISUALIZAÇÃO ───────────────────────────────────────────────────
+  function renderPreview(sheetsMap) {
+    const wrap = document.querySelector('.preview-table-wrap');
+    wrap.innerHTML = '';
+
+    const fmtBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    for (const cardLabel in sheetsMap) {
+      const rows = sheetsMap[cardLabel];
+      if (rows.length <= 1) continue;
+
+      // Título do cartão
+      const title = document.createElement('div');
+      title.textContent = cardLabel;
+      title.style.cssText = 'background:#1a3318;color:#fafcfa;padding:10px 14px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;font-size:.85rem;position:sticky;top:0;z-index:5';
+      wrap.appendChild(title);
+
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      const tbody = document.createElement('tbody');
+
+      const headerRow = document.createElement('tr');
+      rows[0].forEach(c => {
+        const th = document.createElement('th');
+        th.textContent = c;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+
+      const maxRows = 80;
+      const data = rows.slice(1, maxRows + 1);
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+
+        // Linha separadora de seção
+        if (typeof row[0] === 'string' && row[0].startsWith('── ')) {
+          const td = document.createElement('td');
+          td.colSpan = 4;
+          td.textContent = row[0].replace(/──/g, '').trim();
+          td.style.cssText = 'background:#2c5529;color:#fafcfa;font-weight:900;text-align:center;padding:8px;letter-spacing:.5px;font-size:.78rem;text-transform:uppercase';
+          tr.appendChild(td);
+          tbody.appendChild(tr);
+          return;
+        }
+
+        row.forEach((cell, idx) => {
+          const td = document.createElement('td');
+          if (idx === 3 && typeof cell === 'number') {
+            td.textContent = fmtBRL.format(cell);
+            td.style.textAlign = 'right';
+            td.style.fontVariantNumeric = 'tabular-nums';
+            if (cell < 0) td.style.color = '#dc2626';
+          } else {
+            td.textContent = cell;
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      if (rows.length > maxRows + 1) {
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 4;
+        td.style.cssText = 'text-align:center;color:#9ca3af;padding:10px;font-style:italic';
+        td.textContent = `… e mais ${rows.length - maxRows - 1} linha(s) — presentes no Excel exportado`;
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
+
+      table.appendChild(thead);
+      table.appendChild(tbody);
+      wrap.appendChild(table);
+    }
+  }
+
+  // ── HELPERS ───────────────────────────────────────────────────────────
+  function setLoading(on) {
+    btnConvert.disabled = on;
+    spinner.style.display = on ? 'block' : 'none';
+    btnLabel.textContent = on ? 'Processando…' : 'Converter PDF em Excel';
+    progressWrap.style.display = on ? 'block' : 'none';
+    if (!on) { progressFill.style.width = '0%'; progressPct.textContent = '0%'; }
+  }
+
+  function setProgress(pct, label) {
+    progressFill.style.width = pct + '%';
+    progressPct.textContent = pct + '%';
+    if (label) progressText.textContent = label;
+  }
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.style.display = 'block';
+  }
+
+  function hideError() { errorBox.style.display = 'none'; }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  function filterSheetsForExport(sheetsMap, filters) {
+    const out = {};
+
+    for (const cardLabel in sheetsMap) {
+      const rows = sheetsMap[cardLabel];
+      if (!Array.isArray(rows) || rows.length <= 1) continue;
+
+      const filtered = [rows[0]];
+      let currentType = 'transacoes';
+      let includeCurrent = filters.transacoes;
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const sec = typeof row[0] === 'string' ? row[0] : '';
+
+        if (sec.startsWith('── ')) {
+          currentType = sectionTypeFromSeparator(sec);
+          includeCurrent = !!filters[currentType];
+          if (includeCurrent) filtered.push(row);
+          continue;
+        }
+
+        if (includeCurrent) filtered.push(row);
+      }
+
+      if (filtered.length > 1) out[cardLabel] = filtered;
+    }
+
+    return out;
+  }
+
+  function sectionTypeFromSeparator(separatorText) {
+    const clean = String(separatorText)
+      .replace(/──/g, '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toUpperCase();
+
+    if (clean.startsWith('PAGAMENTO')) return 'pagamentos';
+    if (clean.startsWith('DESPESAS')) return 'despesas';
+    return 'transacoes';
+  }
+
+  function applyDateBackfill(sheetsMap) {
+    for (const cardLabel in sheetsMap) {
+      const rows = sheetsMap[cardLabel];
+      if (!Array.isArray(rows) || rows.length <= 1) continue;
+
+      let lastValidDate = '';
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!Array.isArray(row) || row.length < 4) continue;
+
+        // Ignora linha separadora "── SEÇÃO ──"
+        if (typeof row[0] === 'string' && row[0].startsWith('── ')) continue;
+
+        const rawDate = String(row[0] ?? '').trim();
+        if (isValidDate(rawDate)) {
+          lastValidDate = rawDate;
+        } else if (lastValidDate) {
+          row[0] = lastValidDate;
+        }
+      }
+    }
+  }
+
+  function compactSheetLabel(label) {
+    let base = String(label || '').trim();
+    let dupSuffix = '';
+
+    // Mantém sufixo de desambiguação, ex.: "(2)"
+    const dupMatch = base.match(/\s\(\d+\)$/);
+    if (dupMatch) {
+      dupSuffix = dupMatch[0];
+      base = base.slice(0, -dupSuffix.length).trim();
+    }
+
+    const parts = base.split(' - ').map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 2 && /^final\s+\d{4}$/i.test(parts[1])) {
+      const twoNames = parts[0].split(/\s+/).filter(Boolean).slice(0, 2).join(' ');
+      const rebuilt = [twoNames || parts[0], parts[1], ...parts.slice(2)].join(' - ');
+      return rebuilt + dupSuffix;
+    }
+
+    // Fallback: se não estiver no padrão esperado, reduz apenas o início.
+    const fallbackNames = base.split(/\s+/).filter(Boolean).slice(0, 2).join(' ');
+    return (fallbackNames || base) + dupSuffix;
+  }
+
+  function detectInvoicePeriod(lines, fileName = '') {
+    const monthMap = {
+      jan: '01', fevereiro: '02', fev: '02', mar: '03', marco: '03', abr: '04', mai: '05',
+      jun: '06', jul: '07', ago: '08', set: '09', setembro: '09', out: '10', nov: '11', dec: '12', dez: '12'
+    };
+
+    const normalized = lines.slice(0, 350).map(l => normalizeText(l.toLowerCase()));
+
+    // 1) tenta mês por extenso + ano (ex.: "marco 2026", "abr/2026")
+    for (const line of normalized) {
+      for (const key in monthMap) {
+        const re = new RegExp(`\\b${key}\\b[\\s\\-/]*(20\\d{2})`);
+        const m = line.match(re);
+        if (m) return `${monthMap[key]}-${m[1]}`;
+      }
+    }
+
+    // 2) tenta padrões numéricos com ano (MM/AAAA, YYYY-MM, DD/MM/AAAA)
+    for (const line of normalized) {
+      let m = line.match(/\b(0?[1-9]|1[0-2])[\/-](20\d{2})\b/);
+      if (m) return `${m[1].padStart(2, '0')}-${m[2]}`;
+
+      m = line.match(/\b(20\d{2})[\/-](0?[1-9]|1[0-2])\b/);
+      if (m) return `${m[2].padStart(2, '0')}-${m[1]}`;
+
+      m = line.match(/\b\d{1,2}[\/-](0?[1-9]|1[0-2])[\/-](20\d{2})\b/);
+      if (m) return `${m[1].padStart(2, '0')}-${m[2]}`;
+    }
+
+    // 3) fallback pelo nome do arquivo
+    const f = normalizeText(fileName.toLowerCase());
+    let m = f.match(/\b(0?[1-9]|1[0-2])[\-_](20\d{2})\b/);
+    if (m) return `${m[1].padStart(2, '0')}-${m[2]}`;
+    m = f.match(/\b(20\d{2})[\-_](0?[1-9]|1[0-2])\b/);
+    if (m) return `${m[2].padStart(2, '0')}-${m[1]}`;
+
+    return '';
+  }
+
+  function normalizeText(s) {
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+</script>
+</body>
+</html>

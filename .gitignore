@@ -1,0 +1,44 @@
+# Credenciais e configurações sensíveis
+.ENV
+.env
+.env.local
+.env.*.local
+
+# IDE e editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Dependências (se houver)
+node_modules/
+vendor/
+
+# Logs
+*.log
+logs/
+
+# Cache
+*.cache
+.cache/
+
+# Sistema operacional
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Arquivos temporários
+*.tmp
+*.temp
+/temp/
+/tmp/
+
+# Uploads (se houver)
+uploads/
+temp-files/
