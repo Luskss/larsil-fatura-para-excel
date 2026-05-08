@@ -14,8 +14,15 @@ declare(strict_types=1);
 
 session_start();
 
+// ── HEADERS DE SEGURANÇA ────────────────────────────────────────────────
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('X-XSS-Protection: 1; mode=block');
+header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+header('Content-Security-Policy: default-src \'none\'; script-src \'self\'; style-src \'self\' fonts.googleapis.com');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
 
 // Só aceita POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -47,6 +54,16 @@ if (strlen($username) > 100 || strlen($password) > 256) {
     exit;
 }
 
+// ── PROTEÇÃO CONTRA BRUTE FORCE (rate limiting básico) ──────────────────
+$loginAttempts = $_SESSION['login_attempts'] ?? 0;
+$lastAttempt = $_SESSION['last_login_attempt'] ?? 0;
+if ($loginAttempts > 5 && (time() - $lastAttempt < 900)) { // 5 tentativas em 15 min
+    http_response_code(429);
+    echo json_encode(['success' => false, 'message' => 'Muitas tentativas de login. Tente novamente mais tarde.']);
+    exit;
+}
+$_SESSION['last_login_attempt'] = time();
+
 try {
     $pdo = getConnection();
 
@@ -69,8 +86,12 @@ try {
     // ────────────────────────────────────────────────────────────────────
 
     if (!$senhaValida) {
+        $_SESSION['login_attempts'] = ($loginAttempts + 1);
         respondUnauthorized();
     }
+
+    // Login bem-sucedido — reseta contador de tentativas
+    $_SESSION['login_attempts'] = 0;
 
     // Login bem-sucedido — inicia sessão PHP server-side
     session_regenerate_id(true);

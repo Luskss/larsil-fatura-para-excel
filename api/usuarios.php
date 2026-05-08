@@ -11,8 +11,15 @@
 
 declare(strict_types=1);
 
+// ── HEADERS DE SEGURANÇA ────────────────────────────────────────────────
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('X-XSS-Protection: 1; mode=block');
+header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+header('Content-Security-Policy: default-src \'none\'; script-src \'self\'; style-src \'self\' fonts.googleapis.com');
+header('Referrer-Policy: strict-origin-when-cross-origin');
+header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
 
 // Bloqueia acesso sem sessão autenticada
 session_start();
@@ -46,6 +53,7 @@ try {
         $nome  = trim($body['nome']  ?? '');
         $senha = $body['senha'] ?? '';
 
+        // Validação rigorosa de entrada
         if ($login === '' || $nome === '' || $senha === '') {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Login, nome e senha são obrigatórios.']);
