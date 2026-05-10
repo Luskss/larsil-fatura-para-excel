@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Larsil — Conversor de Extrato Bancário</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:      #2c5529;
+      --primary-mid:  #3d7a3a;
+      --accent:       #4db55e;
+      --accent-light: #a0d063;
+      --danger:       #ef4444;
+      --bg:           #f0f5f0;
+      --card:         #fafcfa;
+      --border:       #c4d8c3;
+      --text:         #1a2e1a;
+      --muted:        #557055;
+    }
+
+    body { min-height: 100vh; background: var(--bg); font-family: 'Montserrat', sans-serif; color: var(--text); }
+
+    nav {
+      background: linear-gradient(135deg, #1a3318, var(--primary));
+      color: #fff; padding: 0 24px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(0,0,0,.3); position: sticky; top: 0; z-index: 100;
+    }
+    nav .brand { display: flex; align-items: center; gap: 12px; }
+    .nav-brand-logo { height: 38px; width: auto; }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    #navUser { font-size: .82rem; opacity: .85; }
+    .nav-link {
+      color: rgba(255,255,255,.85); text-decoration: none;
+      font-size: .8rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .3px; padding: 6px 14px; border-radius: 6px; transition: background .2s;
+    }
+    .nav-link:hover { background: rgba(255,255,255,.15); }
+    .nav-link.active { background: rgba(255,255,255,.22); color: #fff; }
+    #btnLogout {
+      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.35);
+      color: #fff; padding: 6px 16px; border-radius: 6px; font-size: .8rem;
+      font-family: 'Montserrat', sans-serif; font-weight: 700; cursor: pointer;
+      text-transform: uppercase; letter-spacing: .3px;
+    }
+    #btnLogout:hover { background: rgba(255,255,255,.28); }
+
+    main { max-width: 1100px; margin: 36px auto; padding: 0 16px; }
+    h2 { font-size: 1.35rem; color: var(--primary); margin-bottom: 6px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; }
+    .subtitle { color: var(--muted); font-size: .88rem; margin-bottom: 28px; }
+
+    .upload-zone {
+      border: 2.5px dashed var(--border); border-radius: 14px; padding: 52px 24px;
+      text-align: center; background: var(--card); cursor: pointer; position: relative;
+      transition: border-color .25s, background .25s;
+    }
+    .upload-zone.dragover { border-color: var(--primary); background: #eaf3f7; }
+    .upload-zone svg { color: var(--primary); margin-bottom: 14px; }
+    .upload-zone p { color: var(--muted); font-size: .95rem; }
+    .upload-zone p strong { color: var(--primary); }
+    .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .file-hint { font-size: .78rem; color: #9ca3af; margin-top: 8px; }
+
+    .files-list { display: none; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .file-item {
+      display: flex; align-items: center; gap: 12px;
+      background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 11px 16px;
+    }
+    .file-item .file-name { font-weight: 600; font-size: .88rem; color: #166534; }
+    .file-item .file-size { font-size: .75rem; color: #4ade80; }
+    .btn-remove {
+      margin-left: auto; background: none; border: none; cursor: pointer;
+      color: #dc2626; padding: 4px; border-radius: 4px; display: flex;
+    }
+    .btn-remove:hover { background: #fee2e2; }
+
+    .options-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 22px 24px; margin-top: 20px;
+    }
+    .options-card h3 {
+      font-size: .9rem; color: var(--primary); margin-bottom: 16px;
+      font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+    }
+    .opt-group label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .4px; }
+    .opt-group input[type="text"] {
+      width: 100%; padding: 9px 12px; border: 1.5px solid var(--border);
+      border-radius: 7px; font-size: .88rem; font-family: 'Montserrat', sans-serif;
+      background: #fff; outline: none;
+    }
+    .opt-group input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(77,181,94,.15); }
+
+    .btn-convert {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; margin-top: 22px; padding: 14px;
+      background: linear-gradient(135deg, #1a3318, var(--primary));
+      color: #fff; border: none; border-radius: 10px;
+      font-size: 1rem; font-weight: 900; font-family: 'Montserrat', sans-serif;
+      cursor: pointer; letter-spacing: .5px; text-transform: uppercase;
+    }
+    .btn-convert:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-convert:not(:disabled):hover { opacity: .88; }
+
+    .progress-wrap { display: none; margin-top: 20px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); margin-bottom: 6px; }
+    .progress-bar-bg { width: 100%; height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .progress-bar-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, var(--primary), var(--accent), var(--accent-light));
+      border-radius: 999px; transition: width .3s ease;
+    }
+
+    .result-section { display: none; margin-top: 28px; }
+    .result-section h3 { font-size: .95rem; color: var(--primary); margin-bottom: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+    .preview-table-wrap {
+      overflow-x: auto; border: 1px solid var(--border); border-radius: 10px;
+      max-height: 520px; overflow-y: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+    thead th {
+      background: var(--primary); color: #fafcfa; padding: 10px 12px;
+      text-align: left; position: sticky; top: 0; white-space: nowrap;
+      font-weight: 700; font-size: .78rem; text-transform: uppercase;
+    }
+    tbody tr:nth-child(even) { background: #f0f5f0; }
+    tbody td { padding: 8px 12px; border-top: 1px solid #deeede; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .neg { color: #dc2626; }
+
+    .summary {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px; margin: 14px 0;
+    }
+    .summary .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px;
+    }
+    .summary .card .label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
+    .summary .card .value { font-size: 1.1rem; font-weight: 900; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+    .btn-export {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 26px; background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; font-size: .9rem; font-weight: 900;
+      font-family: 'Montserrat', sans-serif; cursor: pointer;
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .btn-export:hover { background: var(--primary); }
+
+    .error-box {
+      display: none; background: #fef2f2; border: 1px solid #fca5a5;
+      color: #b91c1c; border-radius: 10px; padding: 14px 18px; font-size: .88rem; margin-top: 20px;
+    }
+
+    .spinner {
+      width: 18px; height: 18px;
+      border: 3px solid rgba(255,255,255,.4); border-top-color: #fff;
+      border-radius: 50%; animation: spin .7s linear infinite; display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 32px 0 20px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">
+    <img src="img/logo-branca.png" alt="Larsil" class="nav-brand-logo" />
+  </div>
+  <div class="nav-right">
+    <a href="conversor.html" class="nav-link">Fatura</a>
+    <a href="extrato.html"   class="nav-link active">Extrato Bancário</a>
+    <a href="gestao-usuarios.html" class="nav-link">Usuários</a>
+    <span id="navUser"></span>
+    <button id="btnLogout">Sair</button>
+  </div>
+</nav>
+
+<main>
+  <h2>Conversor de Extrato Bancário</h2>
+  <p class="subtitle">Lê extratos de qualquer banco (Santander, Itaú, Bradesco, Caixa, BB, Inter, Nubank, C6, Sicoob…) usando IA.</p>
+
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="pdfInput" accept="application/pdf" multiple />
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    <p><strong>Clique para selecionar</strong> ou arraste os PDFs aqui</p>
+    <p class="file-hint">Vários extratos PDF — máximo 20 MB cada</p>
+  </div>
+
+  <div class="files-list" id="filesList">
+    <div class="file-count" id="fileCount"></div>
+  </div>
+
+  <div class="options-card">
+    <h3>Opções</h3>
+    <div class="opt-group" style="margin-bottom:14px;">
+      <label>Banco</label>
+      <select id="bankSelect" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:.88rem;font-family:'Montserrat',sans-serif;background:#fff;">
+        <option value="auto">Auto-detectar (IA + parsers locais)</option>
+        <option value="santander">Santander (parser local — rápido)</option>
+        <option value="ai">Sempre IA (qualquer banco)</option>
+      </select>
+      <small style="color:var(--muted);font-size:.75rem;display:block;margin-top:4px;">
+        Parsers locais são instantâneos e sem custo. A IA é usada como fallback.
+      </small>
+    </div>
+    <div class="opt-group">
+      <label>Nome do arquivo Excel</label>
+      <input type="text" id="outFileName" value="extrato" placeholder="extrato" />
+    </div>
+  </div>
+
+  <button class="btn-convert" id="btnConvert" disabled>
+    <span id="btnLabel">Processar Extratos com IA</span>
+    <div class="spinner" id="spinner"></div>
+  </button>
+
+  <button id="btnDebugTxt" type="button" style="margin-top:8px;width:100%;padding:8px;border:1px dashed var(--border);background:#fff;border-radius:7px;cursor:pointer;font-family:'Montserrat',sans-serif;font-size:.78rem;color:var(--muted);" disabled>
+    🐞 Baixar texto bruto extraído (.txt) para debug
+  </button>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label">
+      <span id="progressText">Processando…</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="result-section" id="resultSection">
+    <h3>Pré-visualização</h3>
+    <div class="summary" id="summary"></div>
+    <div class="preview-table-wrap"><div id="previewWrap"></div></div>
+    <div style="margin-top:16px;">
+      <button class="btn-export" id="btnExport">Baixar Excel</button>
+    </div>
+  </div>
+</main>
+
+<footer>Conversor de Extrato &bull; Versão 1.0 &bull; Uso interno</footer>
+
+<script>
+  // ── Sessão ────────────────────────────────────────────────────────────
+  if (!sessionStorage.getItem('cf_loggedIn')) window.location.href = 'index.html';
+  document.getElementById('navUser').textContent = 'Olá, ' + (sessionStorage.getItem('cf_username') || 'usuário');
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    try { await fetch('api/logout.php', { method: 'POST', credentials: 'same-origin' }); } catch (_) {}
+    sessionStorage.clear();
+    window.location.href = 'index.html';
+  });
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const pdfInput     = document.getElementById('pdfInput');
+  const uploadZone   = document.getElementById('uploadZone');
+  const filesList    = document.getElementById('filesList');
+  const fileCount    = document.getElementById('fileCount');
+  const btnConvert   = document.getElementById('btnConvert');
+  const btnLabel     = document.getElementById('btnLabel');
+  const spinner      = document.getElementById('spinner');
+  const progressWrap = document.getElementById('progressWrap');
+  const progressFill = document.getElementById('progressFill');
+  const progressText = document.getElementById('progressText');
+  const progressPct  = document.getElementById('progressPct');
+  const errorBox     = document.getElementById('errorBox');
+  const resultSection= document.getElementById('resultSection');
+  const previewWrap  = document.getElementById('previewWrap');
+  const summary      = document.getElementById('summary');
+  const outFileName  = document.getElementById('outFileName');
+  const btnExport    = document.getElementById('btnExport');
+  const btnDebugTxt  = document.getElementById('btnDebugTxt');
+
+  let selectedFiles = [];
+  let workbook = null;
+
+  pdfInput.addEventListener('change', e => addFiles(Array.from(e.target.files || [])));
+  ['dragover', 'dragleave', 'drop'].forEach(ev => {
+    uploadZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
+  });
+  uploadZone.addEventListener('dragover', () => uploadZone.classList.add('dragover'));
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+  uploadZone.addEventListener('drop', e => {
+    uploadZone.classList.remove('dragover');
+    addFiles(Array.from(e.dataTransfer.files || []).filter(f => f.type === 'application/pdf'));
+  });
+
+  function addFiles(files) {
+    const max = 20 * 1024 * 1024;
+    for (const f of files) {
+      if (f.size > max) { showError(`"${f.name}" excede 20 MB.`); continue; }
+      if (selectedFiles.some(s => s.name === f.name && s.size === f.size)) continue;
+      selectedFiles.push(f);
+    }
+    renderFileList();
+    btnConvert.disabled = selectedFiles.length === 0;
+    if (btnDebugTxt) btnDebugTxt.disabled = selectedFiles.length === 0;
+    hideError();
+  }
+
+  if (btnDebugTxt) {
+    btnDebugTxt.addEventListener('click', async () => {
+      if (!selectedFiles.length) return;
+      btnDebugTxt.disabled = true;
+      const old = btnDebugTxt.textContent;
+      btnDebugTxt.textContent = 'Extraindo…';
+      try {
+        const parts = [];
+        for (const f of selectedFiles) {
+          const txt = await extractTextFromPDF(f);
+          parts.push('===== ' + f.name + ' =====\n' + txt + '\n');
+        }
+        const blob = new Blob([parts.join('\n')], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'debug-extrato-raw.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        showError('Falha ao extrair texto: ' + (e && e.message ? e.message : e));
+      } finally {
+        btnDebugTxt.textContent = old;
+        btnDebugTxt.disabled = false;
+      }
+    });
+  }
+
+  function renderFileList() {
+    filesList.innerHTML = '<div class="file-count" id="fileCount"></div>';
+    if (!selectedFiles.length) { filesList.style.display = 'none'; return; }
+    filesList.style.display = 'flex';
+    document.getElementById('fileCount').textContent = `${selectedFiles.length} arquivo(s) selecionado(s)`;
+    selectedFiles.forEach((file, idx) => {
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.innerHTML = `
+        <div>
+          <div class="file-name">${esc(file.name)}</div>
+          <div class="file-size">${formatBytes(file.size)}</div>
+        </div>
+        <button class="btn-remove" title="Remover">✕</button>`;
+      item.querySelector('.btn-remove').addEventListener('click', () => {
+        selectedFiles.splice(idx, 1);
+        renderFileList();
+        btnConvert.disabled = selectedFiles.length === 0;
+        if (btnDebugTxt) btnDebugTxt.disabled = selectedFiles.length === 0;
+      });
+      filesList.appendChild(item);
+    });
+  }
+
+  btnConvert.addEventListener('click', async () => {
+    if (!selectedFiles.length) return;
+    setLoading(true); hideError();
+    resultSection.style.display = 'none';
+    workbook = null;
+
+    try {
+      const allRows = [['Arquivo', 'Banco/Período', 'Data', 'Descrição', 'Nº Documento', 'Movimento (R$)', 'Saldo (R$)']];
+      const sheets = {}; // nome aba -> rows
+      let totalCred = 0, totalDeb = 0, totalLinhas = 0;
+
+      // Processa em paralelo (concorrência limitada para não sobrecarregar a API).
+      const CONCURRENCY = Math.min(4, selectedFiles.length);
+      const total = selectedFiles.length;
+      let done = 0;
+      const results = new Array(total);
+
+      setProgress(2, `Processando ${total} arquivo(s) em paralelo (até ${CONCURRENCY} simultâneos)…`);
+
+      async function processOne(i) {
+        const file = selectedFiles[i];
+        const rawText = await extractTextFromPDF(file);
+        const cleanText = cleanStatementText(rawText);
+
+        const mode = (document.getElementById('bankSelect') || {}).value || 'auto';
+        let data = null;
+        let usedParser = '';
+
+        // 1) Parser local forçado por seleção
+        if (mode === 'santander') {
+          data = parseSantanderStatement(rawText);
+          usedParser = 'Santander (local)';
+          if (!data || !data.rows || data.rows.length <= 1) {
+            console.warn('Parser Santander não detectou linhas, caindo na IA.');
+            data = null;
+          }
+        }
+
+        // 2) Auto-detecção
+        if (!data && mode === 'auto') {
+          if (/santander/i.test(rawText)) {
+            const tentativa = parseSantanderStatement(rawText);
+            if (tentativa && tentativa.rows && tentativa.rows.length > 1) {
+              data = tentativa;
+              usedParser = 'Santander (local)';
+            }
+          }
+        }
+
+        // 3) Fallback: IA
+        if (!data) {
+          data = await callAI(file.name, cleanText);
+          usedParser = 'IA';
+        }
+
+        data.rows = normalizeStatementRows(data.rows);
+        data._parser = usedParser;
+        results[i] = { file, data };
+        done++;
+        setProgress(Math.round((done / total) * 95),
+                    `Concluídos ${done}/${total} arquivo(s)…`);
+      }
+
+      // Pool de workers
+      let cursor = 0;
+      const workers = Array.from({ length: CONCURRENCY }, async () => {
+        while (true) {
+          const i = cursor++;
+          if (i >= total) return;
+          await processOne(i);
+        }
+      });
+      await Promise.all(workers);
+
+      // Monta saída na ordem original dos arquivos
+      for (let i = 0; i < total; i++) {
+        const { file, data } = results[i];
+
+        const baseName = (data.bankLabel || file.name.replace(/\.pdf$/i, ''))
+          .replace(/[\\\/\?\*\[\]:]/g, '').slice(0, 31) || `Extrato ${i+1}`;
+        let sheetName = baseName, n = 2;
+        while (sheets[sheetName]) sheetName = baseName.slice(0, 27) + ` (${n++})`;
+        sheets[sheetName] = data.rows;
+
+        for (let r = 1; r < data.rows.length; r++) {
+          const row = data.rows[r];
+          allRows.push([file.name, data.bankLabel || data.periodLabel || '', ...row]);
+          const mov = row[3];
+          if (typeof mov === 'number') {
+            if (mov >= 0) totalCred += mov; else totalDeb += mov;
+            totalLinhas++;
+          }
+        }
+      }
+
+      if (totalLinhas === 0) {
+        showError('Nenhuma transação foi reconhecida.');
+        setLoading(false);
+        return;
+      }
+
+      workbook = buildWorkbook(sheets, allRows);
+      renderPreview(allRows);
+      renderSummary(totalCred, totalDeb, totalLinhas);
+      // Mostra qual parser foi usado por arquivo
+      const parserInfo = results
+        .map(r => `${r.file.name}: ${r.data._parser || 'IA'}`)
+        .join(' • ');
+      console.info('Parsers utilizados →', parserInfo);
+      resultSection.style.display = 'block';
+      setProgress(100, 'Concluído!');
+    } catch (err) {
+      showError('Erro: ' + err.message);
+    }
+    setLoading(false);
+  });
+
+  btnExport.addEventListener('click', () => {
+    if (!workbook) return;
+    const name = (outFileName.value.trim() || 'extrato') + '.xlsx';
+    XLSX.writeFile(workbook, name);
+  });
+
+  // ── EXTRAI TEXTO PURO DO PDF ─────────────────────────────────────────
+  async function extractTextFromPDF(file, idx, total) {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const lines = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const lineMap = {};
+      for (const item of content.items) {
+        const y = Math.round(item.transform[5]);
+        if (!lineMap[y]) lineMap[y] = [];
+        lineMap[y].push(item);
+      }
+      const ys = Object.keys(lineMap).map(Number).sort((a, b) => b - a);
+      for (const y of ys) {
+        const items = lineMap[y].sort((a, b) => a.transform[4] - b.transform[4]);
+        const txt = items.map(i => i.str.trim()).filter(Boolean).join('\t');
+        if (txt.trim()) lines.push(txt);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  async function callAI(filename, text) {
+    const resp = await fetch('api/openai-extrato.php', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename, text }),
+    });
+    const raw = await resp.text();
+    let payload = null;
+    try {
+      payload = JSON.parse(raw);
+    } catch (_) {
+      const start = raw.indexOf('{');
+      const end = raw.lastIndexOf('}');
+      if (start >= 0 && end > start) {
+        try {
+          payload = JSON.parse(raw.slice(start, end + 1));
+        } catch (_) {
+          // segue para erro abaixo
+        }
+      }
+    }
+    if (!payload) {
+      const snippet = raw.slice(0, 180).replace(/\s+/g, ' ').trim();
+      throw new Error('Resposta inválida (HTTP ' + resp.status + '): ' + (snippet || 'corpo vazio'));
+    }
+    if (!resp.ok || !payload.success) throw new Error(payload.message || ('HTTP ' + resp.status));
+    return payload;
+  }
+
+  // ── PARSER DEDICADO: SANTANDER ───────────────────────────────────────
+  // Layout esperado (texto extraído do PDF, linhas separadas por \n,
+  // colunas separadas por \t — vindas do extractTextFromPDF):
+  //   Data | Descrição | Nº Documento | Movimento (R$) | Saldo (R$)
+  // Características:
+  //   - Data DD/MM (pode vir vazia → herda anterior)
+  //   - Descrição às vezes ocupa 2 linhas (descritivo + complemento)
+  //   - Valor com sufixo "-" indica débito (ex.: "1.222,06-")
+  //   - Saldo é opcional (só algumas linhas mostram)
+  function parseSantanderStatement(text) {
+    if (!text || !/santander/i.test(text)) return null;
+
+    const HEADER = ['Data', 'Descrição', 'Nº Documento', 'Movimento (R$)', 'Saldo (R$)'];
+    const rows = [HEADER];
+
+    // Período (mês/ano) ──────────────────────────────────────────────────
+    const monthMap = {
+      janeiro: '01', fevereiro: '02', marco: '03', março: '03', abril: '04',
+      maio: '05', junho: '06', julho: '07', agosto: '08', setembro: '09',
+      outubro: '10', novembro: '11', dezembro: '12'
+    };
+    let periodLabel = '';
+    const lower = text.toLowerCase();
+    for (const m in monthMap) {
+      const re = new RegExp(`\\b${m}\\b\\s*[\\/\\-]?\\s*(20\\d{2})`);
+      const hit = lower.match(re);
+      if (hit) { periodLabel = `${monthMap[m]}-${hit[1]}`; break; }
+    }
+    const bankLabel = periodLabel
+      ? `Santander - ${periodLabel}`
+      : 'Santander';
+
+    // ── Estratégia: usar TAB como separador real de coluna ────────────
+    // O extractTextFromPDF junta itens da mesma linha do PDF com '\t',
+    // preservando as colunas: Data | Descrição | Nº Doc | Movimento | Saldo.
+    // Movimento/Saldo são reconhecidos pelo padrão de número BR (com
+    // sufixo "-" para débito). Linhas avulsas sem tab são complemento
+    // da descrição anterior (segunda linha do nome do beneficiário).
+
+    const dateRe  = /^\d{2}\/\d{2}$/;
+    const valorRe = /^-?\d{1,3}(?:\.\d{3})*,\d{2}-?$/;
+    const docRe   = /^(?:\d{4,}|-)$/;
+
+    // Linhas/blocos a IGNORAR completamente (nunca viram transação nem
+    // complemento de descrição):
+    const skipPatterns = [
+      /^data\b/i,
+      /^descri[cç][aã]o\b/i,
+      /^extrato\b/i,
+      /^p[aá]gina\b/i,
+      /^pagina:/i,
+      /^conta corrente$/i,
+      /^movimenta[cç][aã]o$/i,
+      /^resumo\b/i,
+      /^nome$/i,
+      /^ag[eê]ncia\b/i,
+      /^sac\b/i,
+      /^ouvidoria\b/i,
+      /^central de atendimento/i,
+      /^fale conosco/i,
+      /^loja:/i,
+      /^libras\b/i,
+      /^todos os dias/i,
+      /^de segunda/i,
+      /^acesse:/i,
+      /^se voc[eê]/i,
+      /^sua seguran[cç]a/i,
+      /^prezado/i,
+      /^proteja-se/i,
+      /^desconfie/i,
+      /^n[aã]o caia/i,
+      /^- /,
+      /^o iof/i,
+      /^se quer/i,
+      /^extrato_pf/i,
+      /^balp_/i,
+      /^continua/i,
+      /^www\./i,
+      /^4004\b/, /^0800\b/, /^55 11\b/, /^ou pelo/i, /^no exterior/i,
+      /santander\.com\.br/i,
+    ];
+
+    // Marcadores que indicam o INÍCIO do rodapé/anexo do extrato.
+    // Tudo após esses marcadores é descartado (limites, CET, CDC,
+    // pacote de serviços, dicas etc).
+    const cutPatterns = [
+      /^saldos por per[ií]odo/i,
+      /^cr[ée]ditos contratados/i,
+      /^master\s+10/i,
+      /^cdc\b/i,
+      /^cr[ée]dito pessoal/i,
+      /^investimentos$/i,
+      /^pacote de servi[cç]os/i,
+      /^voc[eê] e seu dinheiro/i,
+      /^programa de relacionamento/i,
+      /custo efetivo total/i,
+      /valores deduzidos do saldo dispon[ií]vel/i,
+      /^valor da mensalidade/i,
+      /^limite\s+data\s+/i,         // header da tabela CDC
+      /^limite\s+contratado\b/i,
+    ];
+
+    const rawLines = text.split('\n');
+    let lastDate = '';
+
+    for (let raw of rawLines) {
+      // Quebra por TAB; descarta células vazias.
+      let parts = raw.split('\t').map(s => s.trim()).filter(s => s !== '');
+      if (parts.length === 0) continue;
+
+      const joined = parts.join(' ');
+
+      // Cut: do marcador em diante, parar tudo.
+      if (cutPatterns.some(re => re.test(joined))) break;
+
+      // Skip ruído.
+      if (skipPatterns.some(re => re.test(joined))) continue;
+
+      // ── Caso 1: linha de uma única célula ──────────────────────────
+      if (parts.length === 1) {
+        const only = parts[0];
+
+        // valor solto (saldo restated, total etc) → ignora
+        if (valorRe.test(only)) continue;
+        // data isolada → ignora
+        if (dateRe.test(only)) continue;
+        // SALDO EM .. (linha de fechamento) → não vira complemento
+        if (/^saldo em\b/i.test(only)) continue;
+        // continuação de descrição (ex.: "ZURICH SEGUROS")
+        // só anexa se já existe transação anterior, texto razoável e
+        // não parece numérico/cabeçalho.
+        if (rows.length > 1 && only.length >= 2 && only.length <= 80) {
+          rows[rows.length - 1][1] = rows[rows.length - 1][1] + ' - ' + only;
+        }
+        continue;
+      }
+
+      // ── Caso 2: 2+ células — tentar interpretar como movimentação ──
+      // Identificar o último valor (Movimento) e, opcionalmente, o
+      // penúltimo como Saldo do dia.
+      const lastIdx = parts.length - 1;
+
+      // Linha "SALDO EM 31/05  40.946,38" → ignorar (saldo de abertura).
+      if (parts.length === 2 && /^saldo em\b/i.test(parts[0]) && valorRe.test(parts[1])) {
+        continue;
+      }
+
+      // O ÚLTIMO campo precisa ser um valor para ser transação.
+      if (!valorRe.test(parts[lastIdx])) {
+        // Linha de cabeçalho de tabela ou outro ruído com tabs.
+        // Tenta usar como complemento se for textual curto.
+        if (rows.length > 1 && joined.length <= 80 && !/\d{2,}/.test(joined)) {
+          rows[rows.length - 1][1] = rows[rows.length - 1][1] + ' - ' + joined;
+        }
+        continue;
+      }
+
+      let saldo = '';
+      let movRaw;
+      let head; // partes restantes (data?, descrição, doc?)
+
+      if (parts.length >= 2 && valorRe.test(parts[lastIdx]) && valorRe.test(parts[lastIdx - 1])) {
+        // Penúltimo também é valor → saldo presente
+        saldo = parts[lastIdx];
+        movRaw = parts[lastIdx - 1];
+        head = parts.slice(0, lastIdx - 1);
+      } else {
+        movRaw = parts[lastIdx];
+        head = parts.slice(0, lastIdx);
+      }
+
+      // head deve conter pelo menos a descrição
+      if (head.length === 0) continue;
+
+      // Data opcional na frente
+      let data = lastDate;
+      if (dateRe.test(head[0])) {
+        data = head[0];
+        head = head.slice(1);
+      }
+      if (head.length === 0) continue;
+
+      // Documento opcional no fim do head ('-' ou número 4+ dígitos)
+      let documento = '';
+      if (head.length >= 2 && docRe.test(head[head.length - 1])) {
+        const doc = head[head.length - 1];
+        documento = (doc === '-') ? '' : doc;
+        head = head.slice(0, -1);
+      }
+
+      const descricao = head.join(' ').replace(/\s+/g, ' ').trim();
+      if (!descricao || descricao.length < 2) continue;
+
+      if (!isValidShortDate(data)) continue;
+
+      const movimento = parseSantanderNumber(movRaw);
+      if (movimento === null) continue;
+      const saldoNum = saldo ? parseSantanderNumber(saldo) : '';
+
+      lastDate = data;
+      rows.push([data, descricao, documento, movimento, saldoNum === null ? '' : saldoNum]);
+    }
+
+    if (rows.length <= 1) return null;
+    return { bankLabel, periodLabel, rows };
+  }
+
+  function parseSantanderNumber(s) {
+    if (typeof s !== 'string') return null;
+    let neg = false;
+    let str = s.trim();
+    if (str.endsWith('-')) { neg = true; str = str.slice(0, -1); }
+    if (str.startsWith('-')) { neg = !neg; str = str.slice(1); }
+    str = str.replace(/\./g, '').replace(',', '.');
+    const n = Number(str);
+    if (!Number.isFinite(n)) return null;
+    return neg ? -n : n;
+  }
+
+  function cleanStatementText(text) {
+    if (typeof text !== 'string' || !text) return '';
+    const lines = text.split('\n');
+    const out = [];
+    const skipPatterns = [
+      /^\s*p[áa]gina\s+\d+\s*(de\s+\d+)?\s*$/i,
+      /^\s*\d+\s*\/\s*\d+\s*$/,                 // "1/12" sozinho
+      /^\s*page\s+\d+\s*(of\s+\d+)?\s*$/i,
+      /^\s*central\s+de\s+atendimento.*$/i,
+      /^\s*sac\b.*$/i,
+      /^\s*ouvidoria.*$/i,
+      /^\s*www\.[\w.\-/]+\s*$/i,
+      /^\s*continua\s+na\s+pr[óo]xima.*$/i,
+      /^\s*continua[çc][ãa]o.*$/i,
+    ];
+    // Bloco do rodapé que NÃO é movimentação (limites, CET, CDC, produtos).
+    // Quando a primeira ocorrência for vista, descartamos o resto do texto.
+    const cutPatterns = [
+      /limites?\s+dispon[ií]ve(?:is|l)/i,
+      /valores deduzidos do saldo dispon[ií]vel/i,
+      /custo efetivo total/i,
+      /produto\s+master\s+10/i,
+      /\bCDC\s+MAQ\b/i,
+      /informa[cç][õo]es\s+de\s+cr[ée]dito/i,
+    ];
+    for (const raw of lines) {
+      const line = raw.replace(/\s+/g, ' ').trim();
+      if (!line) continue;
+      if (cutPatterns.some(re => re.test(line))) break;
+      if (skipPatterns.some(re => re.test(line))) continue;
+      out.push(line);
+    }
+    return out.join('\n');
+  }
+
+  function normalizeStatementRows(rows) {
+    if (!Array.isArray(rows) || rows.length <= 1) return rows;
+
+    // Apenas herda data da linha anterior quando vier vazia.
+    // (Preenchimento automático de saldo foi removido para evitar números inventados.)
+    let lastDate = '';
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!Array.isArray(row)) continue;
+      const rawDate = String(row[0] ?? '').trim();
+      if (isValidShortDate(rawDate)) {
+        lastDate = rawDate;
+      } else if (lastDate) {
+        row[0] = lastDate;
+      }
+    }
+
+    return rows;
+  }
+
+  // ── EXCEL ────────────────────────────────────────────────────────────
+  function buildWorkbook(sheetsMap, consolidated) {
+    const wb = XLSX.utils.book_new();
+
+    // Aba consolidada primeiro
+    const wsAll = XLSX.utils.aoa_to_sheet(consolidated);
+    wsAll['!cols'] = [{wch:30},{wch:28},{wch:10},{wch:55},{wch:15},{wch:16},{wch:16}];
+    formatNumberCols(wsAll, [5, 6]);
+    XLSX.utils.book_append_sheet(wb, wsAll, 'Consolidado');
+
+    for (const name in sheetsMap) {
+      const ws = XLSX.utils.aoa_to_sheet(sheetsMap[name]);
+      ws['!cols'] = [{wch:10},{wch:55},{wch:15},{wch:16},{wch:16}];
+      formatNumberCols(ws, [3, 4]);
+      XLSX.utils.book_append_sheet(wb, ws, name);
+    }
+    return wb;
+  }
+
+  function formatNumberCols(ws, cols) {
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = 1; R <= range.e.r; R++) {
+      for (const C of cols) {
+        const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+        if (cell && typeof cell.v === 'number') {
+          cell.t = 'n';
+          cell.z = '"R$" #,##0.00;[Red]"-R$" #,##0.00';
+        }
+      }
+    }
+  }
+
+  // ── PREVIEW ──────────────────────────────────────────────────────────
+  function renderPreview(rows) {
+    const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const tbody = document.createElement('tbody');
+    const trH = document.createElement('tr');
+    rows[0].forEach(h => { const th = document.createElement('th'); th.textContent = h; trH.appendChild(th); });
+    thead.appendChild(trH);
+    const max = 200;
+    rows.slice(1, max + 1).forEach(r => {
+      const tr = document.createElement('tr');
+      r.forEach((cell, idx) => {
+        const td = document.createElement('td');
+        if ((idx === 5 || idx === 6) && typeof cell === 'number') {
+          td.textContent = fmt.format(cell);
+          td.className = 'num' + (cell < 0 ? ' neg' : '');
+        } else {
+          td.textContent = cell ?? '';
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    if (rows.length > max + 1) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td');
+      td.colSpan = rows[0].length;
+      td.style.cssText = 'text-align:center;color:#9ca3af;padding:10px;font-style:italic';
+      td.textContent = `… e mais ${rows.length - max - 1} linha(s) — presentes no Excel exportado`;
+      tr.appendChild(td); tbody.appendChild(tr);
+    }
+    table.appendChild(thead); table.appendChild(tbody);
+    previewWrap.innerHTML = ''; previewWrap.appendChild(table);
+  }
+
+  function renderSummary(cred, deb, n) {
+    const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+    summary.innerHTML = `
+      <div class="card"><div class="label">Movimentações</div><div class="value">${n}</div></div>
+      <div class="card"><div class="label">Total créditos</div><div class="value" style="color:#166534">${fmt.format(cred)}</div></div>
+      <div class="card"><div class="label">Total débitos</div><div class="value" style="color:#dc2626">${fmt.format(deb)}</div></div>
+      <div class="card"><div class="label">Saldo do período</div><div class="value">${fmt.format(cred + deb)}</div></div>
+    `;
+  }
+
+  // ── HELPERS ──────────────────────────────────────────────────────────
+  function setLoading(on) {
+    btnConvert.disabled = on;
+    spinner.style.display = on ? 'block' : 'none';
+    btnLabel.textContent = on ? 'Processando…' : 'Processar Extratos com IA';
+    progressWrap.style.display = on ? 'block' : 'none';
+    if (!on) { progressFill.style.width = '0%'; progressPct.textContent = '0%'; }
+  }
+  function setProgress(pct, label) {
+    progressFill.style.width = pct + '%';
+    progressPct.textContent = pct + '%';
+    if (label) progressText.textContent = label;
+  }
+  function toNumber(v) {
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string' && v.trim() !== '') {
+      const n = Number(v.replace(/\./g, '').replace(',', '.'));
+      return Number.isFinite(n) ? n : null;
+    }
+    return null;
+  }
+  function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+  function isValidShortDate(s) {
+    const m = String(s).match(/^(\d{2})\/(\d{2})$/);
+    if (!m) return false;
+    const d = Number(m[1]);
+    const mo = Number(m[2]);
+    return d >= 1 && d <= 31 && mo >= 1 && mo <= 12;
+  }
+  function showError(msg) { errorBox.textContent = msg; errorBox.style.display = 'block'; }
+  function hideError() { errorBox.style.display = 'none'; }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function formatBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+    return (b/(1024*1024)).toFixed(2) + ' MB';
+  }
+</script>
+</body>
+</html>

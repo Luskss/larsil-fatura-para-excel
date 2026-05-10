@@ -489,7 +489,8 @@
     <img src="img/logo-branca.png" alt="Larsil" class="nav-brand-logo" />
   </div>
   <div class="nav-right">
-    <a href="conversor.html" class="nav-link active">Conversor</a>
+    <a href="conversor.html" class="nav-link active">Fatura</a>
+    <a href="extrato.html" class="nav-link">Extrato Bancário</a>
     <a href="gestao-usuarios.html" class="nav-link">Usuários</a>
     <span id="navUser"></span>
     <button id="btnLogout">Sair</button>
@@ -527,6 +528,15 @@
       <div class="opt-group">
         <label>Nome do arquivo</label>
         <input type="text" id="outFileName" value="fatura" placeholder="fatura" />
+      </div>
+      <div class="opt-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;">
+          <input type="checkbox" id="useAI" />
+          Usar IA (multibanco)
+        </label>
+        <small style="color:var(--muted);font-size:.75rem;display:block;margin-top:4px;">
+          Lê faturas de qualquer banco (Itaú, Bradesco, Nubank, Caixa, BB, Inter, C6, Sicoob…) usando OpenAI.
+        </small>
       </div>
     </div>
   </div>
@@ -628,6 +638,7 @@
   const progressPct   = document.getElementById('progressPct');
   const errorBox      = document.getElementById('errorBox');
   const resultSection = document.getElementById('resultSection');
+  const useAI         = document.getElementById('useAI');
   const btnExport     = document.getElementById('btnExport');
   const btnExportMenu = document.getElementById('btnExportMenu');
   const exportMenu    = document.getElementById('exportMenu');
@@ -852,10 +863,49 @@
     const analyzePct = baseProgress + Math.round(fileShare * 0.95);
     setProgress(analyzePct, `Arquivo ${fileIdx + 1}/${totalFiles} — analisando dados…`);
 
+    // ── MODO IA (multibanco) ──────────────────────────────────────────
+    if (useAI && useAI.checked) {
+      setProgress(analyzePct, `Arquivo ${fileIdx + 1}/${totalFiles} — enviando para IA…`);
+      try {
+        const aiResult = await parseWithAI(file.name, allLines);
+        return {
+          periodLabel: aiResult.periodLabel || detectInvoicePeriod(allLines, file.name),
+          sheetsMap:   aiResult.sheetsMap,
+        };
+      } catch (err) {
+        // Fallback transparente para o parser local
+        console.warn('Falha na IA, usando parser local:', err);
+        showError('Aviso: a leitura por IA falhou (' + err.message + '). Usando o parser padrão.');
+      }
+    }
+
     return {
       periodLabel: detectInvoicePeriod(allLines, file.name),
       sheetsMap: parseLinesToRows(allLines),
     };
+  }
+
+  // ── CHAMADA AO BACKEND OPENAI ─────────────────────────────────────────
+  async function parseWithAI(filename, lines) {
+    const text = lines.join('\n');
+    const resp = await fetch('api/openai-parse.php', {
+      method:      'POST',
+      credentials: 'same-origin',
+      headers:     { 'Content-Type': 'application/json' },
+      body:        JSON.stringify({ filename, text }),
+    });
+
+    let payload;
+    try {
+      payload = await resp.json();
+    } catch (_) {
+      throw new Error('Resposta inválida do servidor (HTTP ' + resp.status + ').');
+    }
+
+    if (!resp.ok || !payload.success) {
+      throw new Error(payload.message || ('HTTP ' + resp.status));
+    }
+    return payload;
   }
 
   // ── PARSER DE FATURA → AGRUPADO POR CARTÃO E SEÇÃO ───────────────────
@@ -1015,11 +1065,52 @@
     return dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12;
   }
 
-  // ── MONTAR WORKBOOK (uma aba por cartão) ──────────────────────────────
+  // ── MONTAR WORKBOOK (Consolidado + uma aba por cartão) ───────────────
   function buildWorkbook(sheetsMap) {
     setProgress(90, 'Gerando planilha…');
     const wb = XLSX.utils.book_new();
     const usedSheetNames = new Set();
+
+    // ── Aba CONSOLIDADO (sempre primeira) ────────────────────────────────
+    const consolidatedHeader = ['Cartão / Origem', 'Seção', 'Data', 'Descrição', 'Parcela', 'Valor (R$)'];
+    const consolidatedRows = [consolidatedHeader];
+    for (const cardLabel in sheetsMap) {
+      const rows = sheetsMap[cardLabel];
+      if (!Array.isArray(rows) || rows.length <= 1) continue;
+      let currentSection = 'TRANSAÇÕES';
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (typeof r[0] === 'string' && r[0].startsWith('── ')) {
+          currentSection = r[0].replace(/──/g, '').trim();
+          continue;
+        }
+        consolidatedRows.push([cardLabel, currentSection, r[0], r[1], r[2], r[3]]);
+      }
+    }
+    if (consolidatedRows.length > 1) {
+      const wsAll = XLSX.utils.aoa_to_sheet(consolidatedRows);
+      wsAll['!cols'] = [{ wch: 32 }, { wch: 26 }, { wch: 12 }, { wch: 50 }, { wch: 10 }, { wch: 16 }];
+      const range = XLSX.utils.decode_range(wsAll['!ref']);
+      for (let R = 1; R <= range.e.r; R++) {
+        const cellV = wsAll[XLSX.utils.encode_cell({ r: R, c: 5 })];
+        if (cellV && typeof cellV.v === 'number') {
+          cellV.t = 'n';
+          cellV.z = '"R$" #,##0.00;[Red]"-R$" #,##0.00';
+        }
+      }
+      for (let c = 0; c < consolidatedHeader.length; c++) {
+        const addr = XLSX.utils.encode_cell({ r: 0, c });
+        if (wsAll[addr]) {
+          wsAll[addr].s = {
+            font:      { bold: true, color: { rgb: 'FFFFFF' } },
+            fill:      { fgColor: { rgb: '1A3318' } },
+            alignment: { horizontal: 'center' },
+          };
+        }
+      }
+      XLSX.utils.book_append_sheet(wb, wsAll, 'Consolidado');
+      usedSheetNames.add('Consolidado');
+    }
 
     let sheetIdx = 0;
     for (const cardLabel in sheetsMap) {
