@@ -41,6 +41,10 @@ function elog(string $msg): void {
     @file_put_contents($LOG_FILE, '[' . date('Y-m-d H:i:s') . '] ' . $msg . PHP_EOL, FILE_APPEND);
 }
 
+elog('REQ_START method=' . ($_SERVER['REQUEST_METHOD'] ?? '?')
+    . ' content_length=' . ($_SERVER['CONTENT_LENGTH'] ?? '?')
+    . ' ip=' . ($_SERVER['REMOTE_ADDR'] ?? '?'));
+
 set_exception_handler(static function (Throwable $e): void {
     while (ob_get_level() > 0) ob_end_clean();
     http_response_code(500);
@@ -238,6 +242,7 @@ $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curlErr  = curl_error($ch);
 curl_close($ch);
+elog('OPENAI_RESP http=' . $httpCode . ' bytes=' . ($response === false ? 'FALSE' : strlen((string)$response)) . ' err=' . $curlErr);
 
 if ($response === false) {
     sendJson(['success' => false, 'message' => 'Falha ao contatar OpenAI: ' . $curlErr], 502);

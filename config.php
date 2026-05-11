@@ -20,11 +20,32 @@ function loadEnv(string $path): void
         if ($line === '' || str_starts_with($line, '#')) continue;
         if (!str_contains($line, '=')) continue;
         [$k, $v] = array_map('trim', explode('=', $line, 2));
-        $_ENV[$k] = $v;
+        if (!isset($_ENV[$k])) $_ENV[$k] = $v;
     }
 }
 
 loadEnv(__DIR__ . '/.ENV');
+loadEnv(__DIR__ . '/.env');
+
+/**
+ * Em ambientes como Railway, Heroku, Docker etc. as variáveis vêm do
+ * sistema. PHP só preenche $_ENV se variables_order incluir "E", o que
+ * nem sempre é o caso — então fazemos fallback explícito para getenv()
+ * e $_SERVER para todas as chaves esperadas pela aplicação.
+ */
+foreach ([
+    'DB_SERVER', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD',
+    'DB_ENCRYPT', 'DB_TRUST_SERVER_CERTIFICATE',
+    'OPENAI_API_KEY',
+] as $__envKey) {
+    if (!empty($_ENV[$__envKey])) continue;
+    $val = getenv($__envKey);
+    if ($val === false || $val === '') {
+        $val = $_SERVER[$__envKey] ?? '';
+    }
+    if ($val !== '' && $val !== false) $_ENV[$__envKey] = $val;
+}
+unset($__envKey, $val);
 
 define('DB_SERVER',   $_ENV['DB_SERVER']   ?? '');
 define('DB_NAME',     $_ENV['DB_DATABASE'] ?? '');
