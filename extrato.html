@@ -679,7 +679,14 @@
     const rawLines = text.split('\n');
     let lastDate = '';
 
-    for (let raw of rawLines) {
+    // Padrões usados para detectar transações órfãs (sem valor)
+    // que aparecem como duas linhas avulsas: "DESCRIÇÃO" + "PROP.xxxxx".
+    // Ex.: "MENSALIDADE DE SEGURO" \n "PROP.003834390109"
+    const txnHeadRe = /^(pix|ted|doc|compra|saque|tarifa|mensalidade|rentab|transfer|transf|pagamento|pagto|d[ée]bito|cr[ée]dito|juros|iof|imposto|estorno|boleto|cod\.?\s*lanc|investimento|resgate|aplica[cç][aã]o|deb\.?\s|cred\.?\s|conv[eê]nio|seguro|financiamento|empr[eé]stimo)\b/i;
+    const propDocRe = /^(prop|doc|nf|cnf|c[oó]digo)\.?\s*\d+/i;
+
+    for (let li = 0; li < rawLines.length; li++) {
+      const raw = rawLines[li];
       // Quebra por TAB; descarta células vazias.
       let parts = raw.split('\t').map(s => s.trim()).filter(s => s !== '');
       if (parts.length === 0) continue;
@@ -702,6 +709,33 @@
         if (dateRe.test(only)) continue;
         // SALDO EM .. (linha de fechamento) → não vira complemento
         if (/^saldo em\b/i.test(only)) continue;
+
+        // ── Detecta transação ÓRFÃ (sem valor): descrição típica de
+        // movimentação seguida em outra linha avulsa por "PROP.xxxxx"
+        // (ou DOC./NF.). Nesse caso vira uma nova linha com valor vazio
+        // em vez de virar complemento da transação anterior.
+        if (txnHeadRe.test(only)) {
+          // procura próxima linha não-vazia que seja avulsa
+          let nj = li + 1;
+          let nextSingle = '';
+          let nextSingleIdx = -1;
+          while (nj < rawLines.length) {
+            const np = rawLines[nj].split('\t').map(s => s.trim()).filter(s => s !== '');
+            if (np.length === 0) { nj++; continue; }
+            if (np.length === 1) { nextSingle = np[0]; nextSingleIdx = nj; }
+            break;
+          }
+          if (nextSingle && propDocRe.test(nextSingle) && isValidShortDate(lastDate)) {
+            // doc explícito (PROP.xxxx → guarda como documento)
+            const docMatch = nextSingle.match(/\d+/);
+            const documento = docMatch ? docMatch[0] : '';
+            rows.push([lastDate, only, documento, '', '']);
+            // pula a linha do PROP para não ser reinterpretada
+            li = nextSingleIdx;
+            continue;
+          }
+        }
+
         // continuação de descrição (ex.: "ZURICH SEGUROS")
         // só anexa se já existe transação anterior, texto razoável e
         // não parece numérico/cabeçalho.
