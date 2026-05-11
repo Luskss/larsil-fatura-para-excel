@@ -37,11 +37,8 @@ ignore_user_abort(true);
 
 ob_start();
 
-$LOG_FILE = __DIR__ . '/openai-extrato.log';
 function elog(string $msg): void {
-    global $LOG_FILE;
     error_log('[openai-extrato] ' . $msg);
-    @file_put_contents($LOG_FILE, '[' . date('Y-m-d H:i:s') . '] ' . $msg . PHP_EOL, FILE_APPEND);
 }
 
 function emitJson(array $payload, int $status): void
