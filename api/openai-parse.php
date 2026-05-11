@@ -155,6 +155,8 @@ $payload = [
     'model'           => 'gpt-4o-mini',
     'response_format' => ['type' => 'json_object'],
     'temperature'     => 0,
+    'top_p'           => 0.1,
+    'max_tokens'      => 16000,
     'messages'        => [
         ['role' => 'system', 'content' => $systemPrompt],
         ['role' => 'user',   'content' => $userPrompt],
@@ -186,8 +188,8 @@ curl_setopt_array($ch, [
         'Expect:',
         'Transfer-Encoding:',
     ],
-    CURLOPT_CONNECTTIMEOUT  => 15,
-    CURLOPT_TIMEOUT        => 90,
+    CURLOPT_CONNECTTIMEOUT  => 30,
+    CURLOPT_TIMEOUT        => 280,
 ]);
 
 $response = curl_exec($ch);
