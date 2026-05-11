@@ -27,6 +27,8 @@
 declare(strict_types=1);
 
 ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+@ini_set('error_log', 'php://stderr');
 error_reporting(E_ALL);
 @ini_set('memory_limit', '512M');
 @ini_set('max_execution_time', '600');
@@ -38,7 +40,20 @@ ob_start();
 $LOG_FILE = __DIR__ . '/openai-extrato.log';
 function elog(string $msg): void {
     global $LOG_FILE;
+    error_log('[openai-extrato] ' . $msg);
     @file_put_contents($LOG_FILE, '[' . date('Y-m-d H:i:s') . '] ' . $msg . PHP_EOL, FILE_APPEND);
+}
+
+function emitJson(array $payload, int $status): void
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    if ($json === false) {
+        echo '{"success":false,"message":"Falha ao serializar resposta de erro."}';
+        return;
+    }
+    echo $json;
 }
 
 elog('REQ_START method=' . ($_SERVER['REQUEST_METHOD'] ?? '?')
@@ -71,14 +86,13 @@ register_shutdown_function(static function (): void {
     if ($isFatal) {
         while (ob_get_level() > 0) ob_end_clean();
         if (!headers_sent()) {
-            http_response_code(500);
             header('Content-Type: application/json; charset=utf-8');
         }
         elog('FATAL: ' . $err['message'] . ' @ ' . ($err['file'] ?? '?') . ':' . ($err['line'] ?? '?'));
-        echo json_encode([
+        emitJson([
             'success' => false,
             'message' => 'Erro fatal no servidor: ' . $err['message'],
-        ], JSON_UNESCAPED_UNICODE);
+        ], 500);
         return;
     }
     // Garante envio do que estiver no buffer; se vazio, devolve JSON de erro.
@@ -89,26 +103,27 @@ register_shutdown_function(static function (): void {
     if ($out !== '') {
         echo $out;
     } elseif (!headers_sent()) {
-        http_response_code(500);
         header('Content-Type: application/json; charset=utf-8');
         elog('EMPTY_BODY: nenhuma resposta gerada (possível timeout/exit silencioso).');
-        echo json_encode([
+        emitJson([
             'success' => false,
             'message' => 'O servidor não gerou resposta. Verifique tempo limite do PHP/cURL e a chave OpenAI.',
-        ], JSON_UNESCAPED_UNICODE);
+        ], 500);
     }
 });
 
 function sendJson(array $payload, int $status = 200): void
 {
     while (ob_get_level() > 0) ob_end_clean();
-    http_response_code($status);
-    header('Content-Type: application/json; charset=utf-8');
-    $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR);
     if ($json === false) {
+        http_response_code($status);
+        header('Content-Type: application/json; charset=utf-8');
         echo '{"success":false,"message":"Falha ao serializar JSON."}';
         exit;
     }
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
     echo $json;
     exit;
 }

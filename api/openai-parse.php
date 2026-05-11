@@ -32,10 +32,24 @@
 
 declare(strict_types=1);
 
+ini_set('log_errors', '1');
+@ini_set('error_log', 'php://stderr');
 session_start();
 @ini_set('max_execution_time', '600');
 @set_time_limit(600);
 ignore_user_abort(true);
+
+function emitJson(array $payload, int $status): void
+{
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    if ($json === false) {
+        echo '{"success":false,"message":"Falha ao serializar resposta de erro."}';
+        return;
+    }
+    echo $json;
+}
 
 // ── HEADERS DE SEGURANÇA ────────────────────────────────────────────────
 header('Content-Type: application/json; charset=utf-8');
@@ -45,15 +59,13 @@ header('Referrer-Policy: strict-origin-when-cross-origin');
 
 // Só aceita POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Método não permitido.']);
+    emitJson(['success' => false, 'message' => 'Método não permitido.'], 405);
     exit;
 }
 
 // Exige sessão autenticada (mesmo padrão usado nos demais endpoints)
 if (empty($_SESSION['cf_loggedIn'])) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'message' => 'Não autenticado.']);
+    emitJson(['success' => false, 'message' => 'Não autenticado.'], 401);
     exit;
 }
 
@@ -61,8 +73,7 @@ require_once __DIR__ . '/../config.php';
 
 $apiKey = $_ENV['OPENAI_API_KEY'] ?? '';
 if ($apiKey === '') {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Chave OPENAI_API_KEY não configurada no .env.']);
+    emitJson(['success' => false, 'message' => 'Chave OPENAI_API_KEY não configurada no .env.'], 500);
     exit;
 }
 
@@ -74,8 +85,7 @@ $filename = trim((string)($data['filename'] ?? ''));
 $text     = (string)($data['text'] ?? '');
 
 if ($text === '') {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Texto do PDF não enviado.']);
+    emitJson(['success' => false, 'message' => 'Texto do PDF não enviado.'], 400);
     exit;
 }
 
@@ -149,12 +159,11 @@ $payloadJson = json_encode(
     JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
 );
 if ($payloadJson === false) {
-    http_response_code(500);
-    echo json_encode([
+    emitJson([
         'success' => false,
         'message' => 'Falha ao gerar JSON para OpenAI.',
         'detail'  => json_last_error_msg(),
-    ]);
+    ], 500);
     exit;
 }
 
@@ -180,39 +189,35 @@ $curlErr  = curl_error($ch);
 curl_close($ch);
 
 if ($response === false) {
-    http_response_code(502);
-    echo json_encode(['success' => false, 'message' => 'Falha ao contatar OpenAI: ' . $curlErr]);
+    emitJson(['success' => false, 'message' => 'Falha ao contatar OpenAI: ' . $curlErr], 502);
     exit;
 }
 
 if ($httpCode < 200 || $httpCode >= 300) {
     $errDecoded = json_decode($response, true);
     $errMessage = $errDecoded['error']['message'] ?? null;
-    http_response_code(502);
-    echo json_encode([
+    emitJson([
         'success' => false,
         'message' => 'OpenAI retornou HTTP ' . $httpCode,
         'detail'  => $errMessage ?: substr($response, 0, 500),
-    ]);
+    ], 502);
     exit;
 }
 
 $decoded = json_decode($response, true);
 $content = $decoded['choices'][0]['message']['content'] ?? '';
 if ($content === '') {
-    http_response_code(502);
-    echo json_encode(['success' => false, 'message' => 'Resposta vazia da OpenAI.']);
+    emitJson(['success' => false, 'message' => 'Resposta vazia da OpenAI.'], 502);
     exit;
 }
 
 $parsed = json_decode($content, true);
 if (!is_array($parsed)) {
-    http_response_code(502);
-    echo json_encode([
+    emitJson([
         'success' => false,
         'message' => 'Resposta da OpenAI não é JSON válido.',
         'detail'  => substr($content, 0, 500),
-    ]);
+    ], 502);
     exit;
 }
 
