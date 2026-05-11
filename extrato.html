@@ -710,29 +710,86 @@
         // SALDO EM .. (linha de fechamento) → não vira complemento
         if (/^saldo em\b/i.test(only)) continue;
 
-        // ── Detecta transação ÓRFÃ (sem valor): descrição típica de
-        // movimentação seguida em outra linha avulsa por "PROP.xxxxx"
-        // (ou DOC./NF.). Nesse caso vira uma nova linha com valor vazio
-        // em vez de virar complemento da transação anterior.
-        if (txnHeadRe.test(only)) {
-          // procura próxima linha não-vazia que seja avulsa
+        // ── Detecta transação ÓRFÃ: descrição típica de movimentação
+        // em uma linha sozinha. Pode vir seguida de:
+        //   (a) "PROP.xxxx" sozinho (sem valor)              → cria linha sem valor
+        //   (b) "[doc?]\tvalor[\tsaldo?]" (sem data/desc)     → cria linha COM valor
+        //       e captura "PROP.xxxx" subsequente como complemento/documento.
+        if (txnHeadRe.test(only) && isValidShortDate(lastDate)) {
+          // procura próxima linha não-vazia
           let nj = li + 1;
-          let nextSingle = '';
-          let nextSingleIdx = -1;
+          let nextRaw = '';
+          let nextParts = null;
+          let nextIdx = -1;
           while (nj < rawLines.length) {
             const np = rawLines[nj].split('\t').map(s => s.trim()).filter(s => s !== '');
             if (np.length === 0) { nj++; continue; }
-            if (np.length === 1) { nextSingle = np[0]; nextSingleIdx = nj; }
+            nextRaw = rawLines[nj];
+            nextParts = np;
+            nextIdx = nj;
             break;
           }
-          if (nextSingle && propDocRe.test(nextSingle) && isValidShortDate(lastDate)) {
-            // doc explícito (PROP.xxxx → guarda como documento)
-            const docMatch = nextSingle.match(/\d+/);
-            const documento = docMatch ? docMatch[0] : '';
-            rows.push([lastDate, only, documento, '', '']);
-            // pula a linha do PROP para não ser reinterpretada
-            li = nextSingleIdx;
-            continue;
+
+          if (nextParts) {
+            // (b) Linha de valor: começa com '-' ou doc, termina com valor.
+            const npLast = nextParts.length - 1;
+            const looksLikeValueLine =
+              valorRe.test(nextParts[npLast]) &&
+              !dateRe.test(nextParts[0]) &&
+              // não pode parecer descrição própria (sem letras antes do valor,
+              // exceto o '-' de doc vazio)
+              nextParts.slice(0, npLast).every(p => p === '-' || docRe.test(p) || valorRe.test(p));
+
+            if (looksLikeValueLine) {
+              let saldoO = '';
+              let movRawO;
+              let headO;
+              if (nextParts.length >= 2 && valorRe.test(nextParts[npLast]) && valorRe.test(nextParts[npLast - 1])) {
+                saldoO = nextParts[npLast];
+                movRawO = nextParts[npLast - 1];
+                headO = nextParts.slice(0, npLast - 1);
+              } else {
+                movRawO = nextParts[npLast];
+                headO = nextParts.slice(0, npLast);
+              }
+              let documentoO = '';
+              if (headO.length >= 1 && docRe.test(headO[headO.length - 1])) {
+                const d = headO[headO.length - 1];
+                documentoO = (d === '-') ? '' : d;
+              }
+              const movO = parseSantanderNumber(movRawO);
+              if (movO !== null) {
+                const saldoONum = saldoO ? parseSantanderNumber(saldoO) : '';
+                rows.push([lastDate, only, documentoO, movO, saldoONum === null ? '' : saldoONum]);
+                let consumed = nextIdx;
+                // Se a próxima linha não-vazia for "PROP.xxxx" sozinha,
+                // absorve como documento (quando ainda não tínhamos doc).
+                let nk = nextIdx + 1;
+                while (nk < rawLines.length) {
+                  const kp = rawLines[nk].split('\t').map(s => s.trim()).filter(s => s !== '');
+                  if (kp.length === 0) { nk++; continue; }
+                  if (kp.length === 1 && propDocRe.test(kp[0])) {
+                    const dm = kp[0].match(/\d+/);
+                    if (dm && !rows[rows.length - 1][2]) {
+                      rows[rows.length - 1][2] = dm[0];
+                    }
+                    consumed = nk;
+                  }
+                  break;
+                }
+                li = consumed;
+                continue;
+              }
+            }
+
+            // (a) Linha avulsa "PROP.xxxx" sem valor → linha sem valor
+            if (nextParts.length === 1 && propDocRe.test(nextParts[0])) {
+              const docMatch = nextParts[0].match(/\d+/);
+              const documento = docMatch ? docMatch[0] : '';
+              rows.push([lastDate, only, documento, '', '']);
+              li = nextIdx;
+              continue;
+            }
           }
         }
 
