@@ -160,9 +160,12 @@ curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST           => true,
     CURLOPT_POSTFIELDS     => $payloadJson,
+    CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_1_1,
     CURLOPT_HTTPHEADER     => [
         'Content-Type: application/json',
         'Authorization: Bearer ' . $apiKey,
+        'Content-Length: ' . strlen($payloadJson),
+        'Expect:',
     ],
     CURLOPT_TIMEOUT        => 120,
 ]);
