@@ -814,6 +814,55 @@
 
       // O ÚLTIMO campo precisa ser um valor para ser transação.
       if (!valorRe.test(parts[lastIdx])) {
+        // Caso especial: "DD/MM\tDESCRIÇÃO" (data + descrição, SEM valor).
+        // O valor está na próxima linha como "[doc?]\tvalor[\tsaldo?]".
+        // Ex.: "17/01\tPIX ENVIADO" seguido de "-\t5.000,00-\t37.450,71".
+        if (parts.length >= 2 && dateRe.test(parts[0]) && txnHeadRe.test(parts.slice(1).join(' '))) {
+          let nj = li + 1;
+          let nextParts = null;
+          let nextIdx = -1;
+          while (nj < rawLines.length) {
+            const np = rawLines[nj].split('\t').map(s => s.trim()).filter(s => s !== '');
+            if (np.length === 0) { nj++; continue; }
+            nextParts = np; nextIdx = nj; break;
+          }
+          if (nextParts) {
+            const npLast = nextParts.length - 1;
+            const looksLikeValueLine =
+              valorRe.test(nextParts[npLast]) &&
+              !dateRe.test(nextParts[0]) &&
+              nextParts.slice(0, npLast).every(p => p === '-' || docRe.test(p) || valorRe.test(p));
+            if (looksLikeValueLine) {
+              let saldoO = '';
+              let movRawO;
+              let headO;
+              if (nextParts.length >= 2 && valorRe.test(nextParts[npLast]) && valorRe.test(nextParts[npLast - 1])) {
+                saldoO = nextParts[npLast];
+                movRawO = nextParts[npLast - 1];
+                headO = nextParts.slice(0, npLast - 1);
+              } else {
+                movRawO = nextParts[npLast];
+                headO = nextParts.slice(0, npLast);
+              }
+              let documentoO = '';
+              if (headO.length >= 1 && docRe.test(headO[headO.length - 1])) {
+                const d = headO[headO.length - 1];
+                documentoO = (d === '-') ? '' : d;
+              }
+              const movO = parseSantanderNumber(movRawO);
+              if (movO !== null) {
+                const dataStr = parts[0];
+                const descricaoStr = parts.slice(1).join(' ').replace(/\s+/g, ' ').trim();
+                const saldoONum = saldoO ? parseSantanderNumber(saldoO) : '';
+                lastDate = dataStr;
+                rows.push([dataStr, descricaoStr, documentoO, movO, saldoONum === null ? '' : saldoONum]);
+                li = nextIdx;
+                continue;
+              }
+            }
+          }
+        }
+
         // Linha de cabeçalho de tabela ou outro ruído com tabs.
         // Tenta usar como complemento se for textual curto.
         if (rows.length > 1 && joined.length <= 80 && !/\d{2,}/.test(joined)) {
