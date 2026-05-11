@@ -34,6 +34,11 @@ declare(strict_types=1);
 
 ini_set('log_errors', '1');
 @ini_set('error_log', 'php://stderr');
+
+function elog(string $msg): void {
+    error_log('[openai-parse] ' . $msg);
+}
+
 session_start();
 @ini_set('max_execution_time', '600');
 @set_time_limit(600);
@@ -88,6 +93,8 @@ if ($text === '') {
     emitJson(['success' => false, 'message' => 'Texto do PDF não enviado.'], 400);
     exit;
 }
+
+elog('REQ_START filename=' . basename($filename) . ' text_len=' . strlen($text));
 
 // Limite seguro para caber no contexto do gpt-4o-mini (~128k tokens).
 $MAX_CHARS = 120_000;
