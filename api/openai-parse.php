@@ -76,7 +76,7 @@ if (empty($_SESSION['cf_loggedIn'])) {
 
 require_once __DIR__ . '/../config.php';
 
-$apiKey = $_ENV['OPENAI_API_KEY'] ?? '';
+$apiKey = trim((string)($_ENV['OPENAI_API_KEY'] ?? ''));
 if ($apiKey === '') {
     emitJson(['success' => false, 'message' => 'Chave OPENAI_API_KEY não configurada no .env.'], 500);
     exit;

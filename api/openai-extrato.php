@@ -142,7 +142,7 @@ if (empty($_SESSION['cf_loggedIn'])) {
 
 require_once __DIR__ . '/../config.php';
 
-$apiKey = $_ENV['OPENAI_API_KEY'] ?? '';
+$apiKey = trim((string)($_ENV['OPENAI_API_KEY'] ?? ''));
 if ($apiKey === '') {
     sendJson(['success' => false, 'message' => 'OPENAI_API_KEY não configurada.'], 500);
 }
@@ -228,7 +228,7 @@ if ($payloadJson === false) {
     ], 500);
 }
 
-elog('OPENAI_REQ bytes=' . strlen($payloadJson) . ' head=' . substr($payloadJson, 0, 160));
+elog('OPENAI_REQ bytes=' . strlen($payloadJson) . ' head=' . substr($payloadJson, 0, 160) . ' tail=' . substr($payloadJson, -120));
 
 if (!function_exists('curl_init')) {
     sendJson(['success' => false, 'message' => 'Extensão cURL não habilitada no PHP.'], 500);
@@ -254,7 +254,7 @@ $response = curl_exec($ch);
 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 $curlErr  = curl_error($ch);
 curl_close($ch);
-elog('OPENAI_RESP http=' . $httpCode . ' bytes=' . ($response === false ? 'FALSE' : strlen((string)$response)) . ' err=' . $curlErr);
+elog('OPENAI_RESP http=' . $httpCode . ' bytes=' . ($response === false ? 'FALSE' : strlen((string)$response)) . ' err=' . $curlErr . ' body=' . substr((string)$response, 0, 400));
 
 if ($response === false) {
     sendJson(['success' => false, 'message' => 'Falha ao contatar OpenAI: ' . $curlErr], 502);
