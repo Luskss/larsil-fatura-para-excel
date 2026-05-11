@@ -671,6 +671,7 @@
 
     const rawLines = text.split('\n');
     let lastDate = '';
+    let lastSaldo = null;
 
     for (let raw of rawLines) {
       // Quebra por TAB; descarta células vazias.
@@ -980,12 +981,32 @@
       if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataStr)) continue;
       const dataShort = dataStr.slice(0, 5);
 
-      const movAbs = parseSantanderNumber(movRaw);
-      if (movAbs === null) continue;
-      const movimento = isDebit ? -Math.abs(movAbs) : Math.abs(movAbs);
-      const saldoNum = saldo ? parseSantanderNumber(saldo) : '';
+      const movNum = parseSantanderNumber(movRaw);
+      if (movNum === null) continue;
+      const movAbs = Math.abs(movNum);
+      const saldoNum = saldo ? parseSantanderNumber(saldo) : null;
+
+      // Regra principal: inferir sinal pelo delta de saldo quando possível.
+      // Ex.: saldo caiu 26,00 => movimento é débito (-26,00).
+      let isDebitFinal = isDebit;
+      if (
+        saldoNum !== null &&
+        Number.isFinite(saldoNum) &&
+        lastSaldo !== null &&
+        Number.isFinite(lastSaldo)
+      ) {
+        const delta = Number((saldoNum - lastSaldo).toFixed(2));
+        if (Math.abs(Math.abs(delta) - movAbs) <= 0.05) {
+          isDebitFinal = delta < 0;
+        }
+      }
+
+      const movimento = isDebitFinal ? -movAbs : movAbs;
 
       lastDate = dataStr;
+      if (saldoNum !== null && Number.isFinite(saldoNum)) {
+        lastSaldo = saldoNum;
+      }
       rows.push([dataShort, descricao, documento, movimento, saldoNum === null ? '' : saldoNum]);
     }
 
