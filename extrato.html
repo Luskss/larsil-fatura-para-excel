@@ -394,6 +394,13 @@
       async function processOne(i) {
         const file = selectedFiles[i];
         const rawText = await extractTextFromPDF(file);
+        // DEBUG: expõe o texto extraído no console por arquivo.
+        // Use no DevTools: copy(window.__lastRawTexts['NOME.pdf'])
+        try {
+          window.__lastRawTexts = window.__lastRawTexts || {};
+          window.__lastRawTexts[file.name] = rawText;
+          window.__lastRawText = rawText;
+        } catch (_) { /* noop */ }
         const cleanText = cleanStatementText(rawText);
 
         const mode = (document.getElementById('bankSelect') || {}).value || 'auto';
