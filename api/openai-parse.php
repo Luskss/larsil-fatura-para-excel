@@ -33,6 +33,9 @@
 declare(strict_types=1);
 
 session_start();
+@ini_set('max_execution_time', '600');
+@set_time_limit(600);
+ignore_user_abort(true);
 
 // ── HEADERS DE SEGURANÇA ────────────────────────────────────────────────
 header('Content-Type: application/json; charset=utf-8');
@@ -167,7 +170,8 @@ curl_setopt_array($ch, [
         'Content-Length: ' . strlen($payloadJson),
         'Expect:',
     ],
-    CURLOPT_TIMEOUT        => 120,
+    CURLOPT_CONNECTTIMEOUT  => 15,
+    CURLOPT_TIMEOUT        => 90,
 ]);
 
 $response = curl_exec($ch);

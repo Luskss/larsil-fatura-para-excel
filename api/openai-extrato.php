@@ -29,7 +29,9 @@ declare(strict_types=1);
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
 @ini_set('memory_limit', '512M');
-@set_time_limit(300);
+@ini_set('max_execution_time', '600');
+@set_time_limit(600);
+ignore_user_abort(true);
 
 ob_start();
 
@@ -228,7 +230,8 @@ curl_setopt_array($ch, [
         'Content-Length: ' . strlen($payloadJson),
         'Expect:',
     ],
-    CURLOPT_TIMEOUT        => 180,
+    CURLOPT_CONNECTTIMEOUT  => 15,
+    CURLOPT_TIMEOUT        => 110,
 ]);
 
 $response = curl_exec($ch);
