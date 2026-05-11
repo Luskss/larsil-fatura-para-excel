@@ -194,6 +194,18 @@ $payload = [
     ],
 ];
 
+$payloadJson = json_encode(
+    $payload,
+    JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
+);
+if ($payloadJson === false) {
+    sendJson([
+        'success' => false,
+        'message' => 'Falha ao gerar JSON para OpenAI.',
+        'detail'  => json_last_error_msg(),
+    ], 500);
+}
+
 if (!function_exists('curl_init')) {
     sendJson(['success' => false, 'message' => 'Extensão cURL não habilitada no PHP.'], 500);
 }
@@ -202,7 +214,7 @@ $ch = curl_init('https://api.openai.com/v1/chat/completions');
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST           => true,
-    CURLOPT_POSTFIELDS     => json_encode($payload, JSON_UNESCAPED_UNICODE),
+    CURLOPT_POSTFIELDS     => $payloadJson,
     CURLOPT_HTTPHEADER     => [
         'Content-Type: application/json',
         'Authorization: Bearer ' . $apiKey,
@@ -219,10 +231,12 @@ if ($response === false) {
     sendJson(['success' => false, 'message' => 'Falha ao contatar OpenAI: ' . $curlErr], 502);
 }
 if ($httpCode < 200 || $httpCode >= 300) {
+    $errDecoded = json_decode($response, true);
+    $errMessage = $errDecoded['error']['message'] ?? null;
     sendJson([
         'success' => false,
         'message' => 'OpenAI HTTP ' . $httpCode,
-        'detail'  => substr($response, 0, 500),
+        'detail'  => $errMessage ?: substr($response, 0, 500),
     ], 502);
 }
 
