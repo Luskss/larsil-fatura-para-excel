@@ -183,8 +183,8 @@ curl_setopt_array($ch, [
     CURLOPT_HTTPHEADER     => [
         'Content-Type: application/json',
         'Authorization: Bearer ' . $apiKey,
-        'Content-Length: ' . strlen($payloadJson),
         'Expect:',
+        'Transfer-Encoding:',
     ],
     CURLOPT_CONNECTTIMEOUT  => 15,
     CURLOPT_TIMEOUT        => 90,
