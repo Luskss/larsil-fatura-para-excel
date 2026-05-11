@@ -543,7 +543,11 @@
       const snippet = raw.slice(0, 180).replace(/\s+/g, ' ').trim();
       throw new Error('Resposta inválida (HTTP ' + resp.status + '): ' + (snippet || 'corpo vazio'));
     }
-    if (!resp.ok || !payload.success) throw new Error(payload.message || ('HTTP ' + resp.status));
+    if (!resp.ok || !payload.success) {
+      const msg = payload.message || ('HTTP ' + resp.status);
+      const det = payload.detail ? ' — ' + payload.detail : '';
+      throw new Error(msg + det);
+    }
     return payload;
   }
 

@@ -137,9 +137,13 @@ if ($text === '') {
     sendJson(['success' => false, 'message' => 'Texto vazio.'], 400);
 }
 
-$MAX_CHARS = 350_000;
+// Limite seguro para caber no contexto do gpt-4o-mini (~128k tokens).
+// 1 token ≈ 3-4 chars em PT-BR, então ~120k chars é conservador.
+$MAX_CHARS = 120_000;
+$wasTruncated = false;
 if (strlen($text) > $MAX_CHARS) {
     $text = substr($text, 0, $MAX_CHARS);
+    $wasTruncated = true;
 }
 
 $systemPrompt = <<<PROMPT

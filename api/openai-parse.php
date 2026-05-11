@@ -76,8 +76,8 @@ if ($text === '') {
     exit;
 }
 
-// Limite de segurança (evita custo descontrolado): 250 KB ~ 60-80k tokens
-$MAX_CHARS = 250_000;
+// Limite seguro para caber no contexto do gpt-4o-mini (~128k tokens).
+$MAX_CHARS = 120_000;
 if (strlen($text) > $MAX_CHARS) {
     $text = substr($text, 0, $MAX_CHARS);
 }

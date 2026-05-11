@@ -903,7 +903,9 @@
     }
 
     if (!resp.ok || !payload.success) {
-      throw new Error(payload.message || ('HTTP ' + resp.status));
+      const msg = payload.message || ('HTTP ' + resp.status);
+      const det = payload.detail ? ' — ' + payload.detail : '';
+      throw new Error(msg + det);
     }
     return payload;
   }
