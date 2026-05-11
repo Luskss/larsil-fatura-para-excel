@@ -671,7 +671,6 @@
 
     const rawLines = text.split('\n');
     let lastDate = '';
-    let lastSaldo = null;
 
     for (let raw of rawLines) {
       // Quebra por TAB; descarta células vazias.
@@ -861,6 +860,7 @@
 
     const rawLines = text.split('\n');
     let lastDate = '';
+    let lastSaldo = null;
 
     for (let raw of rawLines) {
       let parts = raw.split('\t').map(s => s.trim()).filter(s => s !== '');
