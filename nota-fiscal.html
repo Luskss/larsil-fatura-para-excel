@@ -1,0 +1,1364 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; worker-src 'self' blob: https://cdnjs.cloudflare.com" />
+  <title>Larsil — Conversor de Nota Fiscal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:      #2c5529;
+      --primary-mid:  #3d7a3a;
+      --accent:       #4db55e;
+      --accent-light: #a0d063;
+      --bg:           #f0f5f0;
+      --card:         #fafcfa;
+      --border:       #c4d8c3;
+      --text:         #1a2e1a;
+      --muted:        #557055;
+    }
+
+    body { min-height: 100vh; background: var(--bg); font-family: 'Montserrat', sans-serif; color: var(--text); }
+
+    nav {
+      background: linear-gradient(135deg, #1a3318, var(--primary));
+      color: #fff; padding: 0 24px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(0,0,0,.3); position: sticky; top: 0; z-index: 100;
+    }
+    nav .brand { display: flex; align-items: center; gap: 12px; font-weight: 900; font-size: 1.1rem; letter-spacing: .5px; text-transform: uppercase; }
+    .nav-brand-logo { height: 38px; width: auto; }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    #navUser { font-size: .82rem; opacity: .85; font-weight: 400; }
+    .nav-link {
+      color: rgba(255,255,255,.85); text-decoration: none;
+      font-size: .8rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .3px; padding: 6px 14px; border-radius: 6px; transition: background .2s;
+    }
+    .nav-link:hover { background: rgba(255,255,255,.15); }
+    .nav-link.active { background: rgba(255,255,255,.22); color: #fff; }
+    #btnLogout {
+      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.35);
+      color: #fff; padding: 6px 16px; border-radius: 6px; font-size: .8rem;
+      font-family: 'Montserrat', sans-serif; font-weight: 700; cursor: pointer;
+      text-transform: uppercase; letter-spacing: .3px; transition: background .2s;
+    }
+    #btnLogout:hover { background: rgba(255,255,255,.28); }
+
+    main { max-width: 1000px; margin: 36px auto; padding: 0 16px; }
+    h2 { font-size: 1.35rem; color: var(--primary); margin-bottom: 6px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; }
+    .subtitle { color: var(--muted); font-size: .88rem; margin-bottom: 28px; font-weight: 400; }
+
+    .upload-zone {
+      border: 2.5px dashed var(--border); border-radius: 14px; padding: 52px 24px;
+      text-align: center; background: var(--card); cursor: pointer; position: relative;
+      transition: border-color .25s, background .25s;
+    }
+    .upload-zone.dragover { border-color: var(--primary); background: #eaf3f7; }
+    .upload-zone svg { color: var(--primary); margin-bottom: 14px; }
+    .upload-zone p { color: var(--muted); font-size: .95rem; }
+    .upload-zone p strong { color: var(--primary); }
+    .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .file-hint { font-size: .78rem; color: #9ca3af; margin-top: 8px; }
+
+    .files-list { display: none; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .file-count { font-size: .78rem; color: var(--muted); padding: 4px 0 2px; font-weight: 600; }
+    .file-item {
+      display: flex; align-items: center; gap: 12px;
+      background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px;
+      padding: 11px 16px; animation: fadeIn .2s;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; } }
+    .file-item .file-name { font-weight: 600; font-size: .88rem; color: #166534; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 500px; }
+    .file-item .file-size { font-size: .75rem; color: #4ade80; }
+    .btn-remove { margin-left: auto; background: none; border: none; cursor: pointer; color: #dc2626; padding: 4px; border-radius: 4px; display: flex; flex-shrink: 0; }
+    .btn-remove:hover { background: #fee2e2; }
+
+    .options-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px; margin-top: 20px; }
+    .options-card h3 { font-size: .9rem; color: var(--primary); margin-bottom: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+    .opt-group label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .4px; }
+    .opt-group input[type="text"] {
+      width: 100%; padding: 9px 12px; border: 1.5px solid var(--border);
+      border-radius: 7px; font-size: .88rem; font-family: 'Montserrat', sans-serif;
+      background: #fff; outline: none; color: var(--text); transition: border-color .2s;
+    }
+    .opt-group input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(77,181,94,.15); }
+
+    .btn-convert {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; margin-top: 22px; padding: 14px;
+      background: linear-gradient(135deg, #1a3318, var(--primary));
+      color: #fff; border: none; border-radius: 10px;
+      font-size: 1rem; font-weight: 900; font-family: 'Montserrat', sans-serif;
+      cursor: pointer; letter-spacing: .5px; text-transform: uppercase;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn-convert:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-convert:not(:disabled):hover { opacity: .88; }
+    .btn-convert:not(:disabled):active { transform: scale(.98); }
+
+    .progress-wrap { display: none; margin-top: 20px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); margin-bottom: 6px; }
+    .progress-bar-bg { width: 100%; height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--accent), var(--accent-light)); border-radius: 999px; transition: width .3s ease; }
+
+    .error-box { display: none; background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 10px; padding: 14px 18px; font-size: .88rem; margin-top: 20px; }
+
+    .spinner { width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result-section { display: none; margin-top: 28px; }
+    .result-section h3 { font-size: .95rem; color: var(--primary); margin-bottom: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+
+    .summary-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+    .summary-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; min-width: 140px; }
+    .summary-chip .chip-label { font-size: .72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+    .summary-chip .chip-value { font-size: 1.1rem; font-weight: 900; color: var(--primary); }
+
+    .preview-table-wrap {
+      overflow-x: auto; border: 1px solid var(--border); border-radius: 10px;
+      max-height: 420px; overflow-y: auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    thead th {
+      background: var(--primary); color: #fafcfa; padding: 10px 12px;
+      text-align: left; position: sticky; top: 0;
+      white-space: nowrap; font-weight: 700; font-size: .74rem;
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    tbody tr:nth-child(even) { background: #f0f5f0; }
+    tbody td { padding: 8px 12px; border-top: 1px solid #deeede; }
+    tbody td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    .export-actions { margin-top: 16px; display: flex; align-items: center; gap: 10px; }
+    .btn-export {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 26px; background: var(--accent); color: #fff; border: none;
+      border-radius: 8px; font-size: .9rem; font-weight: 900; font-family: 'Montserrat', sans-serif;
+      cursor: pointer; text-transform: uppercase; letter-spacing: .4px; transition: background .2s;
+    }
+    .btn-export:hover { background: var(--primary); }
+
+    footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 32px 0 20px; }
+
+    /* Toast ─────────────────────────────────────────────────────────── */
+    #nf-toast {
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: #1a3318; color: #fff; padding: 12px 24px; border-radius: 8px;
+      font-size: .88rem; font-weight: 500; letter-spacing: .2px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.28); pointer-events: none;
+      opacity: 0; transition: opacity .3s ease, transform .3s ease; z-index: 9999;
+      display: flex; align-items: center; gap: 10px;
+    }
+    #nf-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #nf-toast .toast-spinner {
+      width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.35);
+      border-top-color: #fff; border-radius: 50%; animation: tspin .7s linear infinite;
+    }
+    @keyframes tspin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">
+    <img src="img/logo-branca.png" alt="Larsil" class="nav-brand-logo"
+         onerror="this.src='img/logo-cores.png'">
+  </div>
+  <div class="nav-right">
+    <a href="home.html" class="nav-link">Inicio</a>
+    <a href="conversor.html" class="nav-link">Fatura</a>
+    <a href="extrato.html" class="nav-link">Extrato Bancario</a>
+    <a href="nota-fiscal.html" class="nav-link active">Nota Fiscal</a>
+    <a href="gestao-usuarios.html" class="nav-link">Usuarios</a>
+    <span id="navUser"></span>
+    <button id="btnLogout">Sair</button>
+  </div>
+</nav>
+
+<main>
+  <h2>Conversor de Nota Fiscal em Excel</h2>
+  <p class="subtitle">Extrai dados de NF-e, NFS-e e notas de papel (itens, impostos, emitente, destinatario) e exporta para Excel usando IA.</p>
+
+  <div class="upload-zone" id="uploadZone">
+    <input type="file" id="pdfInput" accept="application/pdf" multiple />
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    <p><strong>Clique para selecionar</strong> ou arraste os PDFs aqui</p>
+    <p class="file-hint">Varios arquivos PDF de Nota Fiscal - maximo 20 MB cada</p>
+  </div>
+
+  <div class="files-list" id="filesList">
+    <div class="file-count" id="fileCount"></div>
+  </div>
+
+  <div class="options-card">
+    <h3>Opcoes de exportacao</h3>
+    <div class="opt-group" style="max-width:300px">
+      <label>Nome do arquivo Excel</label>
+      <input type="text" id="outFileName" value="notas-fiscais" placeholder="notas-fiscais" />
+    </div>
+  </div>
+
+  <button class="btn-convert" id="btnConvert" disabled>
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 4 23 10 17 10"/>
+      <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+    </svg>
+    <span id="btnLabel">Processar Notas Fiscais</span>
+    <div class="spinner" id="spinner"></div>
+  </button>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-label">
+      <span id="progressText">Processando...</span>
+      <span id="progressPct">0%</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div class="result-section" id="resultSection">
+    <h3>Dados extraidos</h3>
+
+    <div class="summary-bar" id="summaryBar"></div>
+
+    <div class="preview-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Nº NF</th><th>Data</th><th>Fazenda</th>
+            <th>Emissor</th><th>CNPJ Emissor</th><th>Destinatário</th>
+            <th>Item</th><th>Qtd</th><th>Vlr Unit.</th><th>Vlr Total</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyItens"></tbody>
+      </table>
+    </div>
+
+    <div class="export-actions">
+      <button class="btn-export" id="btnExport">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Baixar planilha Excel (.xlsx)
+      </button>
+    </div>
+  </div>
+</main>
+
+<footer>Conversor de Nota Fiscal &bull; Versao 1.0 &bull; Uso interno</footer>
+
+<script>
+  if (!sessionStorage.getItem('cf_loggedIn')) window.location.replace('index.html');
+  document.getElementById('navUser').textContent = 'Ola, ' + (sessionStorage.getItem('cf_username') || 'usuario');
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    try { await fetch('api/logout.php', { method: 'POST', credentials: 'same-origin' }); } catch (_) {}
+    sessionStorage.clear();
+    window.location.replace('index.html');
+  });
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  // Em ambientes com CSP mais restrito, o worker externo pode ser bloqueado.
+  // Neste caso forçamos fallback sem worker para manter a extração/renderização funcionando.
+  window.addEventListener('error', function(evt) {
+    var msg = String((evt && evt.message) || '');
+    if (/Setting up fake worker|pdf\.worker|worker-src|Refused to create a worker/i.test(msg)) {
+      pdfjsLib.disableWorker = true;
+      console.warn('[PDF.js] Worker bloqueado por CSP. Usando modo sem worker.');
+    }
+  }, true);
+
+  const pdfInput      = document.getElementById('pdfInput');
+  const uploadZone    = document.getElementById('uploadZone');
+  const filesList     = document.getElementById('filesList');
+  const fileCount     = document.getElementById('fileCount');
+  const btnConvert    = document.getElementById('btnConvert');
+  const btnLabel      = document.getElementById('btnLabel');
+  const spinner       = document.getElementById('spinner');
+  const progressWrap  = document.getElementById('progressWrap');
+  const progressFill  = document.getElementById('progressFill');
+  const progressText  = document.getElementById('progressText');
+  const progressPct   = document.getElementById('progressPct');
+  const errorBox      = document.getElementById('errorBox');
+  const resultSection = document.getElementById('resultSection');
+  const btnExport     = document.getElementById('btnExport');
+  const outFileName   = document.getElementById('outFileName');
+  const tbodyItens    = document.getElementById('tbodyItens');
+  const summaryBar    = document.getElementById('summaryBar');
+
+  let selectedFiles = [];
+  let workbook = null;
+  let allNotas = [];
+
+  pdfInput.addEventListener('change', e => addFiles(Array.from(e.target.files || [])));
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault(); uploadZone.classList.remove('dragover');
+    addFiles(Array.from(e.dataTransfer.files || []).filter(f => f.type === 'application/pdf'));
+  });
+
+  function addFiles(files) {
+    let rejected = 0;
+    for (const f of files) {
+      if (f.size > 20 * 1024 * 1024) { rejected++; continue; }
+      if (selectedFiles.some(s => s.name === f.name && s.size === f.size)) continue;
+      selectedFiles.push(f);
+    }
+    if (rejected) showError(rejected + ' arquivo(s) ignorado(s) por exceder 20 MB.');
+    else hideError();
+    renderFileList();
+    btnConvert.disabled = selectedFiles.length === 0;
+  }
+
+  function renderFileList() {
+    filesList.innerHTML = '<div class="file-count" id="fileCount"></div>';
+    if (!selectedFiles.length) { filesList.style.display = 'none'; return; }
+    filesList.style.display = 'flex';
+    document.getElementById('fileCount').textContent = selectedFiles.length + ' arquivo(s) selecionado(s)';
+    selectedFiles.forEach((file, idx) => {
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.innerHTML =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+        '<div><div class="file-name">' + esc(file.name) + '</div><div class="file-size">' + formatBytes(file.size) + '</div></div>' +
+        '<button class="btn-remove" title="Remover"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+      item.querySelector('.btn-remove').addEventListener('click', () => {
+        selectedFiles.splice(idx, 1);
+        renderFileList();
+        btnConvert.disabled = selectedFiles.length === 0;
+      });
+      filesList.appendChild(item);
+    });
+  }
+
+  btnConvert.addEventListener('click', async function() {
+    if (!selectedFiles.length) return;
+    setLoading(true); hideError();
+    resultSection.style.display = 'none';
+    workbook = null; allNotas = [];
+
+    try {
+      var total = selectedFiles.length;
+      for (var i = 0; i < total; i++) {
+        var file = selectedFiles[i];
+        setProgress(Math.round((i / total) * 40), 'Extraindo texto do arquivo ' + (i + 1) + '/' + total + '...');
+        var rawText = await extractTextFromPDF(file);
+        try {
+          window.__lastRawTexts = window.__lastRawTexts || {};
+          window.__lastRawTexts[file.name] = rawText;
+          window.__lastRawText = rawText;
+        } catch (_) {}
+        var result = null;
+        var usedParser = '';
+
+        if (rawText.trim()) {
+          // 1) Tenta parser local
+          setProgress(Math.round((i / total) * 40), 'Arquivo ' + (i + 1) + '/' + total + ' - testando parser local...');
+          var localResult = parseNFLocal(rawText, file.name);
+          if (localResult && localResult.notas && localResult.notas.length > 0) {
+            result = localResult;
+            usedParser = 'parser local';
+          }
+        }
+
+        // 2) Fallback: IA
+        if (!result) {
+          var isSemTexto = !rawText.trim();
+          var textParaIA = isSemTexto
+            ? '(PDF SEM TEXTO SELECIONÁVEL — use a(s) imagem(ns) anexa(s) da nota fiscal para extrair os dados.)'
+            : rawText;
+          var imagesParaIA = [];
+          if (isSemTexto) {
+            showToast('Nota é uma imagem — renderizando páginas e enviando para IA Vision (pode levar 30-60s)...');
+            setProgress(Math.round(40 + (i / total) * 50), 'Arquivo ' + (i + 1) + '/' + total + ' - renderizando imagens...');
+            try {
+              imagesParaIA = await renderPDFToImages(file);
+              console.info('[NF] ' + file.name + ' → renderizadas ' + imagesParaIA.length + ' páginas para Vision');
+            } catch (renderErr) {
+              console.error('[NF] Falha ao renderizar PDF como imagem:', renderErr);
+              hideToast();
+              throw new Error('Falha ao renderizar PDF imagem: ' + (renderErr && renderErr.message ? renderErr.message : renderErr));
+            }
+          }
+          setProgress(Math.round(40 + (i / total) * 50), 'Arquivo ' + (i + 1) + '/' + total + ' - enviando para IA...');
+          result = await callAI(file.name, textParaIA, imagesParaIA);
+          usedParser = isSemTexto ? ('IA Vision (' + imagesParaIA.length + ' pág)') : 'IA';
+          if (isSemTexto) hideToast();
+        }
+
+        console.info('[NF] ' + file.name + ' → ' + usedParser);
+        var notas = result.notas || [];
+        for (var j = 0; j < notas.length; j++) {
+          notas[j]._arquivo = file.name;
+          allNotas.push(notas[j]);
+        }
+      }
+
+      if (allNotas.length === 0) {
+        showError('Nenhuma nota fiscal reconhecida nos PDFs. Verifique se os arquivos contem texto selecionavel.');
+        setLoading(false);
+        return;
+      }
+
+      setProgress(95, 'Gerando planilha...');
+      workbook = buildWorkbook(allNotas);
+      renderPreview(allNotas);
+      renderSummaryChips(allNotas);
+      resultSection.style.display = 'block';
+      setProgress(100, 'Concluido!');
+    } catch (err) {
+      showError('Erro ao processar: ' + err.message);
+    }
+
+    setLoading(false);
+  });
+
+  // ── PARSER DANFE NF-e (otimizado para layout padrão DANFE) ────────────────────────
+  // Testa marcadores DANFE específicos antes de qualquer regex.
+  // Retorna null se o PDF não for um DANFE padrão NF-e.
+  function parseDANFE(txt) {
+    // NFS-e contém "NFS-e" que inclui "NF-e" — nunca processar NFS-e aqui
+    if (/NFS-?e|DANFSe|Nota\s+Fiscal\s+de\s+Servi[\u00e7c]o/i.test(txt)) return null;
+    if (!/DANFE|NOTA FISCAL ELETR[\u00d4O]NICA/i.test(txt)) return null;
+
+    var parseMoney = function(s) {
+      return s ? parseFloat(s.replace(/\./g, '').replace(',', '.')) : 0;
+    };
+
+    // ── Número (“Nº: 166966” ou “Nº 166966”) ──
+    var mNum = txt.match(/N[\u00b0º]\s*:\s*(\d+)/i) || txt.match(/N[\u00b0º]\s+(\d+)\b/i);
+    var numero = mNum ? mNum[1] : '';
+    if (!numero) return null;
+
+    // ── Série (“SÉRIE: 5”) ──
+    var mSerie = txt.match(/S[\u00c9E]RIE:\s*(\d+)/i) || txt.match(/S[e\u00e9]rie:\s*(\d+)/i);
+    var serie = mSerie ? mSerie[1] : '';
+
+    // ── Data (“Emissão: DD/MM/AAAA”) ──
+    var mData = txt.match(/Emiss[a\u00e3]o:\s*(\d{2}\/\d{2}\/\d{4})/i)
+             || txt.match(/DATA DE EMISS[A\u00c3]O\D{1,40}?(\d{2}\/\d{2}\/\d{4})/i);
+    var dataEmissao = mData ? mData[1] : '';
+
+    // ── Emitente (“Recebemos de EMPRESA os produtos”) ──
+    var razaoEmit = '';
+    var mEmit = txt.match(/Recebemos de\s+(.+?)\s+os produtos/i);
+    if (mEmit) razaoEmit = mEmit[1].trim();
+
+    // ── CNPJ Emitente (primeiro XX.XXX.XXX/XXXX-XX do documento) ──
+    var cnpjEmit = '';
+    var mCNPJ14 = txt.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/);
+    if (mCNPJ14) cnpjEmit = mCNPJ14[0];
+
+    // ── Destinatário: busca CNPJ/CPF no bloco e nome na linha anterior/mesma ──
+    var razaoDest = '', cpfCnpjDest = '';
+    var mDB = txt.match(/DESTINAT[A\u00c1]RIO\/REMETENTE([\s\S]{0,800}?)(?:C[A\u00c1]LCULO\s+DO|DADOS\s+ADICIONAIS|TRANSPORTA|$)/i);
+    if (mDB) {
+      var dBlock = mDB[1];
+      var DEST_DOC = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/g;
+      var dm;
+      while ((dm = DEST_DOC.exec(dBlock)) !== null) {
+        var beforeDoc = dBlock.substring(0, dm.index);
+        var lastNL    = beforeDoc.lastIndexOf('\n');
+        var sameLine  = beforeDoc.substring(lastNL + 1).trim();
+        var candidate = '';
+        if (sameLine && !/^(?:CNPJ|CPF|NOME|RAZ[A\u00c3]O|DATA|EMISS|DESTINAT)/i.test(sameLine)) {
+          candidate = sameLine;
+        } else {
+          var beforeNL = beforeDoc.substring(0, lastNL);
+          var prevNL   = beforeNL.lastIndexOf('\n');
+          var prevLine = beforeNL.substring(prevNL + 1).trim();
+          if (prevLine && !/^(?:CNPJ|CPF|NOME|RAZ[A\u00c3]O|DATA|EMISS|DESTINAT)/i.test(prevLine)) {
+            candidate = prevLine;
+          }
+        }
+        if (candidate) { razaoDest = candidate; cpfCnpjDest = dm[0]; break; }
+      }
+    }
+
+    // ── Fazenda (do endereço do destinatário) ──
+    var fazenda = '';
+    var mFaz = txt.match(
+      /\b(SITIO|FAZENDA|RANCHO|EST[\u00c2A]NCIA|CHACARA)\s+([A-Z\u00c0-\u00da][A-Z\u00c0-\u00fa\s]{1,50}?)(?:\s*[-,]|\s*\n)/i
+    );
+    if (mFaz) fazenda = (mFaz[1] + ' ' + mFaz[2]).trim().replace(/\s+/g, ' ');
+
+    // ── Total dos Produtos (último valor na linha seguinte ao cabeçalho) ──
+    var totalProdutos = 0, totalNF = 0;
+    var mTP = txt.match(/VALOR TOTAL DOS PRODUTOS\s*\n([^\n]+)/i);
+    if (mTP) {
+      var tpVals = mTP[1].match(/\d{1,3}(?:\.\d{3})*,\d{2}/g);
+      if (tpVals) totalProdutos = parseMoney(tpVals[tpVals.length - 1]);
+    }
+
+    // ── Total da Nota (primeiro valor com separador de milhar após o rótulo) ──
+    var afterTNF = txt.split(/VALOR TOTAL DA NOTA/i).pop() || '';
+    var mTNF = afterTNF.match(/\b(\d{1,3}(?:\.\d{3})+,\d{2})\b/);
+    if (mTNF) totalNF = parseMoney(mTNF[1]);
+
+    // ── Impostos (‘VALOR DO ICMS’ → linha seguinte → primeiro valor) ──
+    var icms = 0;
+    var mICMSLine = txt.match(/VALOR DO ICMS\s*\n([^\n]+)/i);
+    if (mICMSLine) {
+      var icmsVals = mICMSLine[1].match(/\d{1,3}(?:\.\d{3})*,\d{2}/g);
+      if (icmsVals) icms = parseMoney(icmsVals[0]);
+    }
+
+    // ── Itens (entre DADOS DOS PRODUTOS e DADOS ADICIONAIS) ──
+    var itens = [];
+    var itemsMatch = txt.match(
+      /DADOS DOS PRODUTOS[\/\s]+SERVI[\u00c7C]OS([\s\S]+?)(?:DADOS ADICIONAIS|INFORMA[\u00c7C][\u00d5O]ES COMPLEMENTARES|$)/i
+    );
+    if (itemsMatch) {
+      var iLines = itemsMatch[1].split('\n')
+        .map(function(l) { return l.trim(); }).filter(Boolean);
+
+      var NCM_RE   = /\b(\d{8})\b/;
+      var CFOP_RE  = /\b([1-9]\d{3})\b/;
+      // Unidades comuns em NF-e
+      var UNIT_RE  = /\b(UN|KG|BLD|PC|M2|MT|LT|CX|SC|TON|HL|PAR|JG|FD|RS|M3|GL|GR|MG|ML|CM|DZ|GF|KWH|H|SV|VB|SRL|FW|L|T)\b/;
+      // Valores com 4 casas decimais (qtd e preço unitário)
+      var MONEY4_RE = /\b(\d{1,6},\d{4})\b/g;
+      // Valores monetários com 2 casas (com OU sem separador de milhar): 4.920,00 ou 708,00
+      var MONEY2_RE = /\b(\d{1,3}(?:\.\d{3})*,\d{2})\b/g;
+      // Detecta um código de produto isolado (PRD00009, COD-123, 12345)
+      var CODE_RE = /^(?:[A-Z]{2,5}\d+|[A-Z0-9]+-\d+|\d{4,})$/;
+      // Linhas a ignorar (cabeçalhos e códigos puros)
+      var SKIP_RE = /^(?:C[O\u00d3]D\.?\s*PROD|DESCRI|NCM|CST|CFOP|UNID|QUANT|VALOR|BC\s|AL[I\u00cd]Q|IMPOS|APROX|GRUBO|GRUPO|TOTAL\b|ICMS\b|IPI\b)/i;
+
+      var descLines = [];
+      // 1ª passada: classifica cada linha em "data" (tem NCM+CFOP) ou "text" (descrição candidata)
+      var entries = [];
+      for (var li = 0; li < iLines.length; li++) {
+        var line = iLines[li];
+        var mNCM  = line.match(NCM_RE);
+        var mCFOP = line.match(CFOP_RE);
+        if (mNCM && mCFOP) {
+          entries.push({ type: 'data', line: line, mNCM: mNCM, mCFOP: mCFOP });
+        } else if (
+          !SKIP_RE.test(line) &&
+          !/^\d+$/.test(line) &&
+          !/^\d{1,3}(?:\.\d{3})*,\d{2}$/.test(line) &&
+          !CODE_RE.test(line) && // ignora linhas que são SÓ código de produto
+          line.length > 2
+        ) {
+          entries.push({ type: 'text', line: line });
+        }
+      }
+
+      // Helper para extrair descrição da própria linha de dados (entre código e NCM)
+      var stripCode = function(s) {
+        return s.replace(/^(?:[A-Z]{2,5}\d+|[A-Z0-9]+-\d+|\d{4,})\s*/, '').trim();
+      };
+      var cleanDesc = function(s) {
+        return s
+          // Corta no primeiro marcador de "fim de descrição" (tributos, fonte IBPT, fundamento legal)
+          .replace(/\s*[-\u2013]?\s*VALOR\s+APROX\.?\s*(?:DOS\s+)?TRIBUTOS?[\s\S]*$/i, '')
+          .replace(/\s*TRIBUTOS?\s+R\$[\s\S]*$/i, '')
+          .replace(/\s*FONTE\s*:\s*IBPT[\s\S]*$/i, '')
+          .replace(/\s*GRUBO\s+EMB[\s\S]*$/i, '')
+          .replace(/\s*Al[ií]quota\s+Zero[\s\S]*$/i, '')
+          .replace(/\s*art\.?\s*\d+[ºo]?\s+da\s+Lei[\s\S]*$/i, '')
+          .replace(/\s*[-\u2013]\s*(?:null|undefined|n\/a)\s*$/i, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      };
+
+      // 2ª passada: para cada "data", tenta:
+      //  (a) descrição na própria linha (entre código e NCM)
+      //  (b) próximas linhas de texto (concatena, limpa, aceita só se sobrar conteúdo)
+      //  (c) linhas de texto anteriores (idem)
+      var tryGather = function(direction) {
+        var collected = [], idxs = [];
+        for (var k = ei + direction; k >= 0 && k < entries.length && entries[k].type !== 'data'; k += direction) {
+          if (entries[k].type === 'text' && !entries[k]._used) {
+            if (direction > 0) collected.push(entries[k].line);
+            else collected.unshift(entries[k].line);
+            idxs.push(k);
+          }
+        }
+        return { desc: cleanDesc(collected.join(' ').replace(/\s+/g, ' ')), idxs: idxs };
+      };
+
+      for (var ei = 0; ei < entries.length; ei++) {
+        if (entries[ei].type !== 'data') continue;
+        var de = entries[ei];
+
+        // (a) Mesmo-linha (rejeita se sobrar apenas número/dinheiro — coluna IMPOSTOS antes do NCM)
+        var preNcm = de.line.substring(0, de.line.indexOf(de.mNCM[1])).trim();
+        var rawDesc = stripCode(preNcm);
+        if (rawDesc && /^\d{1,3}(?:\.\d{3})*,\d{2}$/.test(rawDesc)) rawDesc = '';
+        if (rawDesc && /^\d+(?:[.,]\d+)?$/.test(rawDesc)) rawDesc = '';
+        rawDesc = cleanDesc(rawDesc);
+
+        // (b) Próximas linhas (forward) — ex.: AGRO TRINDADE com desc após cada data
+        if (!rawDesc) {
+          var fwd = tryGather(1);
+          if (fwd.desc) {
+            rawDesc = fwd.desc;
+            fwd.idxs.forEach(function(i) { entries[i]._used = true; });
+          }
+        }
+        // (c) Linhas anteriores (backward) — ex.: COCARI com desc multilinha antes do data
+        if (!rawDesc) {
+          var bwd = tryGather(-1);
+          if (bwd.desc) {
+            rawDesc = bwd.desc;
+            bwd.idxs.forEach(function(i) { entries[i]._used = true; });
+          }
+        }
+
+        // Valores: qtd e v.unit (4 casas)
+        var mUnit = de.line.match(UNIT_RE);
+        var v4 = [], m4, lastM4End = -1;
+        MONEY4_RE.lastIndex = 0;
+        while ((m4 = MONEY4_RE.exec(de.line)) !== null) {
+          v4.push(parseMoney(m4[1]));
+          lastM4End = m4.index + m4[0].length;
+        }
+        // Total: primeiro MONEY2 APÓS o preço unitário (evita pegar coluna IMPOSTOS antes do NCM)
+        var vMon = [], mMo;
+        MONEY2_RE.lastIndex = lastM4End >= 0 ? lastM4End : 0;
+        while ((mMo = MONEY2_RE.exec(de.line)) !== null) vMon.push(parseMoney(mMo[1]));
+
+        itens.push({
+          descricao:     rawDesc,
+          ncm:           de.mNCM[1],
+          cfop:          de.mCFOP[1],
+          unidade:       mUnit ? mUnit[1] : '',
+          quantidade:    v4.length >= 1 ? v4[0] : 0,
+          valorUnitario: v4.length >= 2 ? v4[1] : 0,
+          valorTotal:    vMon.length >= 1 ? vMon[0] : 0,
+        });
+      }
+    }
+
+    if (!itens.length && !totalProdutos) return null;
+
+    return {
+      notas: [{
+        numero:        numero,
+        serie:         serie,
+        dataEmissao:   dataEmissao,
+        chaveAcesso:   '',
+        fazenda:       fazenda,
+        emitente:      { razaoSocial: razaoEmit,  cnpj: cnpjEmit },
+        destinatario:  { razaoSocial: razaoDest,  cnpj: cpfCnpjDest },
+        itens:         itens,
+        impostos:      { icms: icms, iss: 0, pis: 0, cofins: 0, ipi: 0 },
+        totalProdutos: totalProdutos,
+        totalNF:       totalNF || totalProdutos,
+        _parser:       'DANFE-local',
+      }]
+    };
+  }
+
+  // ── PARSER NFS-e (Layout B: Municipal/Prefeitura  |  Layout C: DANFSe v1.0) ───────
+  // Layout B: "Nota Fiscal de Serviço Eletrônica - Série NFS-e" (ex.: Telêmaco Borba)
+  // Layout C: "DANFSe v1.0 – Documento Auxiliar da NFS-e" (ex.: Santa Rita do Pardo)
+  //
+  // Observação importante: PDF.js extrai texto agrupado por Y, então cada "row visual"
+  // do DANFSe vira UMA linha contendo TODOS os campos da row em sequência (separados
+  // por espaço). Os rótulos ficam na linha de cima e os valores na linha logo abaixo.
+  // Estratégia: localizar a linha-rótulo, ler a linha seguinte e extrair com regex
+  // específicos (CNPJ, R$, datas) — independente de qual "coluna" o valor ocupa.
+  function parseNFSe(txt) {
+    if (!/NFS-?e|DANFSe|Nota\s+Fiscal\s+de\s+Servi[\u00e7c]o/i.test(txt)) return null;
+
+    var parseMoney = function(s) {
+      return s ? parseFloat(s.replace(/\./g, '').replace(',', '.')) : 0;
+    };
+    var lines = txt.split('\n');
+
+    // Helper: dada uma regex de rótulo, retorna a linha imediatamente seguinte
+    var lineAfter = function(labelRe) {
+      for (var i = 0; i < lines.length - 1; i++) {
+        if (labelRe.test(lines[i])) {
+          // Pula linhas vazias
+          for (var j = i + 1; j < lines.length; j++) {
+            if (lines[j].trim()) return lines[j];
+          }
+        }
+      }
+      return '';
+    };
+
+    // ── Número da NFS-e ──
+    // "Número da NFS-e" pode estar na mesma linha que outros rótulos (Competência, Data...)
+    // O número 57 aparece na linha seguinte. Pegamos o PRIMEIRO número da linha seguinte.
+    var nlNum = lineAfter(/N[u\u00fa]mero\s+da\s+NFS-?e/i);
+    var mNum = nlNum.match(/\b(\d+)\b/);
+    if (!mNum) {
+      // Layout B (Telêmaco Borba): "Número da NFS-e\nXXXX" pode aparecer alinhado vertical
+      var mAlt = txt.match(/N[u\u00fa]mero\s+da\s+NFS-?e[\s\S]{0,200}?\b(\d{2,10})\b/i);
+      if (mAlt) mNum = [mAlt[1], mAlt[1]];
+    }
+    var numero = mNum ? mNum[1] : '';
+    if (!numero) return null;
+
+    // ── Data ──
+    var dataEmissao = '';
+    var nlData = lineAfter(/(?:Compet[\u00ea]ncia|Data\s+(?:Fato\s+Gerador|e\s+Hora\s+(?:da|de)\s+(?:emiss[\u00e3a]o|NFS-?e))|Data\/Hora\s+Emiss[\u00e3a]o)/i);
+    var mData = nlData.match(/(\d{2}\/\d{2}\/\d{4})/);
+    if (mData) dataEmissao = mData[1];
+    if (!dataEmissao) {
+      var mDFall = txt.match(/(\d{2}\/\d{2}\/\d{4})/);
+      if (mDFall) dataEmissao = mDFall[1];
+    }
+
+    // ── Helper: extrai bloco entre dois marcadores (case-insensitive) ──
+    var blockBetween = function(startRe, endRes) {
+      var idx = txt.search(startRe);
+      if (idx < 0) return '';
+      var rest = txt.substring(idx);
+      var endIdx = rest.length;
+      for (var k = 0; k < endRes.length; k++) {
+        // Procura o fim a partir do CARACTERE 1 (para não casar com o próprio start)
+        var em = rest.substring(1).search(endRes[k]);
+        if (em >= 0 && em + 1 < endIdx) endIdx = em + 1;
+      }
+      return rest.substring(0, endIdx);
+    };
+
+    // ── Emitente ──
+    var razaoEmit = '', cnpjEmit = '';
+    var emitBlk = blockBetween(
+      /EMITENTE\s+DA\s+NFS-?e|PRESTADOR\s+(?:DO|DE)\s+SERVI[\u00c7C]OS?/i,
+      [/TOMADOR\s+(?:DO|DE)\s+SERVI[\u00c7C]OS?/i, /INTERMEDI[\u00c1A]RIO/i, /SERVI[\u00c7C]O\s+PRESTADO/i, /DISCRIMINA[\u00c7C][\u00c3A]O\s+DOS\s+SERVI/i]
+    );
+    if (emitBlk) {
+      var eLines = emitBlk.split('\n');
+      // CNPJ emitente: primeiro CNPJ/CPF que aparecer no bloco EMITENTE
+      var mCnpjE = emitBlk.match(/\b(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})\b/);
+      if (mCnpjE) cnpjEmit = mCnpjE[1];
+
+      // Helper: localiza linha do rótulo e devolve as PRÓXIMAS N linhas não-vazias concatenadas
+      var eScan = function(labelRe, nLines) {
+        nLines = nLines || 5;
+        for (var i = 0; i < eLines.length; i++) {
+          if (labelRe.test(eLines[i])) {
+            var out = [];
+            for (var j = i + 1; j < eLines.length && out.length < nLines; j++) {
+              if (eLines[j].trim()) out.push(eLines[j].trim());
+            }
+            return out.join(' \u00a6 ');
+          }
+        }
+        return '';
+      };
+      // Nome do emitente: pega o trecho após "Nome / Nome Empresarial" (até 5 linhas à frente)
+      var lNome = eScan(/Nome\s*\/\s*(?:Nome\s+Empresarial|Raz[\u00e3a]o\s+Social)/i, 4);
+      if (lNome) {
+        // Limpa CNPJ/CPF/email/telefone/data/prefixo numérico
+        var cleanE = lNome
+          .replace(/\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g, ' ')
+          .replace(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, ' ')
+          .replace(/\b[\w.+-]+@[\w-]+\.[\w.-]+\b/g, ' ')
+          .replace(/\(\d{2}\)\s*\d{4,5}-?\d{4}/g, ' ')
+          .replace(/\b\d{2}\/\d{2}\/\d{4}\b/g, ' ')
+          .replace(/\b\d{2}\.\d{3}\.\d{3}\b/g, ' ') // prefixo "62.554.446" colado ao nome
+          .replace(/\u00a6/g, ' ')
+          .trim();
+        // Pega trecho longo de Maiusculas (nome empresarial/pessoal)
+        var mName = cleanE.match(/[A-Z\u00c0-\u00da][A-Z\u00c0-\u00da .'\/&-]{4,}/);
+        if (mName) razaoEmit = mName[0].trim().replace(/\s+/g, ' ');
+      }
+    }
+    // Fallback: primeiro CNPJ do documento se ainda vazio
+    if (!cnpjEmit) {
+      var mFallE = txt.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2}/);
+      if (mFallE) cnpjEmit = mFallE[0];
+    }
+
+    // ── Destinatário (Tomador do Serviço) ──
+    var razaoDest = '', cpfCnpjDest = '';
+    var tomBlk = blockBetween(
+      /TOMADOR\s+(?:DO|DE)\s+SERVI[\u00c7C]OS?/i,
+      [/INTERMEDI[\u00c1A]RIO/i, /SERVI[\u00c7C]O\s+PRESTADO/i, /TRIBUTA[\u00c7C][\u00c3A]O/i, /DESCRI[\u00c7C][\u00c3A]O\s+DO\s+SERVI/i, /DISCRIMINA[\u00c7C][\u00c3A]O\s+DOS\s+SERVI/i, /Imposto\s+Sobre\s+Servi/i]
+    );
+    if (tomBlk) {
+      var tLines = tomBlk.split('\n');
+      // CNPJ destinatário: primeiro CNPJ no bloco TOMADOR (mas ≠ do emitente, se conhecido)
+      var tomCnpjs = tomBlk.match(/\b(?:\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})\b/g) || [];
+      for (var ti = 0; ti < tomCnpjs.length; ti++) {
+        if (tomCnpjs[ti] !== cnpjEmit) { cpfCnpjDest = tomCnpjs[ti]; break; }
+      }
+      if (!cpfCnpjDest && tomCnpjs.length) cpfCnpjDest = tomCnpjs[0];
+
+      var tScan = function(labelRe, nLines) {
+        nLines = nLines || 5;
+        for (var i = 0; i < tLines.length; i++) {
+          if (labelRe.test(tLines[i])) {
+            var out = [];
+            for (var j = i + 1; j < tLines.length && out.length < nLines; j++) {
+              if (tLines[j].trim()) out.push(tLines[j].trim());
+            }
+            return out.join(' \u00a6 ');
+          }
+        }
+        return '';
+      };
+      var lTNome = tScan(/Nome\s*\/\s*(?:Nome\s+Empresarial|Raz[\u00e3a]o\s+Social)/i, 4);
+      if (lTNome) {
+        var cleanT = lTNome
+          .replace(/\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g, ' ')
+          .replace(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, ' ')
+          .replace(/\b[\w.+-]+@[\w-]+\.[\w.-]+\b/g, ' ')
+          .replace(/\(\d{2}\)\s*\d{4,5}-?\d{4}/g, ' ')
+          .replace(/\b\d{2}\/\d{2}\/\d{4}\b/g, ' ')
+          .replace(/\b\d{2}\.\d{3}\.\d{3}\b/g, ' ')
+          .replace(/\u00a6/g, ' ')
+          .trim();
+        var mNameT = cleanT.match(/[A-Z\u00c0-\u00da][A-Z\u00c0-\u00da .'\/&-]{4,}/);
+        if (mNameT) razaoDest = mNameT[0].trim().replace(/\s+/g, ' ');
+      }
+    }
+
+    // ── Fazenda ──
+    var fazenda = '';
+    var mFaz = txt.match(/\b(SITIO|FAZENDA|RANCHO|EST[\u00c2A]NCIA|CHACARA)\s+([A-Z\u00c0-\u00da][A-Z\u00c0-\u00fa\s]{1,50}?)(?:\s*[-,]|\s*\n)/i);
+    if (mFaz) fazenda = (mFaz[1] + ' ' + mFaz[2]).trim().replace(/\s+/g, ' ');
+
+    // ── Itens: "Descrição do Serviço" ou "Discriminação dos Serviços" ──
+    var itens = [];
+    var idxDesc = txt.search(/Descri[\u00e7c][\u00e3a]o\s+do\s+Servi[\u00e7c]o|Discrimina[\u00e7c][\u00e3a]o\s+dos\s+Servi[\u00e7c]os|DESCRI[\u00c7C][\u00c3A]O\s+DOS\s+SERVI[\u00c7C]OS\s+PRESTADOS/i);
+    if (idxDesc >= 0) {
+      // Bloco vai do final dessa linha até o próximo cabeçalho conhecido
+      var afterDesc = txt.substring(idxDesc).replace(/^[^\n]*\n/, '');
+      var endRe = /(?:^|\n)\s*(?:NBS\b|TRIBUTA[\u00c7C][\u00c3A]O\s+(?:MUNICIPAL|FEDERAL)|VALOR\s+TOTAL\s+DA\s+NFS-?e|Base\s+de\s+C[\u00e1a]lculo|Valor\s+Total\s*\n|Cond(?:i[\u00e7c][\u00e3a]o)?\s+de\s+Pagamento|INFORMA[\u00c7C][\u00d5O]ES\s+COMPLEMENTARES|TOTAIS\s+APROXIMADOS|Imposto\s+Sobre\s+Servi|LC\s*116\s*\/\s*2003|Reten[\u00e7c][\u00f5o]es\s+de\s+Impostos|Val\.?\s+Aprox\.?\s+Tributos|Valor\s+L[\u00edi]quido\s+da\s+NFS|Desconto\s+Incondicion|Dedu[\u00e7c][\u00f5o]es\s+Base|Total\s+do\s+ISS|ISS\s+Retido|Outras\s+Reten[\u00e7c][\u00f5o]es)/i;
+      var endMatch = afterDesc.match(endRe);
+      var descBlk = endMatch ? afterDesc.substring(0, endMatch.index) : afterDesc.substring(0, 1500);
+
+      var dLines = descBlk.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+      var DESC_SKIP_RE = /^(?:Descri[\u00e7c][\u00e3a]o(?:\s+do\s+Servi[\u00e7c]o|\s+dos\s+Servi[\u00e7c]os)?\s*:?$|Discrimina[\u00e7c][\u00e3a]o\s+dos\s+Servi|C[\u00f3o]digo\s+de\s+Tributa[\u00e7c]|Local\s+da\s+Presta|Situa[\u00e7c]|Al[\u00ed]quota|Unidade\s+(?:de\s+)?Servi|Valor\s+(?:do\s+)?Servi|Servi[\u00e7c]o\s+Prestado|Pa[\u00ed]s\s+da|-+|Qtde\.?$|Un\.?\s*Medida$|Vlr\.?\s*Unit[\u00e1a]rio$|Total$|NBS\s*[:\u2014\-]|Quantidade$|Unidade$|Servi[\u00e7c]o\s*\d*$|Imposto\s+Sobre\s+Servi|LC\s*116|C[\u00f3o]digo\s+CNAE|Atividade\s+Munic[\u00ed]pio|Valor\s+Total\s+dos\s+Servi|Desconto\s+Incondicion|Desconto\s+Condicion|Dedu[\u00e7c][\u00f5o]es\s+Base|Base\s+de\s+C[\u00e1a]lculo|Total\s+do\s+ISS|ISS\s+Retido|Reten[\u00e7c][\u00f5o]es\s+de\s+Impostos|Outras\s+Reten[\u00e7c][\u00f5o]es|Val\.?\s+Aprox\.?\s+Tributos|Valor\s+L[\u00edi]quido\s+da\s+NFS|^PIS$|^COFINS$|^CP$|^IRRF$|^CSLL$|^\d+(?:[,\.]\d+)?\s*%\s*\d|^\d{6,}(?:[\.\-]\d+)*$|^\d+\s*-\s*N[\u00e3a]o$|^\d+\s*-\s*Sim$|^(?:R\$\s*[\d\.,]+\s*)+$)/i;
+
+      for (var dl = 0; dl < dLines.length; dl++) {
+        var dLine = dLines[dl];
+        if (DESC_SKIP_RE.test(dLine)) continue;
+        // Cabeçalho combinado da tabela (PDF.js junta tudo em uma linha):
+        // "Qtde. Un. Medida Descrição Vlr. Unitário Total"
+        if (/Qtde\.?\s+Un\.?\s*Medida\s+Descri[\u00e7c][\u00e3a]o\s+Vlr\.?\s*Unit[\u00e1a]rio\s+Total/i.test(dLine)) continue;
+        if (/^(?:Qtde\.?|Un\.?\s*Medida|Descri[\u00e7c][\u00e3a]o|Vlr\.?\s*Unit[\u00e1a]rio|Total)(?:\s+(?:Qtde\.?|Un\.?\s*Medida|Descri[\u00e7c][\u00e3a]o|Vlr\.?\s*Unit[\u00e1a]rio|Total))+\s*$/i.test(dLine)) continue;
+        if (dLine === '-' || dLine.length < 3) continue;
+
+        // Formato tabela: "1,00 UN HOSPEDAGEM 163,00 R$ 163,00" ou "1,00 UN HOSPEDAGEM 163,00 163,00"
+        var mTbl = dLine.match(/^(\d+(?:[,.]\d+)?)\s+([A-Z]{1,4})\s+(.+?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s+(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})\s*$/);
+        if (mTbl) {
+          itens.push({
+            descricao: mTbl[3].trim(),
+            ncm: '', cfop: '',
+            unidade: mTbl[2],
+            quantidade: parseFloat(mTbl[1].replace(',', '.')) || 1,
+            valorUnitario: parseMoney(mTbl[4]),
+            valorTotal: parseMoney(mTbl[5])
+          });
+          continue;
+        }
+
+        var mPrice = dLine.match(/R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})/);
+        var valTotal = mPrice ? parseMoney(mPrice[1]) : 0;
+        var desc = mPrice ? dLine.substring(0, dLine.lastIndexOf(mPrice[0])).trim() : dLine;
+        desc = desc.replace(/\s*-\s*$/, '').trim();
+        if (desc.length < 2) continue;
+        itens.push({ descricao: desc, ncm: '', cfop: '', unidade: 'SV',
+          quantidade: 1, valorUnitario: valTotal, valorTotal: valTotal });
+      }
+    }
+
+    // ── Total da nota ──
+    var totalNF = 0;
+    // Procura "Valor Líquido da NFS-e\nR$ XXX,XX" (label numa linha, valor abaixo)
+    var lTot = lineAfter(/Valor\s+L[\u00edí]quido\s+da\s+NFS-?e/i);
+    var mTot = lTot.match(/R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})/);
+    if (mTot) totalNF = parseMoney(mTot[1]);
+    if (!totalNF) {
+      var lVS = lineAfter(/^\s*Valor\s+do\s+Servi[\u00e7c]o\s*$/im);
+      var mVS = lVS.match(/R\$\s*(\d{1,3}(?:\.\d{3})*,\d{2})/);
+      if (mVS) totalNF = parseMoney(mVS[1]);
+    }
+    if (!totalNF) {
+      // Fallback: procura "Valor Líquido" em qualquer lugar, com ou sem R$
+      var mAnyTot = txt.match(/Valor\s+L[\u00edí]quido[\s\S]{0,80}?(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+      if (mAnyTot) totalNF = parseMoney(mAnyTot[1]);
+    }
+    if (!totalNF) {
+      // Outro fallback: "Valor Total\n225,00"
+      var lVT = lineAfter(/^\s*Valor\s+Total\s*$/im);
+      var mVT = lVT.match(/(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2})/);
+      if (mVT) totalNF = parseMoney(mVT[1]);
+    }
+    // Sem total explícito: soma dos itens
+    if (!totalNF && itens.length) {
+      totalNF = itens.reduce(function(s, it) { return s + it.valorTotal; }, 0);
+    }
+    // Sem preço por linha: distribui o total igualmente
+    if (totalNF && itens.length && itens.every(function(it) { return !it.valorTotal; })) {
+      var share = parseFloat((totalNF / itens.length).toFixed(2));
+      itens.forEach(function(it) { it.valorUnitario = it.valorTotal = share; });
+    }
+
+    // \u2500\u2500 ISS \u2500\u2500
+    var iss = 0;
+    var mISS = txt.match(/(?:ISSQN?\s+Apurado|Valor\s+ISS)\s*\n?\s*R?\$?\s*([\d.,]+)/i);
+    if (mISS) iss = parseMoney(mISS[1]);
+
+    // ── Validação: só retorna se extraiu o suficiente; senão devolve null
+    //               para a IA assumir o trabalho.
+    var hasParty = !!(cnpjEmit || cpfCnpjDest || razaoEmit || razaoDest);
+    var hasValue = (itens && itens.length > 0) || totalNF > 0;
+    if (!hasParty || !hasValue) {
+      console.warn('[parseNFSe] dados insuficientes \u2014 caindo na IA. ' +
+        'numero=' + numero + ' cnpjEmit=' + cnpjEmit + ' razaoEmit=' + razaoEmit +
+        ' cnpjDest=' + cpfCnpjDest + ' razaoDest=' + razaoDest +
+        ' itens=' + (itens ? itens.length : 0) + ' totalNF=' + totalNF);
+      return null;
+    }
+
+    return {
+      notas: [{
+        numero:        numero,
+        serie:         '',
+        dataEmissao:   dataEmissao,
+        chaveAcesso:   '',
+        fazenda:       fazenda,
+        emitente:      { razaoSocial: razaoEmit,  cnpj: cnpjEmit },
+        destinatario:  { razaoSocial: razaoDest,  cnpj: cpfCnpjDest },
+        itens:         itens,
+        impostos:      { icms: 0, iss: iss, pis: 0, cofins: 0, ipi: 0 },
+        totalProdutos: totalNF,
+        totalNF:       totalNF,
+        _parser:       'NFSe-local',
+      }]
+    };
+  }
+
+  // ── PARSER LOCAL NF-e / DANFE (genérico fallback) ────────────────────────
+  // Tenta extrair dados estruturados de NF-e a partir do texto do PDF.
+  // Retorna null quando não encontra campos essenciais (cai na IA).
+  function parseNFLocal(rawText, filename) {
+    var txt = rawText.replace(/\r/g, '');
+
+    // 1) Tenta o parser NFS-e (Layout B municipal e C DANFSe v1.0)
+    var nfse = parseNFSe(txt);
+    if (nfse) return nfse;
+
+    // 2) Tenta o parser DANFE otimizado (NF-e padrão)
+    var danfe = parseDANFE(txt);
+    if (danfe) return danfe;
+
+    // 3) Fallback genérico
+
+    // ── Número da NF ──
+    var mNum = txt.match(/N[°o\.\s]{0,3}(\d{3,9})/i)
+            || txt.match(/N[uú]mero\s*[:\s]\s*0*(\d+)/i);
+    var numero = mNum ? String(parseInt(mNum[1], 10)) : '';
+    if (!numero) return null; // sem número não identificamos a nota
+
+    // ── Série ──
+    var mSerie = txt.match(/S[eé]rie\s*[:\s]?\s*(\d+)/i);
+    var serie = mSerie ? mSerie[1] : '';
+
+    // ── Data de emissão ──
+    var mData = txt.match(/(?:emiss[aã]o|emitida)\s*[:\s]?\s*(\d{2}\/\d{2}\/\d{4})/i)
+             || txt.match(/(\d{2}\/\d{2}\/\d{4})/);
+    var dataEmissao = mData ? mData[1] : '';
+
+    // ── CNPJs ──
+    var cnpjRe = /(\d{2}[.\-]?\d{3}[.\-]?\d{3}[.\/\-]?\d{4}[.\-]?\d{2})/g;
+    var rawCNPJs = [], cm;
+    while ((cm = cnpjRe.exec(txt)) !== null) {
+      var digits = cm[1].replace(/\D/g, '');
+      if (digits.length === 14 && !rawCNPJs.includes(digits)) rawCNPJs.push(digits);
+    }
+    var formatCNPJ = function(d) {
+      return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+    };
+    var cnpjEmit = rawCNPJs[0] ? formatCNPJ(rawCNPJs[0]) : '';
+    var cnpjDest = rawCNPJs[1] ? formatCNPJ(rawCNPJs[1]) : '';
+
+    // ── Razão Social emitente / destinatário ──
+    var razaoEmit = '', razaoDest = '';
+    var mRE = txt.match(/EMITENTE\s*[\r\n:]+([^\n]{3,80})/i)
+           || txt.match(/Raz[aã]o Social Emitente\s*[:\s]+([^\n]{3,80})/i)
+           || txt.match(/Raz[aã]o Social\s*[:\s]+([^\n]{3,80})/i);
+    if (mRE) razaoEmit = mRE[1].trim();
+    var mRD = txt.match(/DESTINAT[AÁ]RIO\s*[\r\n:]+([^\n]{3,80})/i)
+           || txt.match(/Raz[aã]o Social Destinat[aá]rio\s*[:\s]+([^\n]{3,80})/i);
+    if (mRD) razaoDest = mRD[1].trim();
+
+    // ── Fazenda ──
+    var fazenda = '';
+    var mFaz = txt.match(/\b(Fazenda\s+[A-ZÀ-Ú][A-Za-zÀ-ú\s]{2,40})/i)
+            || txt.match(/\b(S[íi]tio\s+[A-ZÀ-Ú][A-Za-zÀ-ú\s]{2,40})/i)
+            || txt.match(/\b(Est[aâ]ncia\s+[A-ZÀ-Ú][A-Za-zÀ-ú\s]{2,40})/i)
+            || txt.match(/\b(Rancho\s+[A-ZÀ-Ú][A-Za-zÀ-ú\s]{2,40})/i);
+    if (mFaz) fazenda = mFaz[1].trim().replace(/\s+/g, ' ');
+
+    // ── Itens ──
+    // Procura linhas na seção de produtos com CFOP (4 dígitos, 1-9xxx)
+    var itens = [];
+    var lines = txt.split('\n');
+    var inItems = false;
+    var parseMoney = function(s) {
+      return s ? parseFloat(s.replace(/\./g, '').replace(',', '.')) : 0;
+    };
+    var moneyRe = /(\d{1,3}(?:\.\d{3})*,\d{2})/g;
+    var ncmRe = /\b(\d{8})\b/;
+    var cfopRe = /\b([1-9]\d{3})\b/;
+
+    for (var li = 0; li < lines.length; li++) {
+      var line = lines[li];
+      if (/DADOS DO PRODUTO|DADOS DO SERVI[ÇC]O|DESCRI[ÇC][AÃ]O DO PRODUTO\/SERVI[ÇC]O/i.test(line)) {
+        inItems = true; continue;
+      }
+      if (inItems && /TOTAL DA NOTA|TOTAL DOS PRODUTOS|TRIBUTOS FEDERAIS|INFORMAÇÕES ADICIONAIS/i.test(line)) {
+        inItems = false; continue;
+      }
+      if (!inItems) continue;
+
+      var mCFOP = line.match(cfopRe);
+      if (!mCFOP) continue;
+
+      var mNCM = line.match(ncmRe);
+      var values = [];
+      moneyRe.lastIndex = 0;
+      var mm;
+      while ((mm = moneyRe.exec(line)) !== null) {
+        values.push(parseMoney(mm[1]));
+      }
+
+      // Tenta extrair a descrição: texto antes do NCM ou do CFOP
+      var descPart = line.split(/\b\d{8}\b/)[0] || line.split(/\b[1-9]\d{3}\b/)[0] || '';
+      var descricao = descPart.trim().replace(/^\d+\s*/, '').trim();
+
+      itens.push({
+        descricao:    descricao,
+        ncm:          mNCM ? mNCM[1] : '',
+        cfop:         mCFOP[1],
+        unidade:      '',
+        quantidade:   values.length >= 3 ? values[values.length - 3] : 0,
+        valorUnitario: values.length >= 2 ? values[values.length - 2] : 0,
+        valorTotal:   values.length >= 1 ? values[values.length - 1] : 0,
+      });
+    }
+
+    // ── Totais ──
+    var mTP  = txt.match(/(?:TOTAL DOS PRODUTOS|VALOR TOTAL DOS PRODUTOS)[^\d]*(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+    var mTNF = txt.match(/(?:TOTAL DA NOTA FISCAL|VALOR TOTAL DA NOTA)[^\d]*(\d{1,3}(?:\.\d{3})*,\d{2})/i)
+            || txt.match(/TOTAL DA NOTA[^\d]*(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+    var totalProdutos = mTP  ? parseMoney(mTP[1])  : 0;
+    var totalNF       = mTNF ? parseMoney(mTNF[1]) : 0;
+
+    // ── Impostos ──
+    var mICMS   = txt.match(/(?:Valor ICMS|ICMS Valor)[^\d]*(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+    var mISS    = txt.match(/(?:Valor ISS|ISS Valor)[^\d]*(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+    var mPIS    = txt.match(/(?:Valor PIS|PIS Valor)[^\d]*(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+    var mCOFINS = txt.match(/(?:Valor COFINS|COFINS Valor)[^\d]*(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+    var mIPI    = txt.match(/(?:Valor IPI|IPI Valor)[^\d]*(\d{1,3}(?:\.\d{3})*,\d{2})/i);
+
+    // Só usa o parser local se encontrou número + (itens OU total)
+    if (!itens.length && !totalProdutos && !totalNF) return null;
+
+    return {
+      notas: [{
+        numero:       numero,
+        serie:        serie,
+        dataEmissao:  dataEmissao,
+        chaveAcesso:  '',
+        fazenda:      fazenda,
+        emitente:     { razaoSocial: razaoEmit, cnpj: cnpjEmit },
+        destinatario: { razaoSocial: razaoDest, cnpj: cnpjDest },
+        itens:        itens,
+        impostos: {
+          icms:   mICMS   ? parseMoney(mICMS[1])   : 0,
+          iss:    mISS    ? parseMoney(mISS[1])    : 0,
+          pis:    mPIS    ? parseMoney(mPIS[1])    : 0,
+          cofins: mCOFINS ? parseMoney(mCOFINS[1]) : 0,
+          ipi:    mIPI    ? parseMoney(mIPI[1])    : 0,
+        },
+        totalProdutos: totalProdutos,
+        totalNF:       totalNF,
+        _parser:       'local',
+      }]
+    };
+  }
+
+  async function extractTextFromPDF(file) {
+    var buf = await file.arrayBuffer();
+    var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    var lines = [];
+    for (var p = 1; p <= pdf.numPages; p++) {
+      var page = await pdf.getPage(p);
+      var content = await page.getTextContent();
+      var lineMap = {};
+      for (var k = 0; k < content.items.length; k++) {
+        var item = content.items[k];
+        var y = Math.round(item.transform[5]);
+        if (!lineMap[y]) lineMap[y] = [];
+        lineMap[y].push(item);
+      }
+      var ys = Object.keys(lineMap).map(Number).sort(function(a, b) { return b - a; });
+      for (var yi = 0; yi < ys.length; yi++) {
+        var rowItems = lineMap[ys[yi]].sort(function(a, b) { return a.transform[4] - b.transform[4]; });
+        var txt = rowItems.map(function(i) { return i.str.trim(); }).filter(Boolean).join(' ');
+        if (txt.trim()) lines.push(txt);
+      }
+    }
+    return lines.join('\n');
+  }
+
+  // Renderiza cada página do PDF como JPEG base64 (para PDFs imagem/escaneados → GPT-4o Vision)
+  async function renderPDFToImages(file) {
+    var buf = await file.arrayBuffer();
+    var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    var images = [];
+    var MAX_PAGES = 4; // limite de segurança (custo/payload)
+    var nPages = Math.min(pdf.numPages, MAX_PAGES);
+    for (var p = 1; p <= nPages; p++) {
+      var page = await pdf.getPage(p);
+      // Escala alvo: largura ~1600px (boa leitura por Vision sem inflar payload)
+      var vp1 = page.getViewport({ scale: 1 });
+      var scale = Math.min(2.0, 1600 / vp1.width);
+      var vp = page.getViewport({ scale: scale });
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(vp.width);
+      canvas.height = Math.ceil(vp.height);
+      var ctx = canvas.getContext('2d');
+      // Fundo branco (alguns PDFs escaneados têm fundo transparente)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      // JPEG q=0.85 para reduzir payload
+      var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      images.push(dataUrl);
+    }
+    return images;
+  }
+
+  async function callAI(filename, text, images) {
+    var resp = await fetch('api/openai-nota-fiscal.php', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: filename, text: text, images: images || [] }),
+    });
+    var raw = await resp.text();
+    var payload = null;
+    try { payload = JSON.parse(raw); } catch (_) {
+      var s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+      if (s >= 0 && e > s) { try { payload = JSON.parse(raw.slice(s, e + 1)); } catch (_) {} }
+    }
+    if (!payload) throw new Error('Resposta invalida (HTTP ' + resp.status + ').');
+    if (!resp.ok || !payload.success) {
+      var msg = payload.message || ('HTTP ' + resp.status);
+      var det = payload.detail ? ' - ' + payload.detail : '';
+      throw new Error(msg + det);
+    }
+    return payload;
+  }
+
+  var fmtBRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  function renderPreview(notas) {
+    tbodyItens.innerHTML = '';
+    for (var ni = 0; ni < notas.length; ni++) {
+      var nota  = notas[ni];
+      var nf    = nota.numero      || '-';
+      var data  = nota.dataEmissao || '-';
+      var faz   = nota.fazenda     || '-';
+      var emit  = (nota.emitente     && nota.emitente.razaoSocial) || '-';
+      var cnpjE = (nota.emitente     && nota.emitente.cnpj)        || '-';
+      var dest  = (nota.destinatario && nota.destinatario.razaoSocial) || '-';
+      var itens = nota.itens || [];
+
+      if (!itens.length) {
+        // Nota sem itens: mostra uma linha em branco para o resumo
+        var tr0 = document.createElement('tr');
+        tr0.innerHTML =
+          '<td>' + esc(nf) + '</td><td>' + esc(data) + '</td><td>' + esc(faz) + '</td>' +
+          '<td>' + esc(emit) + '</td><td>' + esc(cnpjE) + '</td><td>' + esc(dest) + '</td>' +
+          '<td>-</td><td class="num">-</td><td class="num">-</td>' +
+          '<td class="num" style="font-weight:700">' + fmtBRL.format(nota.totalNF || 0) + '</td>';
+        tbodyItens.appendChild(tr0);
+        continue;
+      }
+
+      for (var ii = 0; ii < itens.length; ii++) {
+        var item = itens[ii];
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + esc(nf)   + '</td>' +
+          '<td>' + esc(data) + '</td>' +
+          '<td>' + esc(faz)  + '</td>' +
+          '<td>' + esc(emit) + '</td>' +
+          '<td>' + esc(cnpjE) + '</td>' +
+          '<td>' + esc(dest) + '</td>' +
+          '<td>' + esc(item.descricao || '-') + '</td>' +
+          '<td class="num">' + fmtNum(item.quantidade)              + '</td>' +
+          '<td class="num">' + fmtBRL.format(item.valorUnitario || 0) + '</td>' +
+          '<td class="num">' + fmtBRL.format(item.valorTotal    || 0) + '</td>';
+        tbodyItens.appendChild(tr);
+      }
+    }
+  }
+
+  function renderSummaryChips(notas) {
+    var totalNFs   = notas.length;
+    var totalItens = notas.reduce(function(s, n) { return s + (n.itens ? n.itens.length : 0); }, 0);
+    var totalValor = notas.reduce(function(s, n) { return s + (n.totalNF || 0); }, 0);
+    summaryBar.innerHTML =
+      '<div class="summary-chip"><div class="chip-label">Notas Fiscais</div><div class="chip-value">' + totalNFs + '</div></div>' +
+      '<div class="summary-chip"><div class="chip-label">Itens Totais</div><div class="chip-value">' + totalItens + '</div></div>' +
+      '<div class="summary-chip"><div class="chip-label">Valor Total NF</div><div class="chip-value">' + fmtBRL.format(totalValor) + '</div></div>';
+  }
+
+  function buildWorkbook(notas) {
+    var wb = XLSX.utils.book_new();
+    var CURRENCY_FMT = '"R$" #,##0.00;[Red]"-R$" #,##0.00';
+
+    var header = ['Nº NF','Data','Fazenda','Emissor','CNPJ Emissor','Destinatário',
+                  'Item','Qtd','Valor Unitário (R$)','Valor Total (R$)'];
+    var rows = [header];
+
+    for (var ni = 0; ni < notas.length; ni++) {
+      var nota  = notas[ni];
+      var nf    = nota.numero      || '';
+      var data  = nota.dataEmissao || '';
+      var faz   = nota.fazenda     || '';
+      var emit  = (nota.emitente     && nota.emitente.razaoSocial) || '';
+      var cnpjE = (nota.emitente     && nota.emitente.cnpj)        || '';
+      var dest  = (nota.destinatario && nota.destinatario.razaoSocial) || '';
+      var itens = nota.itens || [];
+
+      if (!itens.length) {
+        rows.push([nf, data, faz, emit, cnpjE, dest, '', 0, 0, nota.totalNF || 0]);
+        continue;
+      }
+      for (var ii = 0; ii < itens.length; ii++) {
+        var item = itens[ii];
+        rows.push([
+          nf, data, faz, emit, cnpjE, dest,
+          item.descricao    || '',
+          item.quantidade   || 0,
+          item.valorUnitario || 0,
+          item.valorTotal    || 0,
+        ]);
+      }
+    }
+
+    var ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:10},{wch:14},{wch:28},{wch:36},{wch:20},{wch:36},{wch:46},{wch:10},{wch:18},{wch:18}];
+    applyHeaderStyle(ws, header.length);
+    applyCurrencyFormat(ws, rows.length, [8, 9], CURRENCY_FMT);
+    XLSX.utils.book_append_sheet(wb, ws, 'Notas Fiscais');
+
+    return wb;
+  }
+
+  function applyHeaderStyle(ws, numCols) {
+    for (var c = 0; c < numCols; c++) {
+      var addr = XLSX.utils.encode_cell({ r: 0, c: c });
+      if (ws[addr]) {
+        ws[addr].s = {
+          font:      { bold: true, color: { rgb: 'FFFFFF' } },
+          fill:      { fgColor: { rgb: '1A3318' } },
+          alignment: { horizontal: 'center' },
+        };
+      }
+    }
+  }
+
+  function applyCurrencyFormat(ws, numRows, colIndexes, fmt) {
+    for (var r = 1; r < numRows; r++) {
+      for (var ci = 0; ci < colIndexes.length; ci++) {
+        var addr = XLSX.utils.encode_cell({ r: r, c: colIndexes[ci] });
+        if (ws[addr] && typeof ws[addr].v === 'number') {
+          ws[addr].t = 'n';
+          ws[addr].z = fmt;
+        }
+      }
+    }
+  }
+
+  btnExport.addEventListener('click', function() {
+    if (!workbook) return;
+    var name = (outFileName.value.trim() || 'notas-fiscais') + '.xlsx';
+    XLSX.writeFile(workbook, name);
+  });
+
+  function setLoading(on) {
+    btnConvert.disabled = on;
+    spinner.style.display = on ? 'block' : 'none';
+    btnLabel.textContent = on ? 'Processando...' : 'Processar Notas Fiscais';
+    progressWrap.style.display = on ? 'block' : 'none';
+    if (!on) { progressFill.style.width = '0%'; progressPct.textContent = '0%'; }
+  }
+
+  function setProgress(pct, label) {
+    progressFill.style.width = pct + '%';
+    progressPct.textContent = pct + '%';
+    if (label) progressText.textContent = label;
+  }
+
+  function showError(msg) { errorBox.textContent = msg; errorBox.style.display = 'block'; }
+  function hideError()    { errorBox.style.display = 'none'; }
+
+  (function createToast() {
+    var el = document.createElement('div'); el.id = 'nf-toast';
+    el.innerHTML = '<div class="toast-spinner"></div><span id="nf-toast-msg"></span>';
+    document.body.appendChild(el);
+  })();
+  var _toastTimer = null;
+  function showToast(msg, duration) {
+    var el = document.getElementById('nf-toast');
+    document.getElementById('nf-toast-msg').textContent = msg;
+    el.classList.add('show');
+    if (_toastTimer) clearTimeout(_toastTimer);
+    if (duration) _toastTimer = setTimeout(hideToast, duration);
+  }
+  function hideToast() {
+    var el = document.getElementById('nf-toast');
+    if (el) el.classList.remove('show');
+  }
+
+  function fmtNum(v) {
+    if (v === null || v === undefined || v === '') return '';
+    var n = Number(v);
+    return isNaN(n) ? String(v) : n.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
+  }
+
+  function formatBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(2) + ' MB';
+  }
+
+  function esc(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>

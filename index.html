@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'" />
   <title>Larsil — Conversor de Fatura</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -237,6 +239,11 @@
 </div>
 
 <script>
+  // ── Redireciona para home se já estiver logado ───────────────────────────
+  if (sessionStorage.getItem('cf_loggedIn')) {
+    window.location.replace('home.html');
+  }
+
   // ── toggle visibilidade da senha ─────────────────────────────────────────
   const toggleBtn = document.getElementById('togglePw');
   const pwInput   = document.getElementById('password');
@@ -310,7 +317,7 @@
 
         sessionStorage.setItem('cf_loggedIn', '1');
         sessionStorage.setItem('cf_username', data.username || user);
-        window.location.href = 'conversor.html';
+        window.location.href = 'home.html';
       } else {
         errorEl.textContent = data.message || 'Usuário ou senha incorretos.';
         errorEl.style.display = 'block';
