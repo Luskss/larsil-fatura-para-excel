@@ -106,6 +106,49 @@
     .btn-convert:not(:disabled):hover { opacity: .88; }
     .btn-convert:not(:disabled):active { transform: scale(.98); }
 
+    .btn-row { display: flex; gap: 12px; margin-top: 22px; }
+    .btn-row .btn-convert { margin-top: 0; flex: 1; }
+    .btn-force-ai {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 14px 22px; flex-shrink: 0;
+      background: linear-gradient(135deg, #1a3365, #2c4ea8);
+      color: #fff; border: none; border-radius: 10px;
+      font-size: .9rem; font-weight: 900; font-family: 'Montserrat', sans-serif;
+      cursor: pointer; letter-spacing: .4px; text-transform: uppercase;
+      transition: opacity .2s, transform .1s; white-space: nowrap;
+    }
+    .btn-force-ai:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-force-ai:not(:disabled):hover { opacity: .88; }
+    .btn-force-ai:not(:disabled):active { transform: scale(.98); }
+
+    .btn-resumo {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 14px 22px; flex-shrink: 0;
+      background: linear-gradient(135deg, #6b3a1a, #b86a2c);
+      color: #fff; border: none; border-radius: 10px;
+      font-size: .9rem; font-weight: 900; font-family: 'Montserrat', sans-serif;
+      cursor: pointer; letter-spacing: .4px; text-transform: uppercase;
+      transition: opacity .2s, transform .1s; white-space: nowrap;
+    }
+    .btn-resumo:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-resumo:not(:disabled):hover { opacity: .88; }
+    .btn-resumo:not(:disabled):active { transform: scale(.98); }
+
+    .resumo-section { display: none; margin-top: 28px; }
+    .resumo-section h3 { font-size: .95rem; color: var(--primary); margin-bottom: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+    .resumo-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 18px 22px; margin-bottom: 14px;
+    }
+    .resumo-card h4 { font-size: .9rem; color: var(--primary); margin-bottom: 10px; font-weight: 800; }
+    .resumo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px; font-size: .85rem; }
+    .resumo-grid .full { grid-column: 1 / -1; }
+    .resumo-grid .lbl { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: .7rem; letter-spacing: .4px; margin-bottom: 2px; }
+    .resumo-grid .val { color: var(--text); font-weight: 500; word-break: break-word; }
+    .resumo-itens { margin-top: 10px; padding-left: 18px; font-size: .85rem; color: var(--text); }
+    .resumo-itens li { margin-bottom: 3px; }
+    .resumo-total { margin-top: 10px; font-weight: 900; color: var(--primary); font-size: .95rem; }
+
     .progress-wrap { display: none; margin-top: 20px; }
     .progress-label { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); margin-bottom: 6px; }
     .progress-bar-bg { width: 100%; height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
@@ -213,15 +256,40 @@
     </div>
   </div>
 
-  <button class="btn-convert" id="btnConvert" disabled>
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-         fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="23 4 23 10 17 10"/>
-      <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
-    </svg>
-    <span id="btnLabel">Processar Notas Fiscais</span>
-    <div class="spinner" id="spinner"></div>
-  </button>
+  <div class="btn-row">
+    <button class="btn-convert" id="btnConvert" disabled>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+      </svg>
+      <span id="btnLabel">Processar Notas Fiscais</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+    <button class="btn-force-ai" id="btnForceAI" disabled title="Ignora o parser local e envia o texto completo direto para a IA">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span id="btnForceLabel">Enviar tudo para IA</span>
+      <div class="spinner" id="spinnerForce" style="display:none"></div>
+    </button>
+    <button class="btn-resumo" id="btnResumo" disabled title="Resumo simples por IA: nº, data, emissor, destinatário (com endereço), itens e total">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="8" y1="6" x2="21" y2="6"/>
+        <line x1="8" y1="12" x2="21" y2="12"/>
+        <line x1="8" y1="18" x2="21" y2="18"/>
+        <line x1="3" y1="6" x2="3.01" y2="6"/>
+        <line x1="3" y1="12" x2="3.01" y2="12"/>
+        <line x1="3" y1="18" x2="3.01" y2="18"/>
+      </svg>
+      <span id="btnResumoLabel">Resumo simples (IA)</span>
+      <div class="spinner" id="spinnerResumo" style="display:none"></div>
+    </button>
+  </div>
 
   <div class="progress-wrap" id="progressWrap">
     <div class="progress-label">
@@ -234,6 +302,22 @@
   </div>
 
   <div class="error-box" id="errorBox"></div>
+
+  <div class="resumo-section" id="resumoSection">
+    <h3>Resumo simples (IA)</h3>
+    <div id="resumoList"></div>
+    <div class="export-actions">
+      <button class="btn-export" id="btnExportResumo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Baixar resumo em Excel
+      </button>
+    </div>
+  </div>
 
   <div class="result-section" id="resultSection">
     <h3>Dados extraidos</h3>
@@ -298,6 +382,15 @@
   const btnConvert    = document.getElementById('btnConvert');
   const btnLabel      = document.getElementById('btnLabel');
   const spinner       = document.getElementById('spinner');
+  const btnForceAI    = document.getElementById('btnForceAI');
+  const btnForceLabel = document.getElementById('btnForceLabel');
+  const spinnerForce  = document.getElementById('spinnerForce');
+  const btnResumo     = document.getElementById('btnResumo');
+  const btnResumoLabel= document.getElementById('btnResumoLabel');
+  const spinnerResumo = document.getElementById('spinnerResumo');
+  const resumoSection = document.getElementById('resumoSection');
+  const resumoList    = document.getElementById('resumoList');
+  const btnExportResumo = document.getElementById('btnExportResumo');
   const progressWrap  = document.getElementById('progressWrap');
   const progressFill  = document.getElementById('progressFill');
   const progressText  = document.getElementById('progressText');
@@ -312,6 +405,8 @@
   let selectedFiles = [];
   let workbook = null;
   let allNotas = [];
+  let resumoWorkbook = null;
+  let allResumosLast = [];
 
   pdfInput.addEventListener('change', e => addFiles(Array.from(e.target.files || [])));
   uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
@@ -331,7 +426,9 @@
     if (rejected) showError(rejected + ' arquivo(s) ignorado(s) por exceder 20 MB.');
     else hideError();
     renderFileList();
-    btnConvert.disabled = selectedFiles.length === 0;
+    btnConvert.disabled  = selectedFiles.length === 0;
+    btnForceAI.disabled  = selectedFiles.length === 0;
+    btnResumo.disabled   = selectedFiles.length === 0;
   }
 
   function renderFileList() {
@@ -349,7 +446,9 @@
       item.querySelector('.btn-remove').addEventListener('click', () => {
         selectedFiles.splice(idx, 1);
         renderFileList();
-        btnConvert.disabled = selectedFiles.length === 0;
+        btnConvert.disabled  = selectedFiles.length === 0;
+        btnForceAI.disabled  = selectedFiles.length === 0;
+        btnResumo.disabled   = selectedFiles.length === 0;
       });
       filesList.appendChild(item);
     });
@@ -359,6 +458,7 @@
     if (!selectedFiles.length) return;
     setLoading(true); hideError();
     resultSection.style.display = 'none';
+    if (resumoSection) resumoSection.style.display = 'none';
     workbook = null; allNotas = [];
 
     try {
@@ -436,6 +536,189 @@
 
     setLoading(false);
   });
+
+  // ── Botão "Enviar tudo para IA" (ignora parser local) ────────────────────────────
+  btnForceAI.addEventListener('click', async function() {
+    if (!selectedFiles.length) return;
+    setLoadingAI(true); hideError();
+    resultSection.style.display = 'none';
+    if (resumoSection) resumoSection.style.display = 'none';
+    workbook = null; allNotas = [];
+
+    try {
+      var total = selectedFiles.length;
+      for (var i = 0; i < total; i++) {
+        var file = selectedFiles[i];
+        setProgress(Math.round((i / total) * 30), 'Extraindo texto do arquivo ' + (i + 1) + '/' + total + '...');
+        var rawText = await extractTextFromPDF(file);
+
+        var isSemTexto = !rawText.trim();
+        var textParaIA = isSemTexto
+          ? '(PDF SEM TEXTO SELECIONÁVEL — use a(s) imagem(ns) anexa(s) da nota fiscal para extrair os dados.)'
+          : rawText;
+        var imagesParaIA = [];
+        if (isSemTexto) {
+          showToast('Nota é uma imagem — renderizando páginas e enviando para IA Vision (pode levar 30-60s)...');
+          setProgress(Math.round(30 + (i / total) * 50), 'Arquivo ' + (i + 1) + '/' + total + ' - renderizando imagens...');
+          try {
+            imagesParaIA = await renderPDFToImages(file);
+          } catch (renderErr) {
+            hideToast();
+            throw new Error('Falha ao renderizar PDF imagem: ' + (renderErr && renderErr.message ? renderErr.message : renderErr));
+          }
+        }
+        setProgress(Math.round(30 + (i / total) * 60), 'Arquivo ' + (i + 1) + '/' + total + ' - enviando para IA...');
+        var result = await callAI(file.name, textParaIA, imagesParaIA);
+        if (isSemTexto) hideToast();
+
+        var notas = result.notas || [];
+        for (var j = 0; j < notas.length; j++) {
+          notas[j]._arquivo = file.name;
+          allNotas.push(notas[j]);
+        }
+      }
+
+      if (allNotas.length === 0) {
+        showError('Nenhuma nota fiscal reconhecida nos PDFs.');
+        setLoadingAI(false);
+        return;
+      }
+
+      setProgress(95, 'Gerando planilha...');
+      workbook = buildWorkbook(allNotas);
+      renderPreview(allNotas);
+      renderSummaryChips(allNotas);
+      resultSection.style.display = 'block';
+      setProgress(100, 'Concluido!');
+    } catch (err) {
+      showError('Erro ao processar: ' + err.message);
+    }
+
+    setLoadingAI(false);
+  });
+
+  // ── Botão "Resumo simples (IA)" ─────────────────────────────────────────────────
+  // Pede para a IA extrair só: nº, data, emissor, CNPJ emissor,
+  // destinatário (nome, CNPJ, endereço), itens (apenas descrição) e total da nota.
+  btnResumo.addEventListener('click', async function() {
+    if (!selectedFiles.length) return;
+    setLoadingResumo(true); hideError();
+    resultSection.style.display = 'none';
+    resumoSection.style.display = 'none';
+    resumoList.innerHTML = '';
+    var allResumos = [];
+
+    try {
+      var total = selectedFiles.length;
+      for (var i = 0; i < total; i++) {
+        var file = selectedFiles[i];
+        setProgress(Math.round((i / total) * 30), 'Extraindo texto do arquivo ' + (i + 1) + '/' + total + '...');
+        var rawText = await extractTextFromPDF(file);
+
+        var isSemTexto = !rawText.trim();
+        var textParaIA = isSemTexto
+          ? '(PDF SEM TEXTO SELECIONÁVEL — use a(s) imagem(ns) anexa(s) para extrair os dados.)'
+          : rawText;
+        var imagesParaIA = [];
+        if (isSemTexto) {
+          showToast('Nota é uma imagem — renderizando páginas e enviando para IA Vision...');
+          setProgress(Math.round(30 + (i / total) * 50), 'Arquivo ' + (i + 1) + '/' + total + ' - renderizando imagens...');
+          try {
+            imagesParaIA = await renderPDFToImages(file);
+          } catch (renderErr) {
+            hideToast();
+            throw new Error('Falha ao renderizar PDF imagem: ' + (renderErr && renderErr.message ? renderErr.message : renderErr));
+          }
+        }
+        setProgress(Math.round(30 + (i / total) * 60), 'Arquivo ' + (i + 1) + '/' + total + ' - resumindo via IA...');
+        var result = await callResumoAI(file.name, textParaIA, imagesParaIA);
+        if (isSemTexto) hideToast();
+
+        var notas = result.notas || [];
+        for (var j = 0; j < notas.length; j++) {
+          notas[j]._arquivo = file.name;
+          allResumos.push(notas[j]);
+        }
+      }
+
+      if (allResumos.length === 0) {
+        showError('Nenhuma nota fiscal reconhecida nos PDFs.');
+        setLoadingResumo(false);
+        return;
+      }
+
+      renderResumo(allResumos);
+      allResumosLast = allResumos;
+      resumoWorkbook = buildResumoWorkbook(allResumos);
+      resumoSection.style.display = 'block';
+      setProgress(100, 'Concluido!');
+    } catch (err) {
+      showError('Erro ao processar resumo: ' + err.message);
+    }
+
+    setLoadingResumo(false);
+  });
+
+  async function callResumoAI(filename, text, images) {
+    var resp = await fetch('api/openai-nota-fiscal-resumo.php', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: filename, text: text, images: images || [] }),
+    });
+    var raw = await resp.text();
+    var payload = null;
+    try { payload = JSON.parse(raw); } catch (_) {
+      var s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+      if (s >= 0 && e > s) { try { payload = JSON.parse(raw.slice(s, e + 1)); } catch (_) {} }
+    }
+    if (!payload) throw new Error('Resposta invalida (HTTP ' + resp.status + ').');
+    if (!resp.ok || !payload.success) {
+      var msg = payload.message || ('HTTP ' + resp.status);
+      var det = payload.detail ? ' - ' + payload.detail : '';
+      throw new Error(msg + det);
+    }
+    return payload;
+  }
+
+  function renderResumo(notas) {
+    resumoList.innerHTML = '';
+    for (var i = 0; i < notas.length; i++) {
+      var n = notas[i];
+      var emit  = (n.emitente && n.emitente.razaoSocial) || '-';
+      var cnpjE = (n.emitente && n.emitente.cnpj) || '-';
+      var dest  = (n.destinatario && n.destinatario.razaoSocial) || '-';
+      var cnpjD = (n.destinatario && n.destinatario.cnpj) || '-';
+      var endD  = (n.destinatario && n.destinatario.endereco) || '-';
+      var itens = n.itens || [];
+      var totalNum = (typeof n.totalNF === 'number') ? n.totalNF : 0;
+
+      var card = document.createElement('div');
+      card.className = 'resumo-card';
+      var html = '';
+      html += '<h4>NF n\u00ba ' + esc(n.numero || '-') + ' \u00b7 ' + esc(n.dataEmissao || '-') + '</h4>';
+      html += '<div class="resumo-grid">';
+      html += '<div><div class="lbl">Emissor</div><div class="val">' + esc(emit) + '</div></div>';
+      html += '<div><div class="lbl">CNPJ do Emissor</div><div class="val">' + esc(cnpjE) + '</div></div>';
+      html += '<div><div class="lbl">Destinat\u00e1rio</div><div class="val">' + esc(dest) + '</div></div>';
+      html += '<div><div class="lbl">CNPJ do Destinat\u00e1rio</div><div class="val">' + esc(cnpjD) + '</div></div>';
+      html += '<div class="full"><div class="lbl">Endere\u00e7o do Destinat\u00e1rio</div><div class="val">' + esc(endD) + '</div></div>';
+      html += '<div class="full"><div class="lbl">Itens da Nota</div>';
+      if (itens.length) {
+        html += '<ul class="resumo-itens">';
+        for (var k = 0; k < itens.length; k++) {
+          html += '<li>' + esc(itens[k].descricao || '-') + '</li>';
+        }
+        html += '</ul>';
+      } else {
+        html += '<div class="val">-</div>';
+      }
+      html += '</div>';
+      html += '<div class="full resumo-total">Valor total da nota: ' + fmtBRL.format(totalNum) + '</div>';
+      html += '</div>';
+      card.innerHTML = html;
+      resumoList.appendChild(card);
+    }
+  }
 
   // ── PARSER DANFE NF-e (otimizado para layout padrão DANFE) ────────────────────────
   // Testa marcadores DANFE específicos antes de qualquer regex.
@@ -631,26 +914,43 @@
           }
         }
 
-        // Valores: qtd e v.unit (4 casas)
-        var mUnit = de.line.match(UNIT_RE);
-        var v4 = [], m4, lastM4End = -1;
-        MONEY4_RE.lastIndex = 0;
-        while ((m4 = MONEY4_RE.exec(de.line)) !== null) {
-          v4.push(parseMoney(m4[1]));
-          lastM4End = m4.index + m4[0].length;
+        // Valores: ancora a leitura depois da unidade para ignorar colunas anteriores
+        // como "valor aprox. impostos", NCM e CST.
+        var mUnit = UNIT_RE.exec(de.line);
+        var tailStart = 0;
+        if (mUnit) tailStart = mUnit.index + mUnit[0].length;
+        else if (de.mCFOP && typeof de.mCFOP.index === 'number') tailStart = de.mCFOP.index + de.mCFOP[0].length;
+        else if (de.mNCM && typeof de.mNCM.index === 'number') tailStart = de.mNCM.index + de.mNCM[0].length;
+
+        var valueTail = de.line.substring(tailStart);
+        var orderedValues = [];
+        var orderedRe = /(\d{1,3}(?:\.\d{3})*,\d{2,4})/g;
+        var orderedMatch;
+        while ((orderedMatch = orderedRe.exec(valueTail)) !== null) {
+          orderedValues.push({
+            raw: orderedMatch[1],
+            value: parseMoney(orderedMatch[1]),
+            decimals: (orderedMatch[1].split(',')[1] || '').length,
+            end: orderedMatch.index + orderedMatch[0].length,
+          });
         }
-        // Total: primeiro MONEY2 APÓS o preço unitário (evita pegar coluna IMPOSTOS antes do NCM)
+
+        var quantidade = orderedValues.length >= 1 ? orderedValues[0].value : 0;
+        var valorUnitario = orderedValues.length >= 2 ? orderedValues[1].value : 0;
+
+        // Total: procura o primeiro valor monetário após quantidade + valor unitário.
+        var totalSearchStart = orderedValues.length >= 2 ? orderedValues[1].end : 0;
         var vMon = [], mMo;
-        MONEY2_RE.lastIndex = lastM4End >= 0 ? lastM4End : 0;
-        while ((mMo = MONEY2_RE.exec(de.line)) !== null) vMon.push(parseMoney(mMo[1]));
+        MONEY2_RE.lastIndex = totalSearchStart;
+        while ((mMo = MONEY2_RE.exec(valueTail)) !== null) vMon.push(parseMoney(mMo[1]));
 
         itens.push({
           descricao:     rawDesc,
           ncm:           de.mNCM[1],
           cfop:          de.mCFOP[1],
           unidade:       mUnit ? mUnit[1] : '',
-          quantidade:    v4.length >= 1 ? v4[0] : 0,
-          valorUnitario: v4.length >= 2 ? v4[1] : 0,
+          quantidade:    quantidade,
+          valorUnitario: valorUnitario,
           valorTotal:    vMon.length >= 1 ? vMon[0] : 0,
         });
       }
@@ -1308,11 +1608,80 @@
     XLSX.writeFile(workbook, name);
   });
 
+  btnExportResumo.addEventListener('click', function() {
+    if (!resumoWorkbook) return;
+    var base = outFileName.value.trim() || 'notas-fiscais';
+    XLSX.writeFile(resumoWorkbook, base + '-resumo.xlsx');
+  });
+
+  function buildResumoWorkbook(notas) {
+    var wb = XLSX.utils.book_new();
+    var CURRENCY_FMT = '"R$" #,##0.00;[Red]"-R$" #,##0.00';
+    var header = ['Nº NF','Data','Emissor','CNPJ Emissor',
+                  'Destinatário','CNPJ Destinatário','Endereço Destinatário',
+                  'Item','Valor Total da Nota (R$)'];
+    var rows = [header];
+
+    for (var ni = 0; ni < notas.length; ni++) {
+      var n = notas[ni];
+      var nf    = n.numero      || '';
+      var data  = n.dataEmissao || '';
+      var emit  = (n.emitente     && n.emitente.razaoSocial) || '';
+      var cnpjE = (n.emitente     && n.emitente.cnpj)        || '';
+      var dest  = (n.destinatario && n.destinatario.razaoSocial) || '';
+      var cnpjD = (n.destinatario && n.destinatario.cnpj)        || '';
+      var endD  = (n.destinatario && n.destinatario.endereco)    || '';
+      var itens = n.itens || [];
+      var total = (typeof n.totalNF === 'number') ? n.totalNF : 0;
+
+      if (!itens.length) {
+        rows.push([nf, data, emit, cnpjE, dest, cnpjD, endD, '', total]);
+        continue;
+      }
+      for (var ii = 0; ii < itens.length; ii++) {
+        rows.push([
+          nf, data, emit, cnpjE, dest, cnpjD, endD,
+          itens[ii].descricao || '',
+          ii === 0 ? total : '',
+        ]);
+      }
+    }
+
+    var ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:10},{wch:14},{wch:36},{wch:20},{wch:36},{wch:20},{wch:50},{wch:46},{wch:20}];
+    applyHeaderStyle(ws, header.length);
+    applyCurrencyFormat(ws, rows.length, [8], CURRENCY_FMT);
+    XLSX.utils.book_append_sheet(wb, ws, 'Resumo NF');
+    return wb;
+  }
+
   function setLoading(on) {
-    btnConvert.disabled = on;
+    btnConvert.disabled  = on || selectedFiles.length === 0;
+    btnForceAI.disabled  = on || selectedFiles.length === 0;
+    btnResumo.disabled   = on || selectedFiles.length === 0;
     spinner.style.display = on ? 'block' : 'none';
     btnLabel.textContent = on ? 'Processando...' : 'Processar Notas Fiscais';
     progressWrap.style.display = on ? 'block' : 'none';
+    if (!on) { progressFill.style.width = '0%'; progressPct.textContent = '0%'; }
+  }
+
+  function setLoadingAI(on) {
+    btnConvert.disabled     = on || selectedFiles.length === 0;
+    btnForceAI.disabled     = on || selectedFiles.length === 0;
+    btnResumo.disabled      = on || selectedFiles.length === 0;
+    spinnerForce.style.display = on ? 'block' : 'none';
+    btnForceLabel.textContent = on ? 'Processando...' : 'Enviar tudo para IA';
+    progressWrap.style.display = on ? 'block' : 'none';
+    if (!on) { progressFill.style.width = '0%'; progressPct.textContent = '0%'; }
+  }
+
+  function setLoadingResumo(on) {
+    btnConvert.disabled       = on || selectedFiles.length === 0;
+    btnForceAI.disabled       = on || selectedFiles.length === 0;
+    btnResumo.disabled        = on || selectedFiles.length === 0;
+    spinnerResumo.style.display = on ? 'block' : 'none';
+    btnResumoLabel.textContent  = on ? 'Processando...' : 'Resumo simples (IA)';
+    progressWrap.style.display  = on ? 'block' : 'none';
     if (!on) { progressFill.style.width = '0%'; progressPct.textContent = '0%'; }
   }
 

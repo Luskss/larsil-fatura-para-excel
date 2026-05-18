@@ -202,9 +202,12 @@ REGRAS:
      O cnpj pode aparecer como CPF ("XXX.XXX.XXX-XX") para pessoa física — copie exatamente.
      Se não conseguir identificar o nome real do destinatário, use "".
 
-   - fazenda: nome da fazenda/propriedade rural mencionada na nota (em qualquer campo:
-     emitente, destinatário, descrição, informações adicionais, local de entrega).
-     Use "" se não houver nenhuma referência a fazenda ou propriedade rural.
+     - fazenda: endereço/local da propriedade rural mencionado na nota (ex.: "Sítio X",
+         "Fazenda Y", "Estrada ...", "Local de entrega ...").
+         Priorize o endereço da nota (destinatário, local de entrega, informações adicionais).
+         Se houver nome da propriedade + endereço, prefira retornar no formato
+         "Fazenda/Nome - endereço".
+         Use "" se não houver nenhuma referência rural/endereço de propriedade.
 
    - itens: lista de produtos/serviços com:
        descricao    — nome limpo do produto/serviço; NUNCA inclua "null", "undefined",
@@ -399,6 +402,15 @@ function nf_is_label(string $s, array $labels): bool {
     if (preg_match('/^\d{2}\/\d{2}\/\d{4}/', $low)) return true;
     return false;
 }
+
+function nf_normalize_fazenda($v): string {
+    $s = nf_clean_str($v);
+    if ($s === '') return '';
+    // Normaliza variações de "Sítio/Sitio" para "Fazenda"
+    $s = preg_replace('/\bS[íi]tio\b/iu', 'Fazenda', $s);
+    return trim($s);
+}
+
 $notasOut = [];
 foreach ($notas as $nota) {
     if (!is_array($nota)) continue;
@@ -439,7 +451,7 @@ foreach ($notas as $nota) {
         'serie'        => nf_clean_str($nota['serie']       ?? ''),
         'dataEmissao'  => nf_clean_str($nota['dataEmissao'] ?? ''),
         'chaveAcesso'  => nf_clean_str($nota['chaveAcesso'] ?? ''),
-        'fazenda'      => nf_clean_str($nota['fazenda']     ?? ''),
+        'fazenda'      => nf_normalize_fazenda($nota['fazenda'] ?? ''),
         'emitente'     => [
             'razaoSocial' => nf_clean_str($nota['emitente']['razaoSocial'] ?? ''),
             'cnpj'        => $emiCnpj,
