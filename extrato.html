@@ -447,8 +447,18 @@
 
         // 3) Fallback: IA
         if (!data) {
-          data = await callAI(file.name, cleanText);
-          usedParser = 'IA';
+          // Se o texto extraído for muito curto (PDF-imagem ou fonte não mapeada),
+          // renderiza as páginas como imagens e envia via Vision API.
+          const textoCurto = cleanText.trim().length < 50;
+          if (textoCurto) {
+            console.warn(`[${file.name}] Texto extraído vazio/curto — usando Vision (imagem).`);
+            const images = await renderPDFToImages(file);
+            data = await callAI(file.name, '', images);
+            usedParser = 'IA (visão)';
+          } else {
+            data = await callAI(file.name, cleanText);
+            usedParser = 'IA';
+          }
         }
 
         data.rows = normalizeStatementRows(data.rows);
@@ -520,7 +530,7 @@
   });
 
   // ── EXTRAI TEXTO PURO DO PDF ─────────────────────────────────────────
-  async function extractTextFromPDF(file, idx, total) {
+  async function extractTextFromPDF(file) {
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
     const lines = [];
@@ -529,6 +539,8 @@
       const content = await page.getTextContent();
       const lineMap = {};
       for (const item of content.items) {
+        // pdf.js 3.x pode retornar TextMarkedContent (sem str/transform) — ignorar
+        if (typeof item.str !== 'string' || !item.transform) continue;
         const y = Math.round(item.transform[5]);
         if (!lineMap[y]) lineMap[y] = [];
         lineMap[y].push(item);
@@ -543,11 +555,38 @@
     return lines.join('\n');
   }
 
-  async function callAI(filename, text) {
+  // Renderiza páginas do PDF como JPEG base64 (fallback para PDFs-imagem sem camada de texto)
+  async function renderPDFToImages(file) {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const images = [];
+    const MAX_PAGES = 6; // limite de custo/payload
+    const nPages = Math.min(pdf.numPages, MAX_PAGES);
+    for (let p = 1; p <= nPages; p++) {
+      const page = await pdf.getPage(p);
+      const vp1 = page.getViewport({ scale: 1 });
+      const scale = Math.min(2.0, 1600 / vp1.width);
+      const vp = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.ceil(vp.width);
+      canvas.height = Math.ceil(vp.height);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      images.push(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]);
+    }
+    return images;
+  }
+
+  async function callAI(filename, text, images = null) {
+    const body = (images && images.length > 0)
+      ? { filename, images }
+      : { filename, text };
     const resp = await fetch('api/openai-extrato.php', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename, text }),
+      body: JSON.stringify(body),
     });
     const raw = await resp.text();
     let payload = null;

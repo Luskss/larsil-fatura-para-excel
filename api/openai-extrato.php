@@ -148,10 +148,12 @@ if ($apiKey === '') {
 }
 
 $body = json_decode(file_get_contents('php://input'), true);
-$filename = trim((string)($body['filename'] ?? ''));
-$text     = (string)($body['text'] ?? '');
+$filename  = trim((string)($body['filename'] ?? ''));
+$text      = (string)($body['text'] ?? '');
+$images    = $body['images'] ?? null; // array de base64 JPEG (fallback Vision)
+$hasImages = is_array($images) && count($images) > 0;
 
-if ($text === '') {
+if ($text === '' && !$hasImages) {
     sendJson(['success' => false, 'message' => 'Texto vazio.'], 400);
 }
 
@@ -159,7 +161,7 @@ if ($text === '') {
 // 1 token ≈ 3-4 chars em PT-BR, então ~120k chars é conservador.
 $MAX_CHARS = 120_000;
 $wasTruncated = false;
-if (strlen($text) > $MAX_CHARS) {
+if (!$hasImages && strlen($text) > $MAX_CHARS) {
     $text = substr($text, 0, $MAX_CHARS);
     $wasTruncated = true;
 }
@@ -206,6 +208,24 @@ PROMPT;
 
 $userPrompt = "Arquivo: {$filename}\n\nExtrato:\n----------\n{$text}\n----------";
 
+// Constrói o conteúdo do usuário: texto puro ou imagens (Vision)
+if ($hasImages) {
+    // PDF-imagem: envia até 6 páginas como JPEG base64 para o modelo Vision
+    $userContent = [
+        ['type' => 'text', 'text' => "Arquivo: {$filename}\n\nExtrato (lido via imagem):"],
+    ];
+    foreach (array_slice($images, 0, 6) as $b64) {
+        $b64 = preg_replace('/\s+/', '', (string)$b64); // remove eventuais quebras
+        $userContent[] = [
+            'type'      => 'image_url',
+            'image_url' => ['url' => 'data:image/jpeg;base64,' . $b64, 'detail' => 'high'],
+        ];
+    }
+    elog('VISION_REQ pages=' . min(count($images), 6) . ' file=' . $filename);
+} else {
+    $userContent = $userPrompt;
+}
+
 $payload = [
     'model'           => 'gpt-4o-mini',
     'response_format' => ['type' => 'json_object'],
@@ -214,7 +234,7 @@ $payload = [
     'max_tokens'      => 16000,
     'messages'        => [
         ['role' => 'system', 'content' => $systemPrompt],
-        ['role' => 'user',   'content' => $userPrompt],
+        ['role' => 'user',   'content' => $userContent],
     ],
 ];
 
