@@ -248,6 +248,7 @@
   </div>
 
   <div class="error-box" id="errorBox"></div>
+  <div class="error-box" id="warningBox" style="background:#fff8e1;border-color:#f9a825;color:#5d4037;display:none;"></div>
 
   <div class="result-section" id="resultSection">
     <h3>Pré-visualização</h3>
@@ -286,6 +287,7 @@
   const progressText = document.getElementById('progressText');
   const progressPct  = document.getElementById('progressPct');
   const errorBox     = document.getElementById('errorBox');
+  const warningBox   = document.getElementById('warningBox');
   const resultSection= document.getElementById('resultSection');
   const previewWrap  = document.getElementById('previewWrap');
   const summary      = document.getElementById('summary');
@@ -515,6 +517,16 @@
         .map(r => `${r.file.name}: ${r.data._parser || 'IA'}`)
         .join(' • ');
       console.info('Parsers utilizados →', parserInfo);
+      // Aviso de truncamento (extrato muito longo para a IA)
+      const warnings = results
+        .filter(r => r.data.warning)
+        .map(r => `${r.file.name}: ${r.data.warning}`);
+      if (warnings.length > 0) {
+        warningBox.textContent = '⚠ ' + warnings.join(' | ');
+        warningBox.style.display = 'block';
+      } else {
+        warningBox.style.display = 'none';
+      }
       resultSection.style.display = 'block';
       setProgress(100, 'Concluído!');
     } catch (err) {
@@ -1365,7 +1377,7 @@
     return d >= 1 && d <= 31 && mo >= 1 && mo <= 12;
   }
   function showError(msg) { errorBox.textContent = msg; errorBox.style.display = 'block'; }
-  function hideError() { errorBox.style.display = 'none'; }
+  function hideError() { errorBox.style.display = 'none'; warningBox.style.display = 'none'; }
   function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function formatBytes(b) {
     if (b < 1024) return b + ' B';

@@ -231,7 +231,7 @@ $payload = [
     'response_format' => ['type' => 'json_object'],
     'temperature'     => 0,
     'top_p'           => 0.1,
-    'max_tokens'      => 16000,
+    'max_tokens'      => 16384,
     'messages'        => [
         ['role' => 'system', 'content' => $systemPrompt],
         ['role' => 'user',   'content' => $userContent],
@@ -291,9 +291,29 @@ if ($httpCode < 200 || $httpCode >= 300) {
     ], 502);
 }
 
-$decoded = json_decode($response, true);
-$content = $decoded['choices'][0]['message']['content'] ?? '';
-$parsed  = json_decode($content, true);
+$decoded      = json_decode($response, true);
+$finishReason = $decoded['choices'][0]['finish_reason'] ?? 'stop';
+$content      = $decoded['choices'][0]['message']['content'] ?? '';
+$parsed       = json_decode($content, true);
+$wasTruncatedByTokens = false;
+
+if (!is_array($parsed) && $finishReason === 'length') {
+    // OpenAI atingiu o limite de tokens e cortou o JSON no meio.
+    // Tenta salvar as transações já geradas fechando o JSON no último objeto completo.
+    elog('TOKEN_LIMIT_TRUNCATION: tentando reparar JSON cortado');
+    $lastBrace = strrpos($content, '}');
+    if ($lastBrace !== false) {
+        $repaired = substr($content, 0, $lastBrace + 1) . ']}'; // fecha rows[] e objeto raiz
+        $repaired = preg_replace('/,\s*\]/', ']', $repaired);    // remove vírgula pendente
+        $parsedRepaired = json_decode($repaired, true);
+        if (is_array($parsedRepaired)) {
+            $parsed = $parsedRepaired;
+            $wasTruncatedByTokens = true;
+            elog('TOKEN_LIMIT_REPAIR_OK rows=' . count($parsed['rows'] ?? []));
+        }
+    }
+}
+
 if (!is_array($parsed)) {
     sendJson(['success' => false, 'message' => 'JSON inválido da OpenAI.', 'detail' => substr($content, 0, 500)], 502);
 }
@@ -321,9 +341,13 @@ foreach ($parsed['rows'] ?? [] as $r) {
     ];
 }
 
-sendJson([
+$result = [
     'success'     => true,
     'periodLabel' => (string)($parsed['periodLabel'] ?? ''),
     'bankLabel'   => (string)($parsed['bankLabel']   ?? ''),
     'rows'        => $rows,
-]);
+];
+if ($wasTruncatedByTokens) {
+    $result['warning'] = 'Extrato muito longo: a IA atingiu o limite de tokens e algumas transações do final podem estar ausentes.';
+}
+sendJson($result);
