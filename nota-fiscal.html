@@ -270,7 +270,100 @@
       <span id="btnResumoLabel">Resumo simples (IA)</span>
       <div class="spinner" id="spinnerResumo" style="display:none"></div>
     </button>
+
+    <button class="btn-resumo" id="btnResumoDetalhado" disabled title="Resumo detalhado por IA: todos os campos extraídos da nota fiscal">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <line x1="9" y1="9" x2="15" y2="9"/>
+        <line x1="9" y1="15" x2="15" y2="15"/>
+        <line x1="9" y1="12" x2="15" y2="12"/>
+      </svg>
+      <span id="btnResumoDetalhadoLabel">Resumo detalhado (IA)</span>
+      <div class="spinner" id="spinnerResumoDetalhado" style="display:none"></div>
+    </button>
   </div>
+  <div class="resumo-section" id="resumoDetalhadoSection" style="display:none;">
+    <h3>Resumo detalhado (IA)</h3>
+    <div id="resumoDetalhadoList"></div>
+    <div class="export-actions">
+      <button class="btn-export" id="btnExportResumoDetalhado">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Baixar detalhado em Excel
+      </button>
+    </div>
+
+  </div>
+
+<script>
+  // Excel detalhado
+  let resumoDetalhadoWorkbook = null;
+
+  function buildResumoDetalhadoWorkbook(notas) {
+    var wb = XLSX.utils.book_new();
+    var CURRENCY_FMT = '"R$" #,##0.00;[Red]"-R$" #,##0.00';
+    var header = ['Nº NF','Data','Série','Chave de Acesso','Fazenda','Emissor','CNPJ Emissor',
+            'Destinatário','CNPJ Destinatário','Itens','Impostos','Descontos','Valor Total (R$)'];
+    var rows = [header];
+    for (var ni = 0; ni < notas.length; ni++) {
+      var n = notas[ni];
+      var nf    = n.numero      || '';
+      var data  = n.dataEmissao || '';
+      var serie = n.serie       || '';
+      var chave = n.chaveAcesso || '';
+      var faz   = n.fazenda     || '';
+      var emit  = (n.emitente     && n.emitente.razaoSocial) || '';
+      var cnpjE = (n.emitente     && n.emitente.cnpj)        || '';
+      var dest  = (n.destinatario && n.destinatario.razaoSocial) || '';
+      var cnpjD = (n.destinatario && n.destinatario.cnpj)        || '';
+      var itens = n.itens || [];
+      var imp   = n.impostos || {};
+      var descontos = (typeof n.descontos === 'number' && !isNaN(n.descontos)) ? n.descontos : '';
+      var total = (typeof n.totalNF === 'number') ? n.totalNF : 0;
+      var impArr = [];
+      if (imp.icms)   impArr.push('ICMS: '   + fmtBRL.format(imp.icms));
+      if (imp.iss)    impArr.push('ISS: '    + fmtBRL.format(imp.iss));
+      if (imp.pis)    impArr.push('PIS: '    + fmtBRL.format(imp.pis));
+      if (imp.cofins) impArr.push('COFINS: ' + fmtBRL.format(imp.cofins));
+      if (imp.ipi)    impArr.push('IPI: '    + fmtBRL.format(imp.ipi));
+      var impStr = impArr.join(' · ');
+      if (itens.length > 0) {
+        for (var ii = 0; ii < itens.length; ii++) {
+          var it = itens[ii];
+          var detalhe = '';
+          if (it.quantidade) detalhe += it.quantidade + ' ' + (it.unidade || '');
+          if (it.valorTotal)  detalhe += (detalhe ? ' — ' : '') + fmtBRL.format(it.valorTotal);
+          var itemDesc = (it.descricao || '-') + (detalhe ? ' (' + detalhe.trim() + ')' : '');
+          var itemValor = (typeof it.valorTotal === 'number') ? it.valorTotal : '';
+          rows.push([
+            nf, data, serie, chave, faz, emit, cnpjE, dest, cnpjD, itemDesc, impStr, descontos, itemValor
+          ]);
+        }
+      } else {
+        rows.push([
+          nf, data, serie, chave, faz, emit, cnpjE, dest, cnpjD, '-', impStr, descontos, total
+        ]);
+      }
+    }
+    var ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:10},{wch:14},{wch:8},{wch:48},{wch:28},{wch:36},{wch:20},{wch:36},{wch:20},{wch:60},{wch:36},{wch:20}];
+    applyHeaderStyle(ws, header.length);
+    applyCurrencyFormat(ws, rows.length, [11], CURRENCY_FMT);
+    XLSX.utils.book_append_sheet(wb, ws, 'Resumo Detalhado');
+    return wb;
+  }
+
+  document.getElementById('btnExportResumoDetalhado').addEventListener('click', function() {
+    if (!resumoDetalhadoWorkbook) return;
+    var base = outFileName.value.trim() || 'notas-fiscais';
+    XLSX.writeFile(resumoDetalhadoWorkbook, base + '-detalhado.xlsx');
+  });
+</script>
 
   <div class="progress-wrap" id="progressWrap">
     <div class="progress-label">
@@ -363,6 +456,11 @@
   const btnResumo     = document.getElementById('btnResumo');
   const btnResumoLabel= document.getElementById('btnResumoLabel');
   const spinnerResumo = document.getElementById('spinnerResumo');
+  const btnResumoDetalhado = document.getElementById('btnResumoDetalhado');
+  const btnResumoDetalhadoLabel = document.getElementById('btnResumoDetalhadoLabel');
+  const spinnerResumoDetalhado = document.getElementById('spinnerResumoDetalhado');
+  const resumoDetalhadoSection = document.getElementById('resumoDetalhadoSection');
+  const resumoDetalhadoList = document.getElementById('resumoDetalhadoList');
   const resumoSection = document.getElementById('resumoSection');
   const resumoList    = document.getElementById('resumoList');
   const btnExportResumo = document.getElementById('btnExportResumo');
@@ -402,6 +500,7 @@
     else hideError();
     renderFileList();
     btnResumo.disabled   = selectedFiles.length === 0;
+    btnResumoDetalhado.disabled = selectedFiles.length === 0;
   }
 
   function renderFileList() {
@@ -426,6 +525,163 @@
   }
 
   // ── Botão "Resumo simples (IA)" ─────────────────────────────────────────────────
+    // ── Botão "Resumo detalhado (IA)" ────────────────────────────────────────────────
+    btnResumoDetalhado.addEventListener('click', async function() {
+      if (!selectedFiles.length) return;
+      setLoadingResumoDetalhado(true); hideError();
+      resultSection.style.display = 'none';
+      resumoDetalhadoSection.style.display = 'none';
+      resumoDetalhadoList.innerHTML = '';
+      var allDetalhados = [];
+
+      try {
+        var total = selectedFiles.length;
+        for (var i = 0; i < total; i++) {
+          var file = selectedFiles[i];
+          setProgress(Math.round((i / total) * 30), 'Extraindo texto do arquivo ' + (i + 1) + '/' + total + '...');
+          var rawText = await extractTextFromPDF(file);
+
+          var isSemTexto = !rawText.trim();
+          var textParaIA = isSemTexto
+            ? '(PDF SEM TEXTO SELECIONÁVEL — use a(s) imagem(ns) anexa(s) para extrair os dados.)'
+            : rawText;
+          var imagesParaIA = [];
+          if (isSemTexto) {
+            showToast('Nota é uma imagem — renderizando páginas e enviando para IA Vision...');
+            setProgress(Math.round(30 + (i / total) * 50), 'Arquivo ' + (i + 1) + '/' + total + ' - renderizando imagens...');
+            try {
+              imagesParaIA = await renderPDFToImages(file);
+            } catch (renderErr) {
+              hideToast();
+              throw new Error('Falha ao renderizar PDF imagem: ' + (renderErr && renderErr.message ? renderErr.message : renderErr));
+            }
+          }
+          setProgress(Math.round(30 + (i / total) * 60), 'Arquivo ' + (i + 1) + '/' + total + ' - resumo detalhado via IA...');
+          var result = await callDetalhadoAI(file.name, textParaIA, imagesParaIA);
+          if (isSemTexto) hideToast();
+
+          var notas = result.notas || [];
+          for (var j = 0; j < notas.length; j++) {
+            notas[j]._arquivo = file.name;
+            allDetalhados.push(notas[j]);
+          }
+        }
+
+        if (allDetalhados.length === 0) {
+          showError('Nenhuma nota fiscal reconhecida nos PDFs.');
+          setLoadingResumoDetalhado(false);
+          return;
+        }
+
+        renderResumoDetalhado(allDetalhados);
+        resumoDetalhadoWorkbook = buildResumoDetalhadoWorkbook(allDetalhados);
+        resumoDetalhadoSection.style.display = 'block';
+        setProgress(100, 'Concluido!');
+      } catch (err) {
+        showError('Erro ao processar resumo detalhado: ' + err.message);
+      }
+
+      setLoadingResumoDetalhado(false);
+    });
+
+    async function callDetalhadoAI(filename, text, images) {
+      var resp = await fetch('api/openai-nota-fiscal.php', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: filename, text: text, images: images || [] }),
+      });
+      var raw = await resp.text();
+      var payload = null;
+      try { payload = JSON.parse(raw); } catch (_) {
+        var s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+        if (s >= 0 && e > s) { try { payload = JSON.parse(raw.slice(s, e + 1)); } catch (_) {} }
+      }
+      if (!payload) throw new Error('Resposta invalida (HTTP ' + resp.status + ').');
+      if (!resp.ok || !payload.success) {
+        var msg = payload.message || ('HTTP ' + resp.status);
+        var det = payload.detail ? ' - ' + payload.detail : '';
+        throw new Error(msg + det);
+      }
+      return payload;
+    }
+
+function renderResumoDetalhado(notas) {
+  resumoDetalhadoList.innerHTML = '';
+  for (var i = 0; i < notas.length; i++) {
+    var n = notas[i];
+    var emit  = (n.emitente  && n.emitente.razaoSocial)      || '-';
+    var cnpjE = (n.emitente  && n.emitente.cnpj)             || '-';
+    var dest  = (n.destinatario && n.destinatario.razaoSocial) || '-';
+    var cnpjD = (n.destinatario && n.destinatario.cnpj)        || '-';
+    var faz   = n.fazenda    || '-';
+    var itens = n.itens      || [];
+    var imp   = n.impostos   || {};
+    var totalNum = typeof n.totalNF === 'number' ? n.totalNF : 0;
+
+    var card = document.createElement('div');
+    card.className = 'resumo-card';
+    var html = '';
+    html += '<h4>NF nº ' + esc(n.numero || '-') + ' · ' + esc(n.dataEmissao || '-') + '</h4>';
+    html += '<div class="resumo-grid">';
+    html += '<div><div class="lbl">Emissor</div><div class="val">' + esc(emit) + '</div></div>';
+    html += '<div><div class="lbl">CNPJ do Emissor</div><div class="val">' + esc(cnpjE) + '</div></div>';
+    html += '<div><div class="lbl">Destinatário</div><div class="val">' + esc(dest) + '</div></div>';
+    html += '<div><div class="lbl">CNPJ do Destinatário</div><div class="val">' + esc(cnpjD) + '</div></div>';
+
+    if (faz && faz !== '-') {
+      html += '<div class="full"><div class="lbl">Fazenda / Endereço</div><div class="val">' + esc(faz) + '</div></div>';
+    }
+
+    if (n.chaveAcesso) {
+      html += '<div class="full"><div class="lbl">Chave de Acesso</div><div class="val" style="font-size:.75rem;word-break:break-all">' + esc(n.chaveAcesso) + '</div></div>';
+    }
+
+    html += '<div class="full"><div class="lbl">Itens da Nota</div>';
+    if (itens.length) {
+      html += '<ul class="resumo-itens">';
+      for (var k = 0; k < itens.length; k++) {
+        var it = itens[k];
+        var detalhe = '';
+        if (it.quantidade) detalhe += it.quantidade + ' ' + (it.unidade || '');
+        if (it.valorTotal)  detalhe += (detalhe ? ' — ' : '') + fmtBRL.format(it.valorTotal);
+        html += '<li>' + esc(it.descricao || '-');
+        if (detalhe) html += ' <span style="color:var(--muted);font-size:.8em">(' + esc(detalhe.trim()) + ')</span>';
+        html += '</li>';
+      }
+      html += '</ul>';
+    } else {
+      html += '<div class="val">-</div>';
+    }
+    html += '</div>';
+
+    // Impostos (só mostra se algum > 0)
+    var impArr = [];
+    if (imp.icms)   impArr.push('ICMS: '   + fmtBRL.format(imp.icms));
+    if (imp.iss)    impArr.push('ISS: '    + fmtBRL.format(imp.iss));
+    if (imp.pis)    impArr.push('PIS: '    + fmtBRL.format(imp.pis));
+    if (imp.cofins) impArr.push('COFINS: ' + fmtBRL.format(imp.cofins));
+    if (imp.ipi)    impArr.push('IPI: '    + fmtBRL.format(imp.ipi));
+    if (impArr.length) {
+      html += '<div class="full"><div class="lbl">Impostos</div><div class="val" style="font-size:.82rem">' + esc(impArr.join(' · ')) + '</div></div>';
+    }
+
+    if (typeof n.descontos === 'number' && n.descontos > 0) {
+      html += '<div class="full"><div class="lbl">Descontos</div><div class="val">' + fmtBRL.format(n.descontos) + '</div></div>';
+    }
+    html += '<div class="full resumo-total">Valor total da nota: ' + fmtBRL.format(totalNum) + '</div>';
+    html += '</div>';
+    card.innerHTML = html;
+    resumoDetalhadoList.appendChild(card);
+  }
+}
+
+    function setLoadingResumoDetalhado(on) {
+      btnResumoDetalhado.disabled        = on || selectedFiles.length === 0;
+      spinnerResumoDetalhado.style.display = on ? 'block' : 'none';
+      btnResumoDetalhadoLabel.textContent  = on ? 'Processando...' : 'Resumo detalhado (IA)';
+      progressWrap.style.display  = on ? 'block' : 'none';
+      if (!on) { progressFill.style.width = '0%'; progressPct.textContent = '0%'; }
+    }
   // Pede para a IA extrair só: nº, data, emissor, CNPJ emissor,
   // destinatário (nome, CNPJ, endereço), itens (apenas descrição) e total da nota.
   btnResumo.addEventListener('click', async function() {
@@ -1397,8 +1653,8 @@
     }
 
     var ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{wch:10},{wch:14},{wch:28},{wch:36},{wch:20},{wch:36},{wch:46},{wch:10},{wch:18},{wch:18}];
-    applyHeaderStyle(ws, header.length);
+      var header = ['Nº NF','Data','Série','Chave de Acesso','Fazenda','Emissor','CNPJ Emissor',
+                    'Destinatário','CNPJ Destinatário','Itens','Impostos','Descontos','Valor Total (R$)'];
     applyCurrencyFormat(ws, rows.length, [8, 9], CURRENCY_FMT);
     XLSX.utils.book_append_sheet(wb, ws, 'Notas Fiscais');
 
@@ -1412,7 +1668,7 @@
         ws[addr].s = {
           font:      { bold: true, color: { rgb: 'FFFFFF' } },
           fill:      { fgColor: { rgb: '1A3318' } },
-          alignment: { horizontal: 'center' },
+          alignment: { horizontal: 'center' }
         };
       }
     }

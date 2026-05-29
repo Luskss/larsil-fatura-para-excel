@@ -1,28 +1,4 @@
 <?php
-/**
- * api/openai-extrato.php
- * Lê EXTRATOS BANCÁRIOS de qualquer banco via OpenAI.
- *
- * Diferente da fatura de cartão, o extrato tem:
- *   Data | Descrição (com complemento na linha de baixo) | Nº Documento |
- *   Movimento (R$) | Saldo (R$)
- * onde o "-" no fim do valor indica DÉBITO.
- *
- * Entrada (POST JSON):
- *   { "filename": "extrato.pdf", "text": "..." }
- *
- * Saída:
- *   {
- *     "success": true,
- *     "periodLabel": "MM-AAAA",
- *     "bankLabel":   "Santander Select - março/2025",
- *     "rows": [
- *        ["Data","Descrição","Nº Documento","Movimento (R$)","Saldo (R$)"],
- *        ["10/03","PRESTACAO CONSORCIO PGTO EVENTUAIS","-",-1222.06, null],
- *        ...
- *     ]
- *   }
- */
 
 declare(strict_types=1);
 
