@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <script src="dist/theme.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'" />
+  <title>Larsil — Configurações</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dist/style.css">
+  <style>
+    :root {
+      --accent: #4db55e;
+      --accent-dim: rgba(77,181,94,.2);
+      --accent-border: rgba(77,181,94,.25);
+      --card-bg: rgba(255,255,255,.06);
+      --card-border: rgba(255,255,255,.1);
+      --muted: rgba(255,255,255,.45);
+      --danger: #c0392b;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: linear-gradient(145deg, #071a07 0%, #0d2e0d 35%, #122e12 65%, #0a1f0a 100%);
+      background-attachment: fixed;
+      color: #e8f0e8;
+      min-height: 100vh;
+      position: relative;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, #2a6b2e, transparent 70%);
+      top: -150px; right: -150px;
+      border-radius: 50%;
+      filter: blur(110px);
+      opacity: .2;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 860px;
+      margin: 16px auto;
+      padding: 0 16px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-title { font-size: 1.35rem; color: #a0d87a; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; }
+    .page-subtitle { color: var(--muted); font-size: .88rem; font-weight: 400; margin-top: 4px; }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.3);
+      padding: 28px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+    }
+    .card-header h3 {
+      font-size: 1rem;
+      font-weight: 900;
+      color: #a0d87a;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .card-header p {
+      font-size: .8rem;
+      color: var(--muted);
+      font-weight: 400;
+      margin-top: 3px;
+    }
+
+    /* ── ADICIONAR HORÁRIO ── */
+    .add-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      margin-bottom: 24px;
+    }
+    .add-row .form-group { display: flex; flex-direction: column; gap: 5px; }
+    .add-row label {
+      font-size: .75rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+    input[type="time"] {
+      padding: 10px 14px;
+      border: 1.5px solid rgba(255,255,255,.15);
+      border-radius: 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: .92rem;
+      color: #fff;
+      background: rgba(255,255,255,.08);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      /* força o picker a exibir apenas HH:MM no Chrome */
+      -webkit-appearance: none;
+    }
+    input[type="time"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(77,181,94,.2);
+    }
+    input[type="time"]::-webkit-calendar-picker-indicator {
+      filter: invert(1) opacity(.5);
+      cursor: pointer;
+    }
+
+    /* ── BOTÕES ── */
+    .btn {
+      padding: 11px 22px;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 900;
+      font-size: .82rem;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      cursor: pointer;
+      transition: filter .18s, transform .1s, box-shadow .18s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary {
+      background: linear-gradient(135deg, #2e6b2b, #4db55e);
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(77,181,94,.25);
+    }
+    .btn-primary:hover { filter: brightness(1.1); box-shadow: 0 6px 24px rgba(77,181,94,.35); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { filter: brightness(1.12); }
+    .btn-sm { padding: 6px 14px; font-size: .75rem; }
+
+    /* ── GRID DE HORÁRIOS ── */
+    .horarios-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .horario-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(44,85,41,.45);
+      border: 1px solid rgba(77,181,94,.25);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: .92rem;
+      font-weight: 700;
+      color: #c8f0c8;
+      letter-spacing: .5px;
+    }
+    .horario-chip .chip-time {
+      font-size: 1.05rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      color: #7fe89a;
+    }
+    .chip-del {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: rgba(255,255,255,.35);
+      padding: 2px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      transition: color .15s, background .15s;
+    }
+    .chip-del:hover { color: #fca5a5; background: rgba(192,57,43,.2); }
+
+    .horarios-empty {
+      color: var(--muted);
+      font-size: .88rem;
+      padding: 8px 0;
+    }
+    .horarios-loading { color: var(--muted); font-size: .88rem; }
+
+    /* ── INFO BOX ── */
+    .info-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: rgba(77,181,94,.08);
+      border: 1px solid rgba(77,181,94,.2);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 20px;
+      font-size: .83rem;
+      color: rgba(200,240,200,.75);
+      line-height: 1.55;
+    }
+    .info-box svg { flex-shrink: 0; margin-top: 1px; opacity: .7; }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: rgba(20,50,20,.95);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(77,181,94,.3);
+      color: #fff;
+      padding: 13px 22px;
+      border-radius: 10px;
+      font-size: .88rem;
+      font-weight: 700;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity .3s, transform .3s;
+      pointer-events: none;
+      z-index: 999;
+      max-width: 320px;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.error { background: rgba(180,30,30,.95); border-color: rgba(252,165,165,.3); }
+
+    /* ── CAMINHOS ── */
+    .path-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+    .path-row .form-group { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+    .path-row label {
+      font-size: .75rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+    .input-path {
+      padding: 10px 14px;
+      border: 1.5px solid rgba(255,255,255,.15);
+      border-radius: 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: .88rem;
+      color: #fff;
+      background: rgba(255,255,255,.08);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      width: 100%;
+    }
+    .input-path:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(77,181,94,.2);
+    }
+    .input-path::placeholder { color: rgba(255,255,255,.3); }
+    .path-status {
+      font-size: .82rem;
+      margin-top: 10px;
+      padding: 9px 14px;
+      border-radius: 8px;
+      display: none;
+    }
+    .path-status.ok  { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.25); color: #86efac; }
+    .path-status.err { background: rgba(239,68,68,.12);  border: 1px solid rgba(239,68,68,.25);  color: #fca5a5; }
+
+    @media (max-width: 600px) {
+      .add-row, .path-row { flex-direction: column; align-items: stretch; }
+    }
+
+    /* ── Tema claro ── */
+      html.light {
+        --card-bg: #fff;
+        --card-border: rgba(0,0,0,.09);
+        --muted: rgba(0,0,0,.55);
+      }
+      html.light body { background: #f2f7f2 !important; color: #1a2e1a !important; }
+      html.light body::before { opacity: 0 !important; }
+      html.light .page-title { color: #2e6b2b; }
+      html.light .card { box-shadow: 0 2px 16px rgba(0,0,0,.07) !important; }
+      html.light .card-header { border-bottom-color: rgba(0,0,0,.08); }
+      html.light .card-header h3 { color: #2e6b2b; }
+      html.light label { color: rgba(0,0,0,.55) !important; }
+      html.light input[type="time"] {
+        background: #f0f4f0;
+        border-color: rgba(0,0,0,.15);
+        color: #1a2e1a;
+      }
+      html.light input[type="time"]::-webkit-calendar-picker-indicator { filter: none; opacity: .6; }
+      html.light .input-path {
+        background: #f0f4f0 !important;
+        border-color: rgba(0,0,0,.15) !important;
+        color: #1a2e1a !important;
+      }
+      html.light .input-path::placeholder { color: rgba(0,0,0,.38) !important; }
+      html.light .horario-chip { background: rgba(77,181,94,.10) !important; border-color: rgba(77,181,94,.28) !important; color: #1a5e1a !important; }
+      html.light .horario-chip .chip-time { color: #1a5e1a !important; }
+      html.light .info-box { color: rgba(0,0,0,.65) !important; background: rgba(77,181,94,.07) !important; border-color: rgba(77,181,94,.22) !important; }
+      html.light .path-status.ok  { background: rgba(77,181,94,.1) !important;  color: #1a5e1a !important; }
+      html.light .path-status.err { background: rgba(239,68,68,.08) !important; color: #c0392b !important; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="flex items-center gap-3">
+    <img src="img/logo-branca.png" alt="Larsil" class="h-9 w-auto"
+         onerror="this.src='img/logo-cores.png'">
+  </div>
+  <div class="flex items-center gap-2">
+    <div class="nav-dropdown-wrap">
+      <button class="nav-dropdown-btn">Extratores <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="nav-dropdown-menu">
+        <a href="extrato.html" class="nav-dropdown-item">Extrato Bancário</a>
+        <a href="conversor.html" class="nav-dropdown-item">Fatura</a>
+        <a href="nota-fiscal.html" class="nav-dropdown-item">Nota Fiscal</a>
+      </div>
+    </div>
+    <div class="nav-dropdown-wrap">
+      <button class="nav-dropdown-btn active">Gestão <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="nav-dropdown-menu">
+        <a href="gestao-usuarios.html" class="nav-dropdown-item">Usuários</a>
+        <a href="configuracoes.html" class="nav-dropdown-item active">Configurações</a>
+        <a href="#" class="nav-dropdown-item">Feedback</a>
+      </div>
+    </div>
+    <a href="conferencia-notas.html" class="nav-btn-conferencia">Conferência</a>
+    <span id="navUser" class="text-[.82rem] opacity-65 ml-2"></span>
+    <button id="btnThemeToggle" class="btn-theme-toggle" onclick="window.__themeToggle()" title="Modo claro"><svg id="iconThemeSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="iconThemeMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    <button id="btnLogout" class="btn-logout">Sair</button>
+  </div>
+</nav>
+<script>
+(function(){
+  document.querySelectorAll('.nav-dropdown-wrap').forEach(function(w){
+    var btn=w.querySelector('.nav-dropdown-btn'),menu=w.querySelector('.nav-dropdown-menu');
+    btn.addEventListener('click',function(e){e.stopPropagation();var open=menu.classList.contains('open');document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});if(!open){menu.classList.add('open');btn.classList.add('open');}});
+  });
+  document.addEventListener('click',function(){document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});});
+})();
+</script>
+
+<main>
+  <div>
+    <div class="page-title">Configurações</div>
+    <p class="page-subtitle">Gerencie as configurações do sistema</p>
+  </div>
+
+  <!-- Caminhos -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3>Caminhos</h3>
+        <p>Pasta do servidor onde os relatórios de conferência serão salvos em CSV</p>
+      </div>
+    </div>
+
+    <div class="path-row">
+      <div class="form-group">
+        <label for="inputCaminho">Pasta de relatórios</label>
+        <input type="text" id="inputCaminho" class="input-path"
+               placeholder="Ex: C:\Relatorios  ou  /home/user/relatorios" autocomplete="off" />
+      </div>
+      <button class="btn btn-primary" id="btnSalvarCaminho">Salvar</button>
+    </div>
+    <div id="pathStatus" class="path-status"></div>
+
+    <div class="info-box" style="margin-top:16px">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>Os relatórios diários (<strong>D-DD.MM.AAAA.csv</strong>) e mensais (<strong>M-MM.AAAA.csv</strong>) serão gravados nessa pasta. O sistema também lê esses arquivos antes de cada conferência para pular arquivos já processados.</span>
+    </div>
+  </div>
+
+  <!-- Rotinas -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3>Rotinas</h3>
+        <p>Horários em que as rotinas automáticas serão executadas</p>
+      </div>
+    </div>
+
+    <!-- Adicionar horário -->
+    <div class="add-row">
+      <div class="form-group">
+        <label for="inputHorario">Novo horário</label>
+        <input type="time" id="inputHorario" step="60" />
+      </div>
+      <button class="btn btn-primary" id="btnAdicionarHorario">Adicionar</button>
+    </div>
+
+    <!-- Lista de horários cadastrados -->
+    <div id="horariosContainer">
+      <span class="horarios-loading">Carregando...</span>
+    </div>
+
+    <div class="info-box">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>Os horários definidos aqui serão utilizados pelo sistema para agendar a execução automática das rotinas de processamento.</span>
+    </div>
+  </div>
+</main>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+  /* ── Auth guard ─────────────────────────────────────────────────────── */
+  if (!sessionStorage.getItem('cf_loggedIn')) {
+    window.location.replace('index.html');
+  }
+  const cfUser = sessionStorage.getItem('cf_username') || '';
+  if (cfUser) document.getElementById('navUser').textContent = 'Olá, ' + cfUser;
+
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    try { await fetch('api/logout.php', { method: 'POST', credentials: 'same-origin' }); } catch (_) {}
+    sessionStorage.clear();
+    window.location.replace('index.html');
+  });
+
+  /* ── Toast ──────────────────────────────────────────────────────────── */
+  let toastTimer = null;
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show' + (isError ? ' error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = ''; }, 3200);
+  }
+
+  /* ── API helper ─────────────────────────────────────────────────────── */
+  async function apiHorarios(method, body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch('api/horarios.php', opts);
+    return res.json();
+  }
+
+  /* ── Renderizar chips ─────────────────────────────────────────────── */
+  function renderHorarios(horarios) {
+    const container = document.getElementById('horariosContainer');
+    if (horarios.length === 0) {
+      container.innerHTML = '<p class="horarios-empty">Nenhum horário cadastrado. Adicione um acima.</p>';
+      return;
+    }
+    container.innerHTML = '<div class="horarios-grid">' +
+      horarios.map(h => `
+        <div class="horario-chip" data-id="${h.ID_HORARIO}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+               style="opacity:.6">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span class="chip-time">${esc(h.HORARIO)}</span>
+          <button class="chip-del" title="Remover" onclick="removerHorario(${h.ID_HORARIO}, this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>`).join('') +
+      '</div>';
+  }
+
+  /* ── Carregar ─────────────────────────────────────────────────────── */
+  async function carregarHorarios() {
+    const container = document.getElementById('horariosContainer');
+    try {
+      const data = await apiHorarios('GET');
+      if (!data.success) {
+        container.innerHTML = `<p class="horarios-empty" style="color:#fca5a5">${esc(data.message)}</p>`;
+        return;
+      }
+      renderHorarios(data.horarios);
+    } catch {
+      container.innerHTML = '<p class="horarios-empty" style="color:#fca5a5">Erro ao carregar horários.</p>';
+    }
+  }
+
+  /* ── Adicionar ─────────────────────────────────────────────────────── */
+  document.getElementById('btnAdicionarHorario').addEventListener('click', async () => {
+    const input = document.getElementById('inputHorario');
+    const val = input.value; // "HH:MM" or "HH:MM:SS"
+    if (!val) { showToast('Selecione um horário.', true); return; }
+
+    const horario = val.slice(0, 5); // garante "HH:MM"
+    const btn = document.getElementById('btnAdicionarHorario');
+    btn.disabled = true; btn.textContent = 'Adicionando...';
+
+    try {
+      const data = await apiHorarios('POST', { horario });
+      showToast(data.message, !data.success);
+      if (data.success) {
+        input.value = '';
+        carregarHorarios();
+      }
+    } catch { showToast('Erro de comunicação.', true); }
+    finally { btn.disabled = false; btn.textContent = 'Adicionar'; }
+  });
+
+  /* ── Remover ──────────────────────────────────────────────────────── */
+  async function removerHorario(id, btn) {
+    btn.disabled = true;
+    try {
+      const data = await apiHorarios('DELETE', { id });
+      showToast(data.message, !data.success);
+      if (data.success) carregarHorarios();
+    } catch { showToast('Erro de comunicação.', true); }
+    finally { btn.disabled = false; }
+  }
+
+  /* ── Escape ───────────────────────────────────────────────────────── */
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Caminhos ──────────────────────────────────────────────────────── */
+  async function carregarCaminho() {
+    try {
+      const d = await (await fetch('api/config', { credentials: 'same-origin' })).json();
+      if (d.config?.caminhoRelatorio)
+        document.getElementById('inputCaminho').value = d.config.caminhoRelatorio;
+    } catch (_) {}
+  }
+
+  function showPathStatus(msg, ok) {
+    const el = document.getElementById('pathStatus');
+    el.textContent = msg;
+    el.className = 'path-status ' + (ok ? 'ok' : 'err');
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
+  }
+
+  document.getElementById('btnSalvarCaminho').addEventListener('click', async () => {
+    const val = document.getElementById('inputCaminho').value.trim();
+    const btn = document.getElementById('btnSalvarCaminho');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    try {
+      const d = await (await fetch('api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ caminhoRelatorio: val }),
+      })).json();
+      showPathStatus(d.message || (d.success ? 'Caminho salvo.' : 'Erro.'), !!d.success);
+    } catch { showPathStatus('Erro de comunicação.', false); }
+    finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+  });
+
+  /* ── Init ─────────────────────────────────────────────────────────── */
+  carregarCaminho();
+  carregarHorarios();
+</script>
+</body>
+</html>

@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dist/style.css">
+  <script src="dist/theme.js"></script>
   <style>
     :root {
       --primary:   #2c5529;
@@ -23,21 +25,39 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Montserrat', sans-serif;
-      background: #f0f5f0;
-      color: #1e2e1e;
+      background: linear-gradient(145deg, #071a07 0%, #0d2e0d 35%, #122e12 65%, #0a1f0a 100%);
+      background-attachment: fixed;
+      color: #e8f0e8;
       min-height: 100vh;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, #2a6b2e, transparent 70%);
+      top: -150px; right: -150px;
+      border-radius: 50%;
+      filter: blur(110px);
+      opacity: .2;
+      pointer-events: none;
+      z-index: 0;
     }
 
     /* ── NAVBAR ── */
     nav {
-      background: linear-gradient(135deg, #1a3318, var(--primary));
+      background: rgba(7,26,7,0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,.07);
       color: #fff;
       padding: 0 24px;
       height: 64px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 2px 12px rgba(0,0,0,.3);
+      box-shadow: 0 2px 24px rgba(0,0,0,.4);
       position: sticky;
       top: 0;
       z-index: 100;
@@ -45,26 +65,26 @@
     nav .brand { display: flex; align-items: center; gap: 12px; font-weight: 900; font-size: 1.1rem; letter-spacing: .5px; text-transform: uppercase; }
     .nav-brand-logo { height: 38px; width: auto; }
     .nav-right { display: flex; align-items: center; gap: 16px; }
-    #navUser { font-size: .82rem; opacity: .85; font-weight: 400; }
+    #navUser { font-size: .82rem; opacity: .65; font-weight: 400; }
     .nav-link {
-      color: rgba(255,255,255,.85);
+      color: rgba(255,255,255,.75);
       text-decoration: none;
       font-size: .8rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: .3px;
       padding: 6px 14px;
-      border-radius: 6px;
+      border-radius: 8px;
       transition: background .2s;
     }
-    .nav-link:hover { background: rgba(255,255,255,.15); }
-    .nav-link.active { background: rgba(255,255,255,.22); color: #fff; }
+    .nav-link:hover { background: rgba(255,255,255,.12); color: #fff; }
+    .nav-link.active { background: rgba(77,181,94,.2); color: #6cd47e; border: 1px solid rgba(77,181,94,.25); }
     #btnLogout {
-      background: rgba(255,255,255,.15);
-      border: 1px solid rgba(255,255,255,.35);
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.22);
       color: #fff;
       padding: 6px 16px;
-      border-radius: 6px;
+      border-radius: 8px;
       font-size: .8rem;
       font-family: 'Montserrat', sans-serif;
       font-weight: 700;
@@ -73,56 +93,60 @@
       letter-spacing: .3px;
       transition: background .2s;
     }
-    #btnLogout:hover { background: rgba(255,255,255,.28); }
+    #btnLogout:hover { background: rgba(255,255,255,.2); }
 
     /* ── MAIN ── */
-    main { max-width: 960px; margin: 36px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 28px; }
+    main { max-width: 960px; margin: 16px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 28px; position: relative; z-index: 1; }
 
     h2 {
       font-size: 1.35rem;
-      color: var(--primary);
+      color: #a0d87a;
       font-weight: 900;
       text-transform: uppercase;
       letter-spacing: .5px;
       margin-bottom: 4px;
     }
-    .subtitle { color: var(--muted); font-size: .88rem; font-weight: 400; }
+    .subtitle { color: rgba(255,255,255,.5); font-size: .88rem; font-weight: 400; }
 
     /* ── CARD ── */
     .card {
-      background: var(--card);
-      border-radius: 14px;
-      box-shadow: 0 2px 12px rgba(44,85,41,.1);
+      background: rgba(255,255,255,.06);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.3);
       padding: 28px 28px;
     }
     .card h3 {
       font-size: 1rem;
       font-weight: 900;
-      color: var(--primary);
+      color: #a0d87a;
       text-transform: uppercase;
       letter-spacing: .4px;
       margin-bottom: 20px;
       padding-bottom: 12px;
-      border-bottom: 2px solid var(--border);
+      border-bottom: 1px solid rgba(255,255,255,.1);
     }
 
     /* ── FORM ── */
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
     .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
     .form-group { display: flex; flex-direction: column; gap: 5px; }
-    label { font-size: .78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+    label { font-size: .78rem; font-weight: 700; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .3px; }
     input[type="text"], input[type="password"] {
       padding: 10px 14px;
-      border: 1.5px solid var(--border);
+      border: 1.5px solid rgba(255,255,255,.15);
       border-radius: 8px;
       font-family: 'Montserrat', sans-serif;
       font-size: .9rem;
-      color: #1e2e1e;
+      color: #fff;
       transition: border-color .2s, box-shadow .2s;
       outline: none;
-      background: #fff;
+      background: rgba(255,255,255,.08);
     }
-    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(77,181,94,.18); }
+    input::placeholder { color: rgba(255,255,255,.3); }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(77,181,94,.2); }
 
     /* ── BOTÕES ── */
     .btn {
@@ -135,31 +159,31 @@
       text-transform: uppercase;
       letter-spacing: .4px;
       cursor: pointer;
-      transition: filter .2s, transform .1s;
+      transition: filter .2s, transform .1s, box-shadow .2s;
     }
     .btn:active { transform: scale(.97); }
-    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; }
-    .btn-primary:hover { filter: brightness(1.1); }
-    .btn-danger  { background: var(--danger); color: #fff; }
-    .btn-danger:hover  { background: var(--danger-h); }
-    .btn-warning { background: #e67e22; color: #fff; }
+    .btn-primary { background: linear-gradient(135deg, #2e6b2b, #4db55e); color: #fff; box-shadow: 0 4px 16px rgba(77,181,94,.25); }
+    .btn-primary:hover { filter: brightness(1.1); box-shadow: 0 6px 24px rgba(77,181,94,.35); }
+    .btn-danger  { background: #c0392b; color: #fff; }
+    .btn-danger:hover  { background: #a93226; }
+    .btn-warning { background: #d4811a; color: #fff; }
     .btn-warning:hover { filter: brightness(1.1); }
     .btn-sm { padding: 6px 14px; font-size: .75rem; }
-    .btn-cancel { background: #eee; color: #444; }
-    .btn-cancel:hover { background: #ddd; }
+    .btn-cancel { background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); border: 1px solid rgba(255,255,255,.15); }
+    .btn-cancel:hover { background: rgba(255,255,255,.18); }
     .form-actions { margin-top: 6px; display: flex; gap: 10px; align-items: center; }
 
     /* ── TABELA ── */
     table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
-    th { font-weight: 900; color: var(--primary); background: #f9faf9; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.06); }
+    th { font-weight: 900; color: #a0d87a; background: rgba(44,85,41,.5); }
     .table-actions { width: 180px; text-align: center; }
-    .cell-center-padded { text-align: center; color: var(--muted); padding: 24px; }
-    .cell-error { color: var(--danger); padding: 20px; text-align: center; }
-    code { font-family: monospace; font-size: .85rem; }
+    .cell-center-padded { text-align: center; color: rgba(255,255,255,.45); padding: 24px; }
+    .cell-error { color: #fca5a5; padding: 20px; text-align: center; }
+    code { font-family: monospace; font-size: .85rem; color: #a0d87a; }
 
     /* ── MODAL ── */
-    .label-small-muted { font-size: .85rem; color: var(--muted); margin-bottom: 18px; }
+    .label-small-muted { font-size: .85rem; color: rgba(255,255,255,.45); margin-bottom: 18px; }
     .form-group-spacer { margin-top: 12px; }
 
     /* ── TOAST ── */
@@ -167,13 +191,15 @@
       position: fixed;
       bottom: 28px;
       right: 28px;
-      background: var(--primary);
+      background: rgba(20,50,20,.95);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(77,181,94,.3);
       color: #fff;
       padding: 13px 22px;
       border-radius: 10px;
       font-size: .88rem;
       font-weight: 700;
-      box-shadow: 0 4px 20px rgba(0,0,0,.25);
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
       opacity: 0;
       transform: translateY(12px);
       transition: opacity .3s, transform .3s;
@@ -182,37 +208,41 @@
       max-width: 320px;
     }
     #toast.show { opacity: 1; transform: translateY(0); }
-    #toast.error { background: var(--danger); }
+    #toast.error { background: rgba(180,30,30,.95); border-color: rgba(252,165,165,.3); }
 
     /* ── TABELA ── */
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; font-size: .88rem; }
-    thead tr { background: var(--primary); color: #fff; }
+    thead tr { background: rgba(44,85,41,.7); color: #fff; }
     thead th { padding: 12px 14px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: .75rem; letter-spacing: .4px; }
-    tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
-    tbody tr:hover { background: #f5faf5; }
-    tbody td { padding: 12px 14px; vertical-align: middle; }
+    tbody tr { border-bottom: 1px solid rgba(255,255,255,.06); transition: background .15s; }
+    tbody tr:hover { background: rgba(255,255,255,.04); }
+    tbody td { padding: 12px 14px; vertical-align: middle; color: #d4e8d4; }
     .td-actions { display: flex; gap: 8px; }
 
     /* Modal */
     .modal-overlay {
       display: none;
       position: fixed; inset: 0;
-      background: rgba(0,0,0,.45);
+      background: rgba(0,0,0,.6);
+      backdrop-filter: blur(4px);
       z-index: 500;
       align-items: center;
       justify-content: center;
     }
     .modal-overlay.open { display: flex; }
     .modal {
-      background: #fff;
-      border-radius: 14px;
+      background: rgba(15,40,15,.95);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 16px;
       padding: 32px 28px;
       width: 100%;
       max-width: 420px;
-      box-shadow: 0 8px 40px rgba(0,0,0,.25);
+      box-shadow: 0 24px 64px rgba(0,0,0,.5);
     }
-    .modal h3 { font-size: 1rem; font-weight: 900; color: var(--primary); text-transform: uppercase; margin-bottom: 20px; }
+    .modal h3 { font-size: 1rem; font-weight: 900; color: #a0d87a; text-transform: uppercase; margin-bottom: 20px; }
     .modal .form-group { margin-bottom: 14px; }
     .modal .form-actions { margin-top: 20px; }
 
@@ -220,25 +250,62 @@
       .form-grid { grid-template-columns: 1fr; }
       .form-grid.cols-3 { grid-template-columns: 1fr; }
     }
+
+    html.light body { background: #f2f7f2 !important; color: #1a2e1a !important; }
+    html.light body::before { opacity: 0 !important; }
+    html.light h2 { color: #2e6b2b !important; }
+    html.light .subtitle { color: rgba(0,0,0,.55) !important; }
+    html.light .card {
+      background: #fff !important;
+      border-color: rgba(0,0,0,.09) !important;
+      box-shadow: 0 2px 16px rgba(0,0,0,.07) !important;
+    }
+    html.light .card h3 { color: #2e6b2b !important; }
+    html.light tbody tr { border-bottom-color: rgba(0,0,0,.07) !important; }
+    html.light tbody tr:hover { background: rgba(0,0,0,.03) !important; }
+    html.light code { color: #2a6b2b !important; }
+    html.light .cell-center-padded { color: rgba(0,0,0,.40) !important; }
   </style>
 </head>
 <body>
 
-<!-- NAVBAR -->
-<nav>
-  <div class="brand">
-    <img src="img/logo-branca.png" alt="Larsil" class="nav-brand-logo" />
+<nav class="navbar">
+  <div class="flex items-center gap-3">
+    <img src="img/logo-branca.png" alt="Larsil" class="h-9 w-auto" onerror="this.src='img/logo-cores.png'">
   </div>
-  <div class="nav-right">
-    <a href="conversor.html" class="nav-link">Fatura</a>
-    <a href="extrato.html" class="nav-link">Extrato Bancário</a>
-    <a href="gestao-usuarios.html" class="nav-link active">Usuários</a>
-    <span id="navUser"></span>
-    <button id="btnLogout">Sair</button>
+  <div class="flex items-center gap-2">
+    <div class="nav-dropdown-wrap">
+      <button class="nav-dropdown-btn">Extratores <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="nav-dropdown-menu">
+        <a href="extrato.html" class="nav-dropdown-item">Extrato Bancário</a>
+        <a href="conversor.html" class="nav-dropdown-item">Fatura</a>
+        <a href="nota-fiscal.html" class="nav-dropdown-item">Nota Fiscal</a>
+      </div>
+    </div>
+    <div class="nav-dropdown-wrap">
+      <button class="nav-dropdown-btn active">Gestão <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="nav-dropdown-menu">
+        <a href="gestao-usuarios.html" class="nav-dropdown-item active">Usuários</a>
+        <a href="configuracoes.html" class="nav-dropdown-item">Configurações</a>
+        <a href="#" class="nav-dropdown-item">Feedback</a>
+      </div>
+    </div>
+    <a href="conferencia-notas.html" class="nav-btn-conferencia">Conferência</a>
+    <span id="navUser" class="text-[.82rem] opacity-65 ml-2"></span>
+    <button id="btnThemeToggle" class="btn-theme-toggle" onclick="window.__themeToggle()" title="Modo claro"><svg id="iconThemeSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="iconThemeMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    <button id="btnLogout" class="btn-logout">Sair</button>
   </div>
 </nav>
+<script>
+(function(){
+  document.querySelectorAll('.nav-dropdown-wrap').forEach(function(w){
+    var btn=w.querySelector('.nav-dropdown-btn'),menu=w.querySelector('.nav-dropdown-menu');
+    btn.addEventListener('click',function(e){e.stopPropagation();var open=menu.classList.contains('open');document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});if(!open){menu.classList.add('open');btn.classList.add('open');}});
+  });
+  document.addEventListener('click',function(){document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});});
+})();
+</script>
 
-<!-- MAIN -->
 <main>
   <div>
     <h2>Gestão de Usuários</h2>
@@ -316,7 +383,7 @@
     window.location.href = 'index.html';
   }
   const cfUser = sessionStorage.getItem('cf_username') || '';
-  document.getElementById('navUser').textContent = cfUser;
+  document.getElementById('navUser').textContent = 'Olá, ' + cfUser;
 
   document.getElementById('btnLogout').addEventListener('click', async () => {
     try { await fetch('api/logout.php', { credentials: 'same-origin' }); } catch {}

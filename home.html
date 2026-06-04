@@ -8,211 +8,40 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="dist/style.css">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --primary:     #2c5529;
-      --primary-mid: #3d7a3a;
-      --accent:      #4db55e;
-      --bg:          #f0f5f0;
-      --card:        #ffffff;
-      --text:        #1a2e1a;
-      --muted:       #6b7b6a;
-    }
-
-    body {
-      min-height: 100vh;
-      background: var(--bg);
-      font-family: 'Montserrat', sans-serif;
-      color: var(--text);
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* ── NAVBAR ──────────────────────────────────────────────────────────── */
-    nav {
-      background: linear-gradient(135deg, #1a3318, var(--primary));
-      color: #fff;
-      padding: 0 24px;
-      height: 64px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 2px 12px rgba(0,0,0,.3);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    nav .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .nav-brand-logo { height: 38px; width: auto; }
-
-    .nav-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    #navUser { font-size: .82rem; opacity: .85; font-weight: 400; }
-
-    #btnLogout {
-      background: rgba(255,255,255,.15);
-      border: 1px solid rgba(255,255,255,.35);
-      color: #fff;
-      padding: 6px 16px;
-      border-radius: 6px;
-      font-size: .8rem;
-      font-family: 'Montserrat', sans-serif;
-      font-weight: 700;
-      cursor: pointer;
-      text-transform: uppercase;
-      letter-spacing: .3px;
-      transition: background .2s;
-    }
-
-    #btnLogout:hover { background: rgba(255,255,255,.28); }
-
-    /* ── MAIN CONTENT ────────────────────────────────────────────────────── */
-    main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 40px 16px 60px;
-    }
-
-    .logo {
-      margin-bottom: 10px;
-      text-align: center;
-    }
-
-    .logo img {
-      height: 90px;
-      width: auto;
-      max-width: 100%;
-      object-fit: contain;
-    }
-
-    .page-title {
-      font-size: 1.6rem;
-      font-weight: 900;
-      color: var(--text);
-      margin-bottom: 36px;
-      text-align: center;
-      letter-spacing: .3px;
-    }
-
-    /* ── CARDS GRID ──────────────────────────────────────────────────────── */
-    .cards-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      justify-content: center;
-      max-width: 860px;
-      width: 100%;
-    }
-
-    .menu-card {
-      background: var(--card);
-      border-radius: 18px;
-      width: 230px;
-      min-height: 180px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      padding: 32px 20px;
-      text-decoration: none;
-      color: var(--text);
-      box-shadow: 0 4px 20px rgba(0,0,0,.08);
-      border: 1.5px solid #e4ece4;
-      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-      cursor: pointer;
-    }
-
-    .menu-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 10px 32px rgba(44,85,41,.18);
-      border-color: var(--accent);
-    }
-
-    .menu-card:active { transform: translateY(-1px); }
-
-    .menu-card .card-icon {
-      color: var(--primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .menu-card .card-label {
-      font-size: 1rem;
-      font-weight: 700;
-      text-align: center;
-      color: var(--text);
-      line-height: 1.3;
-    }
-
-    /* coming soon badge */
-    .menu-card.soon {
-      opacity: .65;
-      cursor: default;
-      pointer-events: none;
-    }
-
-    .badge-soon {
-      font-size: .65rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .5px;
-      background: #e8f4e8;
-      color: var(--primary);
-      border-radius: 30px;
-      padding: 3px 10px;
-    }
-
-    /* ── FOOTER ──────────────────────────────────────────────────────────── */
-    footer {
-      text-align: center;
-      font-size: .74rem;
-      color: var(--muted);
-      padding-bottom: 24px;
-    }
+    body { display: flex; flex-direction: column; }
   </style>
 </head>
 <body>
 
-<nav>
-  <div class="brand">
-    <img src="img/logo-verde.png" alt="Larsil" class="nav-brand-logo"
-         onerror="this.src='img/logo-cores.png'">
-  </div>
-  <div class="nav-right">
-    <span id="navUser"></span>
-    <button id="btnLogout">Sair</button>
-  </div>
-</nav>
+<script>
+(function(){
+  document.querySelectorAll('.nav-dropdown-wrap').forEach(function(w){
+    var btn=w.querySelector('.nav-dropdown-btn'),menu=w.querySelector('.nav-dropdown-menu');
+    btn.addEventListener('click',function(e){e.stopPropagation();var open=menu.classList.contains('open');document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});if(!open){menu.classList.add('open');btn.classList.add('open');}});
+  });
+  document.addEventListener('click',function(){document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});});
+})();
+</script>
 
-<main>
-  <div class="logo">
-    <img src="img/logo-cores.png" alt="Larsil Serviços Florestais" />
+<main class="flex-1 flex flex-col items-center justify-center px-4 py-12 relative z-10">
+  <div class="mb-10 text-center">
+    <img src="img/logo-branca.png" alt="Larsil Florestal"
+         class="h-[90px] w-auto max-w-full object-contain"
+         style="filter:drop-shadow(0 4px 20px rgba(77,181,94,.35))">
   </div>
 
-  <h1 class="page-title">Selecione uma opção:</h1>
+  <h1 class="text-2xl font-black tracking-wide text-white/90  mb-10 text-center">
+    Selecione uma opção:
+  </h1>
 
-  <div class="cards-grid">
+  <div class="flex flex-wrap gap-3 justify-center max-w-[1000px] w-full">
 
     <!-- Extrato Bancário -->
     <a href="extrato.html" class="menu-card">
-      <span class="card-icon">
+      <span class="flex items-center justify-center text-accent-glow"
+            style="filter:drop-shadow(0 2px 8px rgba(77,181,94,.4))">
         <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 24 24"
              fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
           <rect x="2" y="5" width="20" height="14" rx="2"/>
@@ -221,12 +50,13 @@
           <line x1="11" y1="15" x2="13" y2="15"/>
         </svg>
       </span>
-      <span class="card-label">Extrato Bancário</span>
+      <span class="text-base font-bold text-center text-white/90 leading-snug">Extrato Bancário</span>
     </a>
 
     <!-- Fatura -->
     <a href="conversor.html" class="menu-card">
-      <span class="card-icon">
+      <span class="flex items-center justify-center text-accent-glow"
+            style="filter:drop-shadow(0 2px 8px rgba(77,181,94,.4))">
         <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 24 24"
              fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -236,12 +66,13 @@
           <polyline points="10 9 9 9 8 9"/>
         </svg>
       </span>
-      <span class="card-label">Fatura</span>
+      <span class="text-base font-bold text-center text-white/90 leading-snug">Fatura</span>
     </a>
 
     <!-- Nota Fiscal -->
     <a href="nota-fiscal.html" class="menu-card">
-      <span class="card-icon">
+      <span class="flex items-center justify-center text-accent-glow"
+            style="filter:drop-shadow(0 2px 8px rgba(77,181,94,.4))">
         <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 24 24"
              fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
@@ -250,33 +81,39 @@
           <line x1="9" y1="16" x2="13" y2="16"/>
         </svg>
       </span>
-      <span class="card-label">Nota Fiscal</span>
+      <span class="text-base font-bold text-center text-white/90 leading-snug">Nota Fiscal</span>
+    </a>
+
+    <!-- Conferência de Notas -->
+    <a href="conferencia-notas.html" class="menu-card">
+      <span class="flex items-center justify-center text-accent-glow"
+            style="filter:drop-shadow(0 2px 8px rgba(77,181,94,.4))">
+        <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+      </span>
+      <span class="text-base font-bold text-center text-white/90 leading-snug">Conferência de Notas</span>
     </a>
 
   </div>
 </main>
 
-<footer>v1.0 &bull; Uso interno</footer>
+<footer class="text-center text-[.74rem] pb-6 relative z-10" style="color:rgba(255,255,255,.3)">
+  v1.0 &bull; Uso interno
+</footer>
 
 <script>
-  // ── Proteção de rota ─────────────────────────────────────────────────────
   (function () {
-    if (!sessionStorage.getItem('cf_loggedIn')) {
-      window.location.replace('index.html');
-    }
+    if (!sessionStorage.getItem('cf_loggedIn')) window.location.replace('index.html');
   })();
 
-  // ── Exibe usuário logado ─────────────────────────────────────────────────
   const userName = sessionStorage.getItem('cf_username') || '';
-  if (userName) {
-    document.getElementById('navUser').textContent = 'Olá, ' + userName;
-  }
+  if (userName) document.getElementById('navUser').textContent = 'Olá, ' + userName;
 
-  // ── Logout ───────────────────────────────────────────────────────────────
   document.getElementById('btnLogout').addEventListener('click', async () => {
-    try {
-      await fetch('api/logout.php', { method: 'POST' });
-    } catch (_) { /* ignora falhas de rede */ }
+    try { await fetch('api/logout.php', { method: 'POST' }); } catch (_) {}
     sessionStorage.clear();
     window.location.replace('index.html');
   });

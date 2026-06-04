@@ -11,248 +11,136 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
+  <script src="dist/theme.js"></script>
+  <link rel="stylesheet" href="dist/style.css">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --primary:      #2c5529;
-      --primary-mid:  #3d7a3a;
-      --accent:       #4db55e;
-      --accent-light: #a0d063;
-      --bg:           #f0f5f0;
-      --card:         #fafcfa;
-      --border:       #c4d8c3;
-      --text:         #1a2e1a;
-      --muted:        #557055;
-    }
-
-    body { min-height: 100vh; background: var(--bg); font-family: 'Montserrat', sans-serif; color: var(--text); }
-
-    nav {
-      background: linear-gradient(135deg, #1a3318, var(--primary));
-      color: #fff; padding: 0 24px; height: 64px;
-      display: flex; align-items: center; justify-content: space-between;
-      box-shadow: 0 2px 12px rgba(0,0,0,.3); position: sticky; top: 0; z-index: 100;
-    }
-    nav .brand { display: flex; align-items: center; gap: 12px; font-weight: 900; font-size: 1.1rem; letter-spacing: .5px; text-transform: uppercase; }
-    .nav-brand-logo { height: 38px; width: auto; }
-    .nav-right { display: flex; align-items: center; gap: 16px; }
-    #navUser { font-size: .82rem; opacity: .85; font-weight: 400; }
-    .nav-link {
-      color: rgba(255,255,255,.85); text-decoration: none;
-      font-size: .8rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: .3px; padding: 6px 14px; border-radius: 6px; transition: background .2s;
-    }
-    .nav-link:hover { background: rgba(255,255,255,.15); }
-    .nav-link.active { background: rgba(255,255,255,.22); color: #fff; }
-    #btnLogout {
-      background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.35);
-      color: #fff; padding: 6px 16px; border-radius: 6px; font-size: .8rem;
-      font-family: 'Montserrat', sans-serif; font-weight: 700; cursor: pointer;
-      text-transform: uppercase; letter-spacing: .3px; transition: background .2s;
-    }
-    #btnLogout:hover { background: rgba(255,255,255,.28); }
-
-    main { max-width: 1000px; margin: 36px auto; padding: 0 16px; }
-    h2 { font-size: 1.35rem; color: var(--primary); margin-bottom: 6px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; }
-    .subtitle { color: var(--muted); font-size: .88rem; margin-bottom: 28px; font-weight: 400; }
-
-    .upload-zone {
-      border: 2.5px dashed var(--border); border-radius: 14px; padding: 52px 24px;
-      text-align: center; background: var(--card); cursor: pointer; position: relative;
-      transition: border-color .25s, background .25s;
-    }
-    .upload-zone.dragover { border-color: var(--primary); background: #eaf3f7; }
-    .upload-zone svg { color: var(--primary); margin-bottom: 14px; }
-    .upload-zone p { color: var(--muted); font-size: .95rem; }
-    .upload-zone p strong { color: var(--primary); }
-    .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-    .file-hint { font-size: .78rem; color: #9ca3af; margin-top: 8px; }
-
-    .files-list { display: none; flex-direction: column; gap: 8px; margin-top: 16px; }
-    .file-count { font-size: .78rem; color: var(--muted); padding: 4px 0 2px; font-weight: 600; }
-    .file-item {
-      display: flex; align-items: center; gap: 12px;
-      background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px;
-      padding: 11px 16px; animation: fadeIn .2s;
-    }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; } }
-    .file-item .file-name { font-weight: 600; font-size: .88rem; color: #166534; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 500px; }
-    .file-item .file-size { font-size: .75rem; color: #4ade80; }
-    .btn-remove { margin-left: auto; background: none; border: none; cursor: pointer; color: #dc2626; padding: 4px; border-radius: 4px; display: flex; flex-shrink: 0; }
-    .btn-remove:hover { background: #fee2e2; }
-
-    .options-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px; margin-top: 20px; }
-    .options-card h3 { font-size: .9rem; color: var(--primary); margin-bottom: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
-    .opt-group label { display: block; font-size: .8rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .4px; }
-    .opt-group input[type="text"] {
-      width: 100%; padding: 9px 12px; border: 1.5px solid var(--border);
-      border-radius: 7px; font-size: .88rem; font-family: 'Montserrat', sans-serif;
-      background: #fff; outline: none; color: var(--text); transition: border-color .2s;
-    }
-    .opt-group input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(77,181,94,.15); }
-
-    .btn-convert {
-      display: flex; align-items: center; justify-content: center; gap: 8px;
-      width: 100%; margin-top: 22px; padding: 14px;
-      background: linear-gradient(135deg, #1a3318, var(--primary));
-      color: #fff; border: none; border-radius: 10px;
-      font-size: 1rem; font-weight: 900; font-family: 'Montserrat', sans-serif;
-      cursor: pointer; letter-spacing: .5px; text-transform: uppercase;
-      transition: opacity .2s, transform .1s;
-    }
-    .btn-convert:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-convert:not(:disabled):hover { opacity: .88; }
-    .btn-convert:not(:disabled):active { transform: scale(.98); }
-
+    .opt-group label { display: block; font-size: .8rem; font-weight: 600; color: rgba(255,255,255,.55); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .4px; }
+    .file-name { font-weight: 600; font-size: .88rem; color: #a0d87a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 500px; }
+    .file-size { font-size: .75rem; color: rgba(160,216,122,.6); }
+    .file-count { font-size: .78rem; color: rgba(255,255,255,.5); padding: 4px 0 2px; font-weight: 600; }
+    .btn-remove { margin-left: auto; background: none; border: none; cursor: pointer; color: #fca5a5; padding: 4px; border-radius: 4px; display: flex; flex-shrink: 0; }
+    .btn-remove:hover { background: rgba(252,165,165,.15); }
     .btn-row { display: flex; gap: 12px; margin-top: 22px; }
-    .btn-row .btn-convert { margin-top: 0; flex: 1; }
+    .btn-row .btn-primary { margin-top: 0; flex: 1; }
     .btn-force-ai {
       display: flex; align-items: center; justify-content: center; gap: 8px;
       padding: 14px 22px; flex-shrink: 0;
-      background: linear-gradient(135deg, #1a3365, #2c4ea8);
+      background: linear-gradient(135deg, #1a2a5e, #3b5bdb);
       color: #fff; border: none; border-radius: 10px;
       font-size: .9rem; font-weight: 900; font-family: 'Montserrat', sans-serif;
       cursor: pointer; letter-spacing: .4px; text-transform: uppercase;
       transition: opacity .2s, transform .1s; white-space: nowrap;
+      box-shadow: 0 6px 24px rgba(59,91,219,.25);
     }
-    .btn-force-ai:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-force-ai:not(:disabled):hover { opacity: .88; }
-    .btn-force-ai:not(:disabled):active { transform: scale(.98); }
-
+    .btn-force-ai:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+    .btn-force-ai:not(:disabled):hover { opacity: .9; }
     .btn-resumo {
       display: flex; align-items: center; justify-content: center; gap: 8px;
       padding: 14px 22px; flex-shrink: 0;
-      background: linear-gradient(135deg, #6b3a1a, #b86a2c);
+      background: linear-gradient(135deg, #5e2d1a, #c27035);
       color: #fff; border: none; border-radius: 10px;
       font-size: .9rem; font-weight: 900; font-family: 'Montserrat', sans-serif;
       cursor: pointer; letter-spacing: .4px; text-transform: uppercase;
       transition: opacity .2s, transform .1s; white-space: nowrap;
+      box-shadow: 0 6px 24px rgba(194,112,53,.25);
     }
-    .btn-resumo:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-resumo:not(:disabled):hover { opacity: .88; }
-    .btn-resumo:not(:disabled):active { transform: scale(.98); }
-
+    .btn-resumo:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+    .btn-resumo:not(:disabled):hover { opacity: .9; }
     .resumo-section { display: none; margin-top: 28px; }
-    .resumo-section h3 { font-size: .95rem; color: var(--primary); margin-bottom: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
-    .resumo-card {
-      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-      padding: 18px 22px; margin-bottom: 14px;
-    }
-    .resumo-card h4 { font-size: .9rem; color: var(--primary); margin-bottom: 10px; font-weight: 800; }
+    .resumo-section h3 { font-size: .95rem; color: #a0d87a; margin-bottom: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+    .resumo-card { background: rgba(255,255,255,.06); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 18px 22px; margin-bottom: 14px; }
+    .resumo-card h4 { font-size: .9rem; color: #a0d87a; margin-bottom: 10px; font-weight: 800; }
     .resumo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 22px; font-size: .85rem; }
     .resumo-grid .full { grid-column: 1 / -1; }
-    .resumo-grid .lbl { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: .7rem; letter-spacing: .4px; margin-bottom: 2px; }
-    .resumo-grid .val { color: var(--text); font-weight: 500; word-break: break-word; }
-    .resumo-itens { margin-top: 10px; padding-left: 18px; font-size: .85rem; color: var(--text); }
+    .resumo-grid .lbl { color: rgba(255,255,255,.5); font-weight: 700; text-transform: uppercase; font-size: .7rem; letter-spacing: .4px; margin-bottom: 2px; }
+    .resumo-grid .val { color: #d4e8d4; font-weight: 500; word-break: break-word; }
+    .resumo-itens { margin-top: 10px; padding-left: 18px; font-size: .85rem; color: #d4e8d4; }
     .resumo-itens li { margin-bottom: 3px; }
-    .resumo-total { margin-top: 10px; font-weight: 900; color: var(--primary); font-size: .95rem; }
-
-    .progress-wrap { display: none; margin-top: 20px; }
-    .progress-label { display: flex; justify-content: space-between; font-size: .82rem; color: var(--muted); margin-bottom: 6px; }
-    .progress-bar-bg { width: 100%; height: 8px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--accent), var(--accent-light)); border-radius: 999px; transition: width .3s ease; }
-
-    .error-box { display: none; background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; border-radius: 10px; padding: 14px 18px; font-size: .88rem; margin-top: 20px; }
-
-    .spinner { width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
+    .resumo-total { margin-top: 10px; font-weight: 900; color: #6cd47e; font-size: .95rem; }
     .result-section { display: none; margin-top: 28px; }
-    .result-section h3 { font-size: .95rem; color: var(--primary); margin-bottom: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
-
+    .result-section h3 { font-size: .95rem; color: #a0d87a; margin-bottom: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
     .summary-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
-    .summary-chip { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; min-width: 140px; }
-    .summary-chip .chip-label { font-size: .72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
-    .summary-chip .chip-value { font-size: 1.1rem; font-weight: 900; color: var(--primary); }
-
-    .preview-table-wrap {
-      overflow-x: auto; border: 1px solid var(--border); border-radius: 10px;
-      max-height: 420px; overflow-y: auto;
-    }
-    table { width: 100%; border-collapse: collapse; font-size: .8rem; }
-    thead th {
-      background: var(--primary); color: #fafcfa; padding: 10px 12px;
-      text-align: left; position: sticky; top: 0;
-      white-space: nowrap; font-weight: 700; font-size: .74rem;
-      text-transform: uppercase; letter-spacing: .4px;
-    }
-    tbody tr:nth-child(even) { background: #f0f5f0; }
-    tbody td { padding: 8px 12px; border-top: 1px solid #deeede; }
+    .summary-chip .chip-label { font-size: .72rem; font-weight: 700; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+    .summary-chip .chip-value { font-size: 1.1rem; font-weight: 900; color: #6cd47e; }
     tbody td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-    .export-actions { margin-top: 16px; display: flex; align-items: center; gap: 10px; }
-    .btn-export {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 12px 26px; background: var(--accent); color: #fff; border: none;
-      border-radius: 8px; font-size: .9rem; font-weight: 900; font-family: 'Montserrat', sans-serif;
-      cursor: pointer; text-transform: uppercase; letter-spacing: .4px; transition: background .2s;
-    }
-    .btn-export:hover { background: var(--primary); }
-
-    footer { text-align: center; font-size: .75rem; color: var(--muted); padding: 32px 0 20px; }
-
-    /* Toast ─────────────────────────────────────────────────────────── */
-    #nf-toast {
-      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px);
-      background: #1a3318; color: #fff; padding: 12px 24px; border-radius: 8px;
-      font-size: .88rem; font-weight: 500; letter-spacing: .2px;
-      box-shadow: 0 4px 18px rgba(0,0,0,.28); pointer-events: none;
-      opacity: 0; transition: opacity .3s ease, transform .3s ease; z-index: 9999;
-      display: flex; align-items: center; gap: 10px;
-    }
-    #nf-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-    #nf-toast .toast-spinner {
-      width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.35);
-      border-top-color: #fff; border-radius: 50%; animation: tspin .7s linear infinite;
-    }
-    @keyframes tspin { to { transform: rotate(360deg); } }
   </style>
 </head>
-<body>
+  <body>
 
-<nav>
-  <div class="brand">
-    <img src="img/logo-branca.png" alt="Larsil" class="nav-brand-logo"
+
+<nav class="navbar">
+  <div class="flex items-center gap-3">
+    <img src="img/logo-branca.png" alt="Larsil" class="h-9 w-auto"
          onerror="this.src='img/logo-cores.png'">
   </div>
-  <div class="nav-right">
-    <a href="home.html" class="nav-link">Inicio</a>
-    <a href="conversor.html" class="nav-link">Fatura</a>
-    <a href="extrato.html" class="nav-link">Extrato Bancario</a>
-    <a href="nota-fiscal.html" class="nav-link active">Nota Fiscal</a>
-    <a href="gestao-usuarios.html" class="nav-link">Usuarios</a>
-    <span id="navUser"></span>
-    <button id="btnLogout">Sair</button>
+  <div class="flex items-center gap-2">
+    <div class="nav-dropdown-wrap">
+      <button class="nav-dropdown-btn active">Extratores <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="nav-dropdown-menu">
+        <a href="extrato.html" class="nav-dropdown-item">Extrato Bancário</a>
+        <a href="conversor.html" class="nav-dropdown-item">Fatura</a>
+        <a href="nota-fiscal.html" class="nav-dropdown-item active">Nota Fiscal</a>
+      </div>
+    </div>
+    <div class="nav-dropdown-wrap">
+      <button class="nav-dropdown-btn">Gestão <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="nav-dropdown-menu">
+        <a href="gestao-usuarios.html" class="nav-dropdown-item">Usuários</a>
+        <a href="configuracoes.html" class="nav-dropdown-item">Configurações</a>
+        <a href="#" class="nav-dropdown-item">Feedback</a>
+      </div>
+    </div>
+    <a href="conferencia-notas.html" class="nav-btn-conferencia">Conferência</a>
+    <span id="navUser" class="text-[.82rem] opacity-65 ml-2"></span>
+    <button id="btnThemeToggle" class="btn-theme-toggle" onclick="window.__themeToggle()" title="Modo claro"><svg id="iconThemeSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="iconThemeMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    <button id="btnLogout" class="btn-logout">Sair</button>
   </div>
 </nav>
+<script>
+(function(){
+  document.querySelectorAll('.nav-dropdown-wrap').forEach(function(w){
+    var btn=w.querySelector('.nav-dropdown-btn'),menu=w.querySelector('.nav-dropdown-menu');
+    btn.addEventListener('click',function(e){e.stopPropagation();var open=menu.classList.contains('open');document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});if(!open){menu.classList.add('open');btn.classList.add('open');}});
+  });
+  document.addEventListener('click',function(){document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});});
+})();
+</script>
 
-<main>
-  <h2>Conversor de Nota Fiscal em Excel</h2>
-  <p class="subtitle">Extrai dados de NF-e, NFS-e e notas de papel (itens, impostos, emitente, destinatario) e exporta para Excel usando IA.</p>
+<main class="max-w-[1000px] mx-auto mt-4 px-4 relative z-10">
+  <div class="flex justify-end mb-2">
+    <button id="btnUsarLocalmente"
+            class="text-[.85rem] px-3.5 py-1.5 rounded-lg cursor-pointer font-sans transition-colors"
+            style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.65);border:1px solid rgba(255,255,255,.15);">
+      Usar localmente
+    </button>
+  </div>
+  <h2 class="section-title">Conversor de Nota Fiscal em Excel</h2>
+  <p class="section-subtitle">Extrai dados de NF-e, NFS-e e notas de papel (itens, impostos, emitente, destinatário) e exporta para Excel usando IA.</p>
 
   <div class="upload-zone" id="uploadZone">
-    <input type="file" id="pdfInput" accept="application/pdf" multiple />
+    <input type="file" id="pdfInput" accept="application/pdf" multiple class="absolute inset-0 opacity-0 cursor-pointer" />
     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24"
-         fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+         fill="none" stroke="#6cd47e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+         class="mx-auto mb-3.5">
       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
       <polyline points="17 8 12 3 7 8"/>
       <line x1="12" y1="3" x2="12" y2="15"/>
     </svg>
-    <p><strong>Clique para selecionar</strong> ou arraste os PDFs aqui</p>
-    <p class="file-hint">Varios arquivos PDF de Nota Fiscal - maximo 20 MB cada</p>
+    <p class="text-[rgba(255,255,255,.6)] text-[.95rem]">
+      <strong class="text-accent-glow">Clique para selecionar</strong> ou arraste os PDFs aqui
+    </p>
+    <p class="text-[rgba(255,255,255,.35)] text-[.78rem] mt-2">Vários arquivos PDF de Nota Fiscal — máximo 20 MB cada</p>
   </div>
 
-  <div class="files-list" id="filesList">
+  <div class="files-list hidden flex-col gap-2 mt-4" id="filesList">
     <div class="file-count" id="fileCount"></div>
   </div>
 
   <div class="options-card">
-    <h3>Opcoes de exportacao</h3>
+    <h3 class="text-[.9rem] font-bold uppercase tracking-[.4px] mb-4 text-accent-text">Opções de exportação</h3>
     <div class="opt-group" style="max-width:300px">
       <label>Nome do arquivo Excel</label>
-      <input type="text" id="outFileName" value="notas-fiscais" placeholder="notas-fiscais" />
+      <input type="text" id="outFileName" class="glass-input" value="notas-fiscais" placeholder="notas-fiscais" />
     </div>
   </div>
 
@@ -300,7 +188,28 @@
 
   </div>
 
-<script>
+  <script>
+    // Botão para debug: redireciona para arquivo de debug com informações filtradas pelo parser
+    document.getElementById('btnUsarLocalmente').addEventListener('click', async function() {
+      // Supondo que o usuário já selecionou um arquivo PDF
+      var fileInput = document.querySelector('input[type="file"]');
+      if (!fileInput || !fileInput.files.length) {
+        alert('Selecione um PDF primeiro.');
+        return;
+      }
+      var file = fileInput.files[0];
+      var text = await extractTextFromPDF(file);
+      // Tenta parser local
+      var parsed = parseNFLocal(text, file.name) || parseDANFE(text) || parseNFSe(text);
+      if (!parsed) {
+        alert('Parser local não conseguiu extrair informações.');
+        return;
+      }
+      // Salva resultado em localStorage para debug
+      localStorage.setItem('nf_debug_parsed', JSON.stringify(parsed, null, 2));
+      // Redireciona para arquivo de debug (crie um debug-nf.html para visualizar)
+      window.location.href = 'debug-nf.html';
+    });
   // Excel detalhado
   let resumoDetalhadoWorkbook = null;
 
@@ -365,7 +274,7 @@
   });
 </script>
 
-  <div class="progress-wrap" id="progressWrap">
+  <div class="progress-wrap" id="progressWrap" style="display:none">
     <div class="progress-label">
       <span id="progressText">Processando...</span>
       <span id="progressPct">0%</span>
@@ -429,7 +338,7 @@
 
 <script>
   if (!sessionStorage.getItem('cf_loggedIn')) window.location.replace('index.html');
-  document.getElementById('navUser').textContent = 'Ola, ' + (sessionStorage.getItem('cf_username') || 'usuario');
+  document.getElementById('navUser').textContent = 'Olá, ' + (sessionStorage.getItem('cf_username') || 'usuário');
   document.getElementById('btnLogout').addEventListener('click', async () => {
     try { await fetch('api/logout.php', { method: 'POST', credentials: 'same-origin' }); } catch (_) {}
     sessionStorage.clear();
@@ -438,6 +347,9 @@
 
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  console.log('[INIT] pdfjsLib carregado:', typeof pdfjsLib, 'versão:', pdfjsLib.version);
+  console.log('[INIT] workerSrc definido:', pdfjsLib.GlobalWorkerOptions.workerSrc);
 
   // Em ambientes com CSP mais restrito, o worker externo pode ser bloqueado.
   // Neste caso forçamos fallback sem worker para manter a extração/renderização funcionando.
@@ -507,6 +419,16 @@
     filesList.innerHTML = '<div class="file-count" id="fileCount"></div>';
     if (!selectedFiles.length) { filesList.style.display = 'none'; return; }
     filesList.style.display = 'flex';
+    if (selectedFiles.length > 10) {
+      // Mostra apenas uma caixa verde com a mensagem
+      const item = document.createElement('div');
+      item.className = 'file-item';
+      item.style.justifyContent = 'center';
+      item.innerHTML = `<strong style="color:#166534;">${selectedFiles.length} PDF's adicionados e prontos!</strong>`;
+      filesList.appendChild(item);
+      document.getElementById('fileCount').textContent = '';
+      return;
+    }
     document.getElementById('fileCount').textContent = selectedFiles.length + ' arquivo(s) selecionado(s)';
     selectedFiles.forEach((file, idx) => {
       const item = document.createElement('div');
@@ -527,19 +449,31 @@
   // ── Botão "Resumo simples (IA)" ─────────────────────────────────────────────────
     // ── Botão "Resumo detalhado (IA)" ────────────────────────────────────────────────
     btnResumoDetalhado.addEventListener('click', async function() {
-      if (!selectedFiles.length) return;
+      console.log('[btnResumoDetalhado] Clicado', { filesCount: selectedFiles.length });
+      if (!selectedFiles.length) {
+        console.warn('[btnResumoDetalhado] Nenhum arquivo selecionado');
+        return;
+      }
       setLoadingResumoDetalhado(true); hideError();
-      resultSection.style.display = 'none';
-      resumoDetalhadoSection.style.display = 'none';
-      resumoDetalhadoList.innerHTML = '';
+      console.log('[btnResumoDetalhado] setLoadingResumoDetalhado(true) executado');
       var allDetalhados = [];
 
       try {
+        console.log('[btnResumoDetalhado] Limpando seções...');
+        resultSection.style.display = 'none';
+        resumoDetalhadoSection.style.display = 'none';
+        resumoDetalhadoList.innerHTML = '';
+        console.log('[btnResumoDetalhado] Seções limpas');
+
         var total = selectedFiles.length;
+        console.log('[btnResumoDetalhado] Total de arquivos:', total);
         for (var i = 0; i < total; i++) {
           var file = selectedFiles[i];
+          console.log('[btnResumoDetalhado] Processando arquivo', i + 1, '/', total, file.name);
           setProgress(Math.round((i / total) * 30), 'Extraindo texto do arquivo ' + (i + 1) + '/' + total + '...');
+          console.log('[btnResumoDetalhado] setProgress chamado, extraindo texto...');
           var rawText = await extractTextFromPDF(file);
+          console.log('[btnResumoDetalhado] Texto extraído, comprimento:', rawText.length);
 
           var isSemTexto = !rawText.trim();
           var textParaIA = isSemTexto
@@ -578,6 +512,8 @@
         resumoDetalhadoSection.style.display = 'block';
         setProgress(100, 'Concluido!');
       } catch (err) {
+        console.error('[btnResumoDetalhado] ERRO CAPTURADO:', err);
+        console.error('[btnResumoDetalhado] Stack:', err.stack);
         showError('Erro ao processar resumo detalhado: ' + err.message);
       }
 
@@ -685,19 +621,31 @@ function renderResumoDetalhado(notas) {
   // Pede para a IA extrair só: nº, data, emissor, CNPJ emissor,
   // destinatário (nome, CNPJ, endereço), itens (apenas descrição) e total da nota.
   btnResumo.addEventListener('click', async function() {
-    if (!selectedFiles.length) return;
+    console.log('[btnResumo] Clicado', { filesCount: selectedFiles.length });
+    if (!selectedFiles.length) {
+      console.warn('[btnResumo] Nenhum arquivo selecionado');
+      return;
+    }
     setLoadingResumo(true); hideError();
-    resultSection.style.display = 'none';
-    resumoSection.style.display = 'none';
-    resumoList.innerHTML = '';
+    console.log('[btnResumo] setLoadingResumo(true) executado');
     var allResumos = [];
 
     try {
+      console.log('[btnResumo] Limpando seções...');
+      resultSection.style.display = 'none';
+      resumoSection.style.display = 'none';
+      resumoList.innerHTML = '';
+      console.log('[btnResumo] Seções limpas');
+
       var total = selectedFiles.length;
+      console.log('[btnResumo] Total de arquivos:', total);
       for (var i = 0; i < total; i++) {
         var file = selectedFiles[i];
+        console.log('[btnResumo] Processando arquivo', i + 1, '/', total, file.name);
         setProgress(Math.round((i / total) * 30), 'Extraindo texto do arquivo ' + (i + 1) + '/' + total + '...');
+        console.log('[btnResumo] setProgress chamado, extraindo texto...');
         var rawText = await extractTextFromPDF(file);
+        console.log('[btnResumo] Texto extraído, comprimento:', rawText.length);
 
         var isSemTexto = !rawText.trim();
         var textParaIA = isSemTexto
@@ -737,6 +685,8 @@ function renderResumoDetalhado(notas) {
       resumoSection.style.display = 'block';
       setProgress(100, 'Concluido!');
     } catch (err) {
+      console.error('[btnResumo] ERRO CAPTURADO:', err);
+      console.error('[btnResumo] Stack:', err.stack);
       showError('Erro ao processar resumo: ' + err.message);
     }
 
@@ -1490,28 +1440,67 @@ function renderResumoDetalhado(notas) {
     };
   }
 
+  // Função para filtrar texto extraído do PDF, removendo ruídos e linhas irrelevantes
+  function filterNFText(rawText) {
+    // Linhas irrelevantes comuns em DANFE/NFS-e
+    const skipPatterns = [
+      /Consulte\s+pela\s+chave\s+de\s+acesso/i,
+      /Emitido\s+por\s+processo\s+autorizado/i,
+      /Ambiente\s+de\s+Produ[cç][aã]o/i,
+      /Este documento/i,
+      /Reservado ao fisco/i,
+      /Protocolo de Autorização/i,
+      /Autorizado\s+uso\s+da\s+NF-e/i,
+      /Impress[aã]o\s+de\s+Documento\s+Auxiliar/i,
+      /Chave de Acesso:/i,
+      /Validade da assinatura/i,
+      /Consulta de autenticidade/i,
+      /\bwww\./i,
+      /^\s*$/,
+    ];
+    return rawText
+      .split('\n')
+      .map(l => l.replace(/[\u200B-\u200D\uFEFF]/g, '').trim()) // remove chars invisíveis e espaços
+      .filter(l => l.length > 2 && !skipPatterns.some(re => re.test(l)))
+      .join('\n');
+  }
+
   async function extractTextFromPDF(file) {
-    var buf = await file.arrayBuffer();
-    var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    var lines = [];
-    for (var p = 1; p <= pdf.numPages; p++) {
-      var page = await pdf.getPage(p);
-      var content = await page.getTextContent();
-      var lineMap = {};
-      for (var k = 0; k < content.items.length; k++) {
-        var item = content.items[k];
-        var y = Math.round(item.transform[5]);
-        if (!lineMap[y]) lineMap[y] = [];
-        lineMap[y].push(item);
+    console.log('[extractTextFromPDF] Iniciando extração de', file.name);
+    try {
+      var buf = await file.arrayBuffer();
+      console.log('[extractTextFromPDF] arrayBuffer carregado, tamanho:', buf.byteLength);
+
+      var pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      console.log('[extractTextFromPDF] PDF carregado, páginas:', pdf.numPages);
+
+      var lines = [];
+      for (var p = 1; p <= pdf.numPages; p++) {
+        console.log('[extractTextFromPDF] Processando página', p, '/', pdf.numPages);
+        var page = await pdf.getPage(p);
+        var content = await page.getTextContent();
+        var lineMap = {};
+        for (var k = 0; k < content.items.length; k++) {
+          var item = content.items[k];
+          var y = Math.round(item.transform[5]);
+          if (!lineMap[y]) lineMap[y] = [];
+          lineMap[y].push(item);
+        }
+        var ys = Object.keys(lineMap).map(Number).sort(function(a, b) { return b - a; });
+        for (var yi = 0; yi < ys.length; yi++) {
+          var rowItems = lineMap[ys[yi]].sort(function(a, b) { return a.transform[4] - b.transform[4]; });
+          var txt = rowItems.map(function(i) { return i.str.trim(); }).filter(Boolean).join(' ');
+          if (txt.trim()) lines.push(txt);
+        }
       }
-      var ys = Object.keys(lineMap).map(Number).sort(function(a, b) { return b - a; });
-      for (var yi = 0; yi < ys.length; yi++) {
-        var rowItems = lineMap[ys[yi]].sort(function(a, b) { return a.transform[4] - b.transform[4]; });
-        var txt = rowItems.map(function(i) { return i.str.trim(); }).filter(Boolean).join(' ');
-        if (txt.trim()) lines.push(txt);
-      }
+      // Filtra o texto extraído antes de passar para o parser/IA
+      var result = filterNFText(lines.join('\n'));
+      console.log('[extractTextFromPDF] Extração completa, texto filtrado:', result.length, 'caracteres');
+      return result;
+    } catch (err) {
+      console.error('[extractTextFromPDF] ERRO:', err.message, err);
+      throw err;
     }
-    return lines.join('\n');
   }
 
   // Renderiza cada página do PDF como JPEG base64 (para PDFs imagem/escaneados → GPT-4o Vision)

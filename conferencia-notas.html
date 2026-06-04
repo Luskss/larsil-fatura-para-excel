@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <script src="dist/theme.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Larsil — Conferência de Notas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="dist/style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        /* Body bg: same gradient as the rest of the site, overriding CDN Tailwind preflight */
+        body {
+            background: linear-gradient(145deg, #071a07 0%, #0d2e0d 35%, #122e12 65%, #0a1f0a 100%) !important;
+            background-attachment: fixed !important;
+            color: #e8f0e8 !important;
+            min-height: 100vh;
+            position: relative;
+        }
+        body::before {
+            content:''; position:fixed; width:520px; height:520px;
+            background:radial-gradient(circle,#3d8c40,transparent 70%);
+            top:-120px; left:-120px; border-radius:50%;
+            filter:blur(90px); opacity:.28; pointer-events:none; z-index:0;
+            animation:blobDrift 20s ease-in-out infinite alternate;
+        }
+        body::after {
+            content:''; position:fixed; width:450px; height:450px;
+            background:radial-gradient(circle,#1a6e2e,transparent 70%);
+            bottom:-100px; right:-80px; border-radius:50%;
+            filter:blur(90px); opacity:.22; pointer-events:none; z-index:0;
+            animation:blobDrift 26s ease-in-out infinite alternate-reverse;
+        }
+        @keyframes blobDrift {
+            from { transform: translate(0,0) scale(1); }
+            to   { transform: translate(40px,30px) scale(1.1); }
+        }
+        .card-glass {
+            background: rgba(255,255,255,.07);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255,255,255,.12);
+        }
+        .btn-cn {
+            display:inline-flex; align-items:center; gap:8px;
+            padding:10px 20px; border:none; border-radius:12px; cursor:pointer;
+            background:linear-gradient(135deg,#2e6b2b,#4db55e);
+            color:#fff; font-size:.875rem; font-weight:700; font-family:'Montserrat',sans-serif;
+            transition:all .2s;
+        }
+        .btn-cn:hover:not(:disabled) { opacity:.9; box-shadow:0 8px 20px rgba(77,181,94,.35); transform:translateY(-1px); }
+        .btn-cn:disabled { opacity:.5; cursor:not-allowed; }
+        tbody tr:hover { background:rgba(255,255,255,.04); }
+        .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+        .btn-view { transition:opacity .15s; }
+        .btn-view:hover { opacity:.75; }
+        #pdfModal canvas { display:block; margin:0 auto; max-width:100%; border-radius:6px; box-shadow:0 4px 20px rgba(0,0,0,.4); }
+        #filterInput {
+            background:rgba(255,255,255,.08); border:1.5px solid rgba(255,255,255,.18);
+            color:#fff; font-size:.8rem; border-radius:8px; padding:6px 12px;
+            outline:none; transition:border-color .2s;
+        }
+        #filterInput::placeholder { color:rgba(255,255,255,.35); }
+        #filterInput:focus { border-color:#4db55e; }
+
+        /* ── Tema claro ────────────────────────────────────────── */
+        html.light body { background: #f2f7f2 !important; color: #1a2e1a !important; }
+        html.light body::before, html.light body::after { opacity: 0 !important; }
+        html.light .card-glass {
+            background: #fff !important;
+            border-color: rgba(0,0,0,.09) !important;
+            backdrop-filter: none !important;
+        }
+        /* Cabeçalho de página */
+        html.light h1.text-2xl { color: #1a2e1a !important; }
+        html.light .text-white\/60 { color: rgba(0,0,0,.55) !important; }
+        /* Controles */
+        html.light #filterInput {
+            background: rgba(0,0,0,.06) !important;
+            border-color: rgba(0,0,0,.16) !important;
+            color: #1a2e1a !important;
+        }
+        html.light #filterInput::placeholder { color: rgba(0,0,0,.38) !important; }
+        html.light #status, html.light #progressText { color: rgba(0,0,0,.55) !important; }
+        /* Tabela de resultados */
+        html.light #resultsWrap { background: #fff !important; border-color: rgba(0,0,0,.08) !important; }
+        html.light #resultsWrap h2 { color: #1a2e1a !important; }
+        html.light #resultsBody tr { background: transparent !important; }
+        html.light #resultsBody tr:hover { background: rgba(0,0,0,.025) !important; }
+        html.light #resultsBody td { color: #1a2e1a !important; border-color: rgba(0,0,0,.06) !important; }
+        html.light #resultsBody td div { color: inherit !important; }
+        /* Cards de resumo */
+        html.light #summary > div { background: #fff !important; border-color: rgba(0,0,0,.09) !important; }
+        html.light #summary p.text-xs { color: rgba(0,0,0,.50) !important; }
+        /* Rodapé */
+        html.light .text-white\/40 { color: rgba(0,0,0,.40) !important; }
+        /* Modal detalhes */
+        html.light #modal > div { background: rgba(248,252,248,.98) !important; border-color: rgba(0,0,0,.10) !important; }
+        html.light #modalTitle { color: #1a2e1a !important; }
+        html.light #modalBody { color: #1a2e1a !important; }
+        html.light #modalBody dt { color: rgba(0,0,0,.50) !important; }
+        html.light #modalBody dd { color: #1a2e1a !important; }
+/* Estado vazio */
+        html.light #empty { background: #fff !important; border-color: rgba(0,0,0,.09) !important; color: rgba(0,0,0,.40) !important; }
+    </style>
+</head>
+<body class="min-h-screen px-4 sm:px-8 pb-8">
+
+<nav class="navbar">
+  <div class="flex items-center gap-3">
+    <img src="img/logo-branca.png" alt="Larsil" class="h-9 w-auto" onerror="this.src='img/logo-cores.png'">
+  </div>
+  <div class="flex items-center gap-2">
+    <div class="nav-dropdown-wrap">
+      <button class="nav-dropdown-btn">Extratores <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="nav-dropdown-menu">
+        <a href="extrato.html" class="nav-dropdown-item">Extrato Bancário</a>
+        <a href="conversor.html" class="nav-dropdown-item">Fatura</a>
+        <a href="nota-fiscal.html" class="nav-dropdown-item">Nota Fiscal</a>
+      </div>
+    </div>
+    <div class="nav-dropdown-wrap">
+      <button class="nav-dropdown-btn">Gestão <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="nav-dropdown-menu">
+        <a href="gestao-usuarios.html" class="nav-dropdown-item">Usuários</a>
+        <a href="configuracoes.html" class="nav-dropdown-item">Configurações</a>
+        <a href="#" class="nav-dropdown-item">Feedback</a>
+      </div>
+    </div>
+    <a href="conferencia-notas.html" class="nav-btn-conferencia active">Conferência</a>
+    <span id="navUser" class="text-[.82rem] opacity-65 ml-2"></span>
+    <button id="btnThemeToggle" class="btn-theme-toggle" onclick="window.__themeToggle()" title="Modo claro"><svg id="iconThemeSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="iconThemeMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    <button id="btnLogout" class="btn-logout">Sair</button>
+  </div>
+</nav>
+<script>
+(function(){
+  document.querySelectorAll('.nav-dropdown-wrap').forEach(function(w){
+    var btn=w.querySelector('.nav-dropdown-btn'),menu=w.querySelector('.nav-dropdown-menu');
+    btn.addEventListener('click',function(e){e.stopPropagation();var open=menu.classList.contains('open');document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});if(!open){menu.classList.add('open');btn.classList.add('open');}});
+  });
+  document.addEventListener('click',function(){document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});});
+})();
+  if (!sessionStorage.getItem('cf_loggedIn')) window.location.href = 'index.html';
+  document.getElementById('navUser').textContent = 'Olá, ' + (sessionStorage.getItem('cf_username') || 'usuário');
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    try { await fetch('api/logout.php', { method: 'POST', credentials: 'same-origin' }); } catch (_) {}
+    sessionStorage.clear();
+    window.location.href = 'index.html';
+  });
+</script>
+
+<div class="max-w-6xl mx-auto">
+
+    <!-- Cabeçalho -->
+    <div class="flex items-center gap-4 mb-6">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+             style="background:linear-gradient(135deg,#16a34a,#059669);box-shadow:0 8px 24px rgba(22,163,74,.3)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" class="w-6 h-6">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/>
+            </svg>
+        </div>
+        <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">Classificador de Documentos Fiscais</h1>
+            <p class="text-white/60 text-sm">Lê PDFs de uma pasta, detecta texto vs. imagem e identifica o tipo via REGEX</p>
+        </div>
+    </div>
+
+    <!-- Painel de controle -->
+    <div class="card-glass rounded-2xl shadow-2xl p-6 mb-6">
+        <div class="flex flex-wrap items-center gap-3">
+            <button id="btnFolder" class="btn-cn text-sm py-2.5 px-5 rounded-xl">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+                    <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
+                </svg>
+                Selecionar pasta
+            </button>
+            <input id="dirInput" type="file" webkitdirectory directory multiple accept="application/pdf" class="hidden">
+
+            <label class="flex items-center gap-2 text-sm text-white/65 cursor-pointer select-none">
+                <input id="chkOcr" type="checkbox" class="h-4 w-4 rounded" style="accent-color:#4db55e">
+                OCR em imagens <span class="text-white/40">(mais lento)</span>
+            </label>
+
+            <div id="status" class="ml-auto text-sm text-white/50"></div>
+        </div>
+
+        <div id="progressWrap" class="hidden mt-4">
+            <div class="w-full rounded-full h-2 overflow-hidden" style="background:rgba(255,255,255,.10)">
+                <div id="progressBar" class="h-2 rounded-full transition-all duration-300" style="width:0%;background:linear-gradient(90deg,#2c5529,#4db55e,#a0d063)"></div>
+            </div>
+            <p id="progressText" class="text-xs text-white/40 mt-1.5"></p>
+
+            <!-- Aviso de cache em andamento -->
+            <div id="cacheBanner" class="mt-3 items-center gap-2.5 rounded-xl px-4 py-2.5" style="display:none" style="background:rgba(56,112,155,.18);border:1px solid rgba(56,142,200,.30)">
+                <svg class="animate-spin w-4 h-4 flex-shrink-0" style="color:#60b8f0" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/>
+                    <path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                <p class="text-sm font-medium" style="color:#90d0f5">Fazendo cache das Notas do Dia!</p>
+            </div>
+
+            <!-- Aviso de OCR em andamento -->
+            <div id="ocrBanner" class="hidden mt-3 flex items-center gap-2.5 rounded-xl px-4 py-2.5" style="background:rgba(194,112,53,.15);border:1px solid rgba(194,112,53,.30)">
+                <svg class="animate-spin w-4 h-4 flex-shrink-0" style="color:#f59e0b" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/>
+                    <path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                <div>
+                    <p class="text-sm font-medium" style="color:#fbbf24">Lendo documento via OCR…</p>
+                    <p id="ocrBannerText" class="text-xs" style="color:#f59e0b">Isso pode levar alguns segundos.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo -->
+    <div id="summary" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6"></div>
+
+    <!-- Resultados -->
+    <div id="resultsWrap" class="hidden card-glass rounded-2xl shadow-2xl overflow-hidden">
+        <div class="px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,.10)">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="font-semibold text-white/90">Documentos analisados</h2>
+                <input id="filterInput" type="text" placeholder="Filtrar por nome...">
+            </div>
+            <!-- chips de filtro por tipo, gerados após o processamento -->
+            <div id="typeFilters" class="hidden flex flex-wrap gap-1.5"></div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-xs uppercase tracking-wider" style="background:rgba(44,85,41,.85);color:rgba(255,255,255,.6)">
+                    <tr>
+                        <th class="text-left font-medium px-6 py-3">Arquivo</th>
+                        <th class="text-left font-medium px-4 py-3">Conteúdo</th>
+                        <th class="text-left font-medium px-4 py-3">Tipo identificado</th>
+                        <th class="text-left font-medium px-4 py-3">Evidência (regex)</th>
+                        <th class="text-center font-medium px-4 py-3">Págs.</th>
+                        <th class="text-center font-medium px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody" class="divide-y" style="divide-color:rgba(255,255,255,.08)"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Estado vazio -->
+    <div id="empty" class="card-glass rounded-2xl shadow-2xl p-12 text-center" style="color:rgba(255,255,255,.40)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-12 h-12 mx-auto mb-3 opacity-50">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <path d="M14 2v6h6"/>
+        </svg>
+        <p>Selecione uma pasta para começar a análise dos PDFs.</p>
+    </div>
+
+    <p class="text-center mt-6 text-white/40 text-xs">Processamento 100% local no navegador · pdf.js + REGEX</p>
+</div>
+
+
+<!-- Modal: detalhes (DARF parser, etc.) -->
+<div id="modal" class="hidden fixed inset-0 flex items-center justify-center p-4 z-50" style="background:rgba(0,0,0,.60);backdrop-filter:blur(4px)">
+    <div class="rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto" style="background:rgba(10,28,10,.97);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);box-shadow:0 24px 64px rgba(0,0,0,.55)">
+        <div class="flex items-center justify-between px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,.10)">
+            <h3 id="modalTitle" class="font-semibold truncate flex-1" style="color:rgba(255,255,255,.90)"></h3>
+            <button id="modalClose" class="text-2xl leading-none ml-3" style="color:rgba(255,255,255,.40)" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.40)'">&times;</button>
+        </div>
+        <div id="modalBody" class="p-6 text-sm" style="color:rgba(255,255,255,.80)"></div>
+    </div>
+</div>
+
+<!-- Modal: visualizador de PDF -->
+<div id="pdfModal" class="hidden fixed inset-0 bg-black/85 flex flex-col z-50">
+    <div class="flex items-center justify-between px-4 sm:px-6 py-3 flex-shrink-0">
+        <span id="pdfModalTitle" class="text-white font-medium text-sm truncate flex-1 mr-4"></span>
+        <div class="flex items-center gap-3 flex-shrink-0">
+            <span id="pdfPageInfo" class="text-white/50 text-xs mono"></span>
+            <button id="pdfModalClose" class="text-white/70 hover:text-white text-2xl leading-none ml-2">&times;</button>
+        </div>
+    </div>
+    <div id="pdfViewport" class="flex-1 overflow-y-auto flex items-start justify-center px-4 pb-8">
+        <div id="pdfCanvas" class="w-full max-w-3xl space-y-3"></div>
+    </div>
+    <div id="pdfSpinner" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div class="bg-black/60 rounded-xl px-5 py-3 text-white/80 text-sm flex items-center gap-2">
+            <svg class="animate-spin w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+            <span id="pdfSpinnerText">Carregando...</span>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.mjs';
+
+// ── normalização: remove acentos, caixa alta ────────────────────────────────
+const norm = s => (s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toUpperCase().replace(/\s+/g, ' ').trim();
+
+// ── classificação em 6 categorias: CTE · FATURA · IMPOSTO · NF · NFS · RECIBO ─
+// Calibrado com a pasta TESTES (54 PDFs). Estratégia em 3 camadas:
+//   1) marcador FORTE de conteúdo (alta confiança — sobrepõe o nome do arquivo)
+//   2) dica do NOME do arquivo (os PDFs vêm rotulados: NFS/NF/FT/RCB/GUIA)
+//   3) marcador FRACO de conteúdo (último recurso)
+// No conjunto de teste: 45/54 batem com o rótulo do nome (e várias divergências
+// são o conteúdo acertando mais que o nome — ex: transportadora = CTE).
+
+const CATS = {
+    CTE:     { color:'bg-purple-900/50 text-purple-300', parser: parseCte },
+    NF:      { color:'bg-blue-900/50 text-blue-300',     parser: parseDanfe },
+    NFS:     { color:'bg-cyan-900/50 text-cyan-300',     parser: null },
+    IMPOSTO: { color:'bg-amber-900/50 text-amber-300',   parser: parseImposto },
+    FATURA:  { color:'bg-indigo-900/50 text-indigo-300', parser: null },
+    RECIBO:  { color:'bg-pink-900/50 text-pink-300',     parser: null },
+};
+
+// 1) Conteúdo FORTE — termos canônicos e exclusivos de cada documento
+const STRONG = [
+    ['CTE',     /\bDACTE\b|CONHECIMENTO DE TRANSPORTE|DOCUMENTO AUXILIAR DO CONHECIMENTO|\bCT-?E\b|\bMDF-?E\b|TRANSPORTE RODOVIARIO DE CARGAS/],
+    ['IMPOSTO', /\bDARF\b|ARRECADACAO DE RECEITAS FEDERAIS|GUIA DA PREVIDENCIA SOCIAL|\bDCTFWEB\b|FGTS DIGITAL|GUIA DO FGTS|\bGFD\b|DARF-?SIMPLES/],
+    ['NF',      /\bDANFE\b|DOCUMENTO AUXILIAR DA NOTA FISCAL ELETRONI|NATUREZA DA OPERACAO/],
+    ['NFS',     /\bNFS-?E\b|NOTA FISCAL DE SERVICOS? ELETRONICA|NOTA FISCAL ELETRONICA DE SERVICOS?/],
+];
+
+// Marcador FORTE de CT-e usado também na verificação por OCR (DACTE escaneado)
+const CTE_STRONG_RE = STRONG[0][1];
+// Indício de transportadora no texto legível — gatilho do OCR de verificação de CTE
+const TRANSPORT_HINT_RE = /\bEXPRESSO\b|\bTRANSPORTES?\b|TRANSPORTADORA|RODOVIARIO|\bLOGISTICA\b|TRANSPORTE DE CARGA/;
+
+// 2) Dica do NOME do arquivo (rótulo do usuário)
+const NAME_HINTS = [
+    ['IMPOSTO', /\bGUIA\b|DCTFWEB|\bINSS\b|\bFGTS\b|\bDARF\b|\bGPS\b/],
+    ['NFS',     /\bNFS\b/],
+    ['FATURA',  /\bFT\b|\bFAT\b|\bFATURA\b/],
+    ['NF',      /\bNF\b|\bNFE\b/],
+    ['RECIBO',  /\bRCB?\b|\bRECIBO\b/],
+];
+
+// 3) Conteúdo FRACO — quando nada acima resolveu
+const WEAK = [
+    ['NFS',     /NOTA FISCAL DE SERVICOS?/],
+    ['FATURA',  /\bFATURA\b/],
+    ['NF',      /NOTA FISCAL/],
+    ['RECIBO',  /\bRECIBO\b/],
+];
+
+function mk(cat, evidencia, origem) {
+    const c = CATS[cat];
+    return { tipo: cat, color: c.color, evidencia, origem, parser: c.parser };
+}
+
+function classify(text, filename = '') {
+    const t = norm(text);
+    const fn = norm(filename);
+
+    for (const [cat, re] of STRONG) { const m = t.match(re); if (m) return mk(cat, m[0], 'conteúdo'); }
+    for (const [cat, re] of NAME_HINTS) { const m = fn.match(re); if (m) return mk(cat, m[0], 'nome do arquivo'); }
+    for (const [cat, re] of WEAK) { const m = t.match(re); if (m) return mk(cat, m[0], 'conteúdo (fraco)'); }
+
+    return { tipo: 'Não identificado', color: 'bg-gray-100 text-gray-500', evidencia: '—', origem: '—', parser: null };
+}
+
+// ── parser: DANFE (NF-e de produto) ─────────────────────────────────────────
+function parseDanfe(text) {
+    const t = norm(text);
+    const grab = re => { const m = t.match(re); return m ? m[1].trim() : '—'; };
+    // chave de acesso: 44 dígitos (com ou sem espaços a cada 4)
+    const chave = (t.match(/\b(\d[\d ]{42,52}\d)\b/) || [])[1];
+    return {
+        'Chave de acesso':    chave ? chave.replace(/\s+/g, '') : '—',
+        'Nº da NF-e':         grab(/(?:NR\.?DOCUMENTO|N[º°]?\.?\s*(?:DA )?NF-?E|NUMERO)\D{0,8}(\d{3,9})/),
+        'Série':              grab(/SERIE\D{0,4}(\d{1,3})/),
+        'Natureza da operação': grab(/NATUREZA DA OPERACAO[:\s]*([A-Z0-9 .,/-]{4,40})/),
+        'Data de emissão':    grab(/(?:DATA (?:DE |DA )?EMISSAO|EMISSAO)[:\s]*([\d/]{8,10})/),
+        'CNPJ emitente':      grab(/\bCNPJ[:\s]*([\d./-]{14,18})/),
+        'Valor total da nota':grab(/VALOR TOTAL DA NOTA[:\s]*R?\$?\s*([\d.,]{3,})/),
+    };
+}
+
+// ── parser: CTE / DACTE (conhecimento de transporte) ────────────────────────
+function parseCte(text) {
+    const t = norm(text);
+    const grab = re => { const m = t.match(re); return m ? m[1].trim() : '—'; };
+    const chave = (t.match(/\b(\d[\d ]{42,52}\d)\b/) || [])[1];
+    return {
+        'Chave de acesso':      chave ? chave.replace(/\s+/g, '') : '—',
+        'Nº do CT-e':           grab(/(?:NR\.?DOCUMENTO|N[º°]?\.?\s*(?:DO )?CT-?E)\D{0,8}(\d{3,9})/),
+        'Data de emissão':      grab(/(?:DATA (?:DE |DA )?EMISSAO|EMISSAO)[:\s]*([\d/]{8,10})/),
+        'CNPJ emitente':        grab(/\bCNPJ[:\s]*([\d./-]{14,18})/),
+        'Valor da prestação':   grab(/VALOR TOTAL DA PRESTACAO[:\s]*R?\$?\s*([\d.,]{3,})/),
+    };
+}
+
+// ── parser: IMPOSTO (DARF, GPS/INSS, DCTFWeb, FGTS Digital) ──────────────────
+function parseImposto(text) {
+    const t = norm(text);
+    const grab = re => { const m = t.match(re); return m ? m[1].trim() : '—'; };
+    const base = {
+        'Tipo de guia':         grab(/\b(DARF-?SIMPLES|DARF|GPS|DCTFWEB|GFD|FGTS DIGITAL|GNRE)\b/),
+        'CNPJ / CPF':           grab(/\b(?:CNPJ|CPF)[:\s]*([\d./-]{11,})/),
+        'Data de vencimento':   grab(/(?:DATA DE )?VENCIMENTO[:\s]*([\d/]{8,10})/),
+        'Valor total':          grab(/VALOR TOTAL[:\s]*R?\$?\s*([\d.,]{3,})/),
+    };
+    // FGTS Digital tem campos próprios
+    if (/FGTS DIGITAL|GUIA DO FGTS|\bGFD\b/.test(t)) {
+        return {
+            ...base,
+            'Competência':           grab(/COMPETENCIA[:\s]*([\d/.-]{4,7})/),
+            'FGTS mensal':           grab(/(?:FGTS MENSAL|DEPOSITO MENSAL)[:\s]*R?\$?\s*([\d.,]{3,})/),
+            'FGTS rescisório':       grab(/(?:FGTS RESCISORIO|DEPOSITO RESCISORIO)[:\s]*R?\$?\s*([\d.,]{3,})/),
+        };
+    }
+    // DARF / GPS / DCTFWeb
+    return {
+        ...base,
+        'Código da receita':    grab(/CODIGO (?:DA|DE) RECEITA[:\s]*([\d-]{4,})/),
+        'Período de apuração':  grab(/PERIODO DE APURACAO[:\s]*([\d./-]{5,})/),
+        'Número do documento':  grab(/NUMERO DO DOCUMENTO[:\s]*([\d.]{6,})/),
+        'Valor principal':      grab(/VALOR PRINCIPAL[:\s]*R?\$?\s*([\d.,]{3,})/),
+        'Multa':                grab(/\bMULTA[:\s]*R?\$?\s*([\d.,]{3,})/),
+        'Juros / Encargos':     grab(/JUROS[:\s]*R?\$?\s*([\d.,]{3,})/),
+    };
+}
+
+// ── extração de texto via pdf.js ────────────────────────────────────────────
+async function extractText(pdfData) {
+    const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
+    let text = '';
+    let emptyPages = 0;
+    for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+        const pageText = content.items.map(i => i.str).join(' ');
+        if (pageText.replace(/\s/g, '').length < 15) emptyPages++;
+        text += pageText + '\n';
+    }
+    const isImage = text.replace(/\s/g, '').length < 15;
+    // hasImagePages: há páginas sem texto (documento escaneado embutido)
+    const hasImagePages = emptyPages > 0;
+    return { text, pages: pdf.numPages, isImage, hasImagePages, pdf };
+}
+
+// ── OCR via servidor Python (PaddleOCR + PyMuPDF) ──────────────────────────
+// Envia o PDF bruto ao backend Node.js (/api/ocr) que repassa ao ocr_server.py.
+// O processamento sai completamente do browser: zero RAM de workers Tesseract.
+
+function _bufToB64(u8) {
+    let s = '';
+    const sz = 8192;
+    for (let i = 0; i < u8.length; i += sz)
+        s += String.fromCharCode(...u8.subarray(i, Math.min(i + sz, u8.length)));
+    return btoa(s);
+}
+
+async function ocrViaBackend(pdfData) {
+    const res = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdf: _bufToB64(pdfData) }),
+    });
+    if (!res.ok) {
+        const { error } = await res.json().catch(() => ({}));
+        throw new Error(error || `OCR server ${res.status}`);
+    }
+    const { text, error } = await res.json();
+    if (error) throw new Error(error);
+    return text || '';
+}
+
+// ── renderizador: todas as páginas empilhadas ───────────────────────────────
+let viewerPdf = null;
+
+async function renderAllPages() {
+    if (!viewerPdf) return;
+    const container = $('pdfCanvas');
+    container.innerHTML = '';
+    const total = viewerPdf.numPages;
+    $('pdfPageInfo').textContent = `${total} página${total > 1 ? 's' : ''}`;
+
+    const dpr = window.devicePixelRatio || 1;
+    const containerW = container.clientWidth || 900;
+
+    for (let n = 1; n <= total; n++) {
+        $('pdfSpinnerText').textContent = `Renderizando ${n} / ${total}…`;
+        $('pdfSpinner').classList.remove('hidden');
+
+        const page = await viewerPdf.getPage(n);
+        const baseVp = page.getViewport({ scale: 1 });
+        const cssScale = containerW / baseVp.width;
+        const vp = page.getViewport({ scale: cssScale * dpr });
+
+        const cv = document.createElement('canvas');
+        cv.width  = Math.floor(vp.width);
+        cv.height = Math.floor(vp.height);
+        cv.style.width    = `${Math.floor(containerW)}px`;
+        cv.style.height   = `${Math.floor(containerW * (baseVp.height / baseVp.width))}px`;
+        cv.style.maxWidth = '100%';
+        cv.style.display  = 'block';
+        cv.style.borderRadius = '6px';
+        cv.style.boxShadow    = '0 4px 20px rgba(0,0,0,.4)';
+
+        // Empilha a página imediatamente — o render preenche em background
+        const wrap = document.createElement('div');
+        if (total > 1) {
+            const lbl = document.createElement('div');
+            lbl.style.cssText = 'text-align:center;color:rgba(255,255,255,.35);font-size:11px;margin-bottom:4px;font-family:ui-monospace,monospace';
+            lbl.textContent = `Página ${n} / ${total}`;
+            wrap.appendChild(lbl);
+        }
+        wrap.appendChild(cv);
+        container.appendChild(wrap);
+
+        await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+    }
+
+    $('pdfSpinner').classList.add('hidden');
+    $('pdfViewport').scrollTop = 0;
+}
+
+async function openViewer(rec) {
+    $('pdfModalTitle').textContent = rec.name;
+    $('pdfCanvas').innerHTML = '';
+    $('pdfPageInfo').textContent = '';
+    $('pdfModal').classList.remove('hidden');
+    $('pdfSpinnerText').textContent = 'Carregando…';
+    $('pdfSpinner').classList.remove('hidden');
+
+    // Entradas em cache não pré-carregam o PDF — lê sob demanda pelo fileRef
+    let pdfBytes = rec.pdfData;
+    if (!pdfBytes && rec.fileRef) {
+        const buf = await rec.fileRef.arrayBuffer();
+        pdfBytes = new Uint8Array(buf);
+    }
+    if (!pdfBytes) { $('pdfSpinner').classList.add('hidden'); return; }
+
+    viewerPdf = await pdfjsLib.getDocument({ data: pdfBytes.slice() }).promise;
+    await renderAllPages();
+}
+
+// ── UI helpers ───────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const results = [];
+let activeTypeFilter = '';
+
+
+function filterRows() {
+    const q = norm($('filterInput').value);
+    document.querySelectorAll('#resultsBody tr').forEach(tr => {
+        const matchText = !q || tr.dataset.search.includes(q);
+        const matchType = !activeTypeFilter || tr.dataset.tipo === activeTypeFilter;
+        tr.style.display = (matchText && matchType) ? '' : 'none';
+    });
+}
+
+function renderTypeFilters() {
+    const counts = {};
+    results.forEach(r => counts[r.tipo] = (counts[r.tipo] || 0) + 1);
+    const ruleColor = tipo => (CATS[tipo]?.color) || 'bg-gray-100 text-gray-500';
+
+    const chip = (filter, label, active) => {
+        const base = 'type-chip cursor-pointer px-3 py-1 rounded-full text-xs font-medium border transition-all';
+        const style = active
+            ? 'bg-green-600 text-white border-green-600'
+            : 'bg-white/10 text-white/65 border-white/20 hover:border-green-500/50 hover:text-green-400';
+        return `<button class="${base} ${style}" data-filter="${filter}">${label}</button>`;
+    };
+
+    const chips = [chip('', `Todos (${results.length})`, activeTypeFilter === '')];
+    for (const [tipo, count] of Object.entries(counts)) {
+        const active = activeTypeFilter === tipo;
+        const base = 'type-chip cursor-pointer px-3 py-1 rounded-full text-xs font-medium border transition-all';
+        const style = active ? ruleColor(tipo) + ' border-transparent' : 'bg-white text-gray-600 border-gray-200 hover:border-green-400 hover:text-green-700';
+        chips.push(`<button class="${base} ${style}" data-filter="${tipo}">${tipo} (${count})</button>`);
+    }
+
+    const el = $('typeFilters');
+    el.innerHTML = chips.join('');
+    el.classList.remove('hidden');
+}
+
+function setProgress(done, total, label) {
+    $('progressWrap').classList.remove('hidden');
+    $('progressBar').style.width = total ? `${Math.round(done / total * 100)}%` : '0%';
+    $('progressText').textContent = label;
+}
+
+// Banner de OCR — contador de leituras ativas (suporta OCR concorrente)
+let ocrActive = 0;
+function setOcr(active, detail) {
+    ocrActive = Math.max(0, ocrActive + (active ? 1 : -1));
+    const on = ocrActive > 0;
+    $('ocrBanner').classList.toggle('hidden', !on);
+    if (on) {
+        $('ocrBannerText').textContent = ocrActive > 1
+            ? `Lendo ${ocrActive} documentos via OCR ao mesmo tempo…`
+            : (detail || 'Isso pode levar alguns segundos.');
+    }
+}
+
+function renderSummary() {
+    const cards = [
+        { label: 'Total de PDFs',    value: results.length,                                        cls: 'text-white/90' },
+        { label: 'Com texto',        value: results.filter(r => !r.isImage).length,               cls: 'text-green-400' },
+        { label: 'Apenas imagem',    value: results.filter(r => r.isImage).length,                cls: 'text-amber-400' },
+        { label: 'Não identificados',value: results.filter(r => r.tipo === 'Não identificado').length, cls: 'text-red-400' },
+    ];
+    $('summary').innerHTML = cards.map(c =>
+        `<div class="card-glass rounded-xl p-4">
+            <p class="text-2xl font-bold ${c.cls}">${c.value}</p>
+            <p class="text-xs mt-0.5" style="color:rgba(255,255,255,.45)">${c.label}</p>
+        </div>`).join('');
+    $('summary').classList.remove('hidden');
+}
+
+// Linha placeholder (mostrada em ordem antes da análise terminar)
+function makePlaceholderRow(file, idx) {
+    const tr = document.createElement('tr');
+    tr.id = `row-${idx}`;
+    const folder = fileFolder(file);
+    tr.dataset.search = norm(file.name + ' ' + (folder || ''));
+    tr.dataset.tipo = '';
+    tr.innerHTML = `
+        <td class="px-6 py-3 max-w-[240px]">
+            <div class="font-medium truncate" style="color:rgba(255,255,255,.85)" title="${file.name}">${file.name}</div>
+            ${folder ? `<div class="text-[10px] truncate" style="color:rgba(255,255,255,.35)" title="${folder}">📁 ${folder}</div>` : ''}
+        </td>
+        <td colspan="5" class="px-4 py-3 text-xs" style="color:rgba(255,255,255,.40)">
+            <span class="inline-flex items-center gap-1.5">
+                <svg class="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/><path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                na fila…
+            </span>
+        </td>`;
+    return tr;
+}
+
+// Reconstrói um registro de resultado a partir de uma linha do CSV de cache
+function cacheRowToResult(row, idx, file) {
+    let parser = null;
+    try { parser = JSON.parse(row.dados_parser || 'null'); } catch {}
+    const cat = CATS[row.tipo];
+    return {
+        idx,
+        name:     row.arquivo,
+        folder:   row.pasta,
+        pages:    Number(row.paginas) || '?',
+        isImage:  row.conteudo.startsWith('Imagem'),
+        ocrUsed:  row.conteudo.includes('(OCR)'),
+        tipo:     row.tipo,
+        color:    cat?.color || 'bg-gray-100 text-gray-500',
+        evidencia: row.evidencia,
+        origem:   row.origem,
+        parser,
+        pdfData:  null,   // não pré-carregado — leitura lazy no viewer
+        fileRef:  file,   // File original, para o viewer abrir sob demanda
+        fromCache: true,
+    };
+}
+
+// Preenche uma linha (placeholder) com o resultado da análise
+function fillRow(tr, r) {
+    const conteudo = r.isImage
+        ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-900/50 text-amber-300">🖼️ Imagem${r.ocrUsed ? ' (OCR)' : ''}</span>`
+        : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-900/50 text-green-300">📝 Texto</span>`;
+    const tipoBadge = `<span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${r.color}">${r.tipo}</span>`;
+    const detalheBtn = r.parser
+        ? `<button data-detail="${r.idx}" class="ml-1.5 text-xs text-green-400 hover:underline">dados</button>` : '';
+    const cacheTag = r.fromCache
+        ? `<span class="text-[9px]" style="color:rgba(255,255,255,.22);letter-spacing:.1px">⚡ cache</span>` : '';
+    tr.dataset.search = norm(r.name + ' ' + r.tipo + ' ' + (r.folder || ''));
+    tr.dataset.tipo = r.tipo;
+    tr.innerHTML = `
+        <td class="px-6 py-3 max-w-[240px]">
+            <div class="font-medium truncate" style="color:rgba(255,255,255,.85)" title="${r.name}">${r.name}</div>
+            ${r.folder ? `<div class="text-[10px] truncate" style="color:rgba(255,255,255,.35)" title="${r.folder}">📁 ${r.folder}</div>` : ''}
+            ${cacheTag}
+        </td>
+        <td class="px-4 py-3 whitespace-nowrap">${conteudo}</td>
+        <td class="px-4 py-3 whitespace-nowrap">${tipoBadge}${detalheBtn}</td>
+        <td class="px-4 py-3 max-w-[200px]">
+            <div class="mono text-xs truncate" style="color:rgba(255,255,255,.50)" title="${r.evidencia}">${r.evidencia}</div>
+            ${r.origem ? `<div class="text-[10px]" style="color:${r.origem === 'nome do arquivo' ? '#f59e0b' : 'rgba(255,255,255,.35)'}">via ${r.origem}</div>` : ''}
+        </td>
+        <td class="px-4 py-3 text-center" style="color:rgba(255,255,255,.55)">${r.pages}</td>
+        <td class="px-4 py-3 text-center">
+            <button data-view="${r.idx}" class="btn-view inline-flex items-center gap-1 text-xs rounded-lg px-2.5 py-1" style="color:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.18)" onmouseover="this.style.color='#6cd47e';this.style.borderColor='rgba(77,181,94,.4)'" onmouseout="this.style.color='rgba(255,255,255,.55)';this.style.borderColor='rgba(255,255,255,.18)'">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                Ver
+            </button>
+        </td>`;
+}
+
+// ── análise de um único PDF (retorna o registro pronto) ─────────────────────
+async function analyzeFile(file, idx, forceOcr) {
+    try {
+        const buf = await file.arrayBuffer();
+        const pdfData = new Uint8Array(buf);
+        const { text: rawText, pages, isImage, hasImagePages, pdf } = await extractText(pdfData.slice());
+
+        let text = rawText;
+        let ocrUsed = false;
+
+        // OCR forçado em imagens (checkbox)
+        if (isImage && forceOcr) {
+            try { setOcr(true, `Documento em imagem — ${file.name}`); text = await ocrViaBackend(pdfData); ocrUsed = true; }
+            finally { setOcr(false); }
+        }
+
+        let c = classify(text, file.name);
+
+        // OCR automático para não identificados
+        if (c.tipo === 'Não identificado' && !ocrUsed) {
+            try {
+                setOcr(true, `Tipo não reconhecido — lendo ${file.name}`);
+                const ocrText = await ocrViaBackend(pdfData);
+                const c2 = classify(ocrText, file.name);
+                if (c2.tipo !== 'Não identificado') { text = ocrText; ocrUsed = true; c = c2; }
+            } catch (_) { /* OCR falhou */ }
+            finally { setOcr(false); }
+        }
+
+        // Verificação RIGOROSA de DACTE escaneado (transportadora + páginas-imagem)
+        // Checa texto extraído OU nome do arquivo — DACTEs escaneados podem ter rawText vazio,
+        // mas o nome do arquivo frequentemente contém o nome da transportadora (ex: "EXPRESSO ...").
+        if (c.tipo !== 'CTE' && c.origem !== 'conteúdo' && hasImagePages
+            && !ocrUsed
+            && (TRANSPORT_HINT_RE.test(norm(rawText)) || TRANSPORT_HINT_RE.test(norm(file.name)))) {
+            try {
+                setOcr(true, `Verificando se é DACTE — ${file.name}`);
+                const ocrText = await ocrViaBackend(pdfData);
+                if (CTE_STRONG_RE.test(norm(ocrText))) {
+                    text = rawText + '\n' + ocrText; ocrUsed = true;
+                    c = mk('CTE', 'DACTE confirmado', 'OCR');
+                }
+            } catch (_) { /* OCR falhou */ }
+            finally { setOcr(false); }
+        }
+
+        return {
+            idx, name: file.name, folder: fileFolder(file), pages, isImage, ocrUsed,
+            tipo: c.tipo, color: c.color, evidencia: c.evidencia, origem: c.origem,
+            parser: c.parser ? c.parser(text) : null, pdfData,
+        };
+    } catch (err) {
+        return {
+            idx, name: file.name, folder: fileFolder(file), pages: '?', isImage: false, ocrUsed: false,
+            tipo: 'Erro ao ler', color: 'bg-red-100 text-red-700', evidencia: err.message,
+            parser: null, pdfData: null,
+        };
+    }
+}
+
+// ── processamento principal ──────────────────────────────────────────────────
+const PARALLEL_THRESHOLD = 50;
+
+function pad(n)     { return String(n).padStart(2, '0'); }
+function todayStr() { const d = new Date(); return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`; }
+function monthStr() { const d = new Date(); return `${pad(d.getMonth()+1)}.${d.getFullYear()}`; }
+function cacheKey(name, folder) { return `${name}|${folder ?? ''}`; }
+
+// Identificador único do documento a partir dos dados extraídos (Remetente/Nº nota)
+function docKey(parser) {
+    if (!parser) return null;
+    const chave = parser['Chave de acesso'];
+    if (chave && chave !== '—') return 'chave:' + chave.replace(/\s/g, '');
+    const cnpj = (parser['CNPJ emitente'] || parser['CNPJ / CPF'] || '').replace(/\D/g, '');
+    const num  = (parser['Nº da NF-e'] || parser['Nº do CT-e'] || parser['Número do documento'] || '').replace(/\D/g, '');
+    if (cnpj.length >= 11 && num) return `doc:${cnpj}|${num}`;
+    return null;
+}
+
+// Detecta a data (DD.MM.AAAA) a partir do caminho das subpastas dos arquivos.
+// Estrutura esperada: pasta-de-mês / DD.MM.AAAA / arquivo.pdf
+function detectDateFromFiles(pdfs) {
+    const re = /\b(\d{2}\.\d{2}\.\d{4})\b/;
+    for (const f of pdfs) {
+        const path = f.relPath || f.webkitRelativePath || '';
+        const m = path.match(re);
+        if (m) return m[1]; // ex: "04.06.2026"
+    }
+    return null;
+}
+
+async function processFiles(files) {
+    const pdfs = files.filter(f => /\.pdf$/i.test(f.name));
+    if (!pdfs.length) { $('status').textContent = 'Nenhum PDF encontrado na pasta.'; return; }
+
+    const subfolders = new Set(pdfs.map(fileFolder).filter(Boolean));
+    const folderInfo = subfolders.size ? ` em ${subfolders.size} subpasta(s)` : '';
+    const forceOcr   = $('chkOcr').checked;
+
+    // ── 1) Determina datas automaticamente ───────────────────────────────────
+    const detectedDay  = detectDateFromFiles(pdfs) || todayStr();          // DD.MM.AAAA
+    const detectedMonth = detectedDay.slice(3);                             // MM.AAAA
+    const hasRelatorio  = true; // relatórios sempre salvos no banco
+
+    // ── 2) Carrega CSV mensal para cache (se caminho configurado) ────────────
+    const cacheByName   = new Map(); // "arquivo|pasta" → row
+    const cacheByDocKey = new Map(); // docKey           → row
+    if (hasRelatorio) {
+        $('cacheBanner').style.display = 'flex';
+        setProgress(0, pdfs.length, `Carregando M-${detectedMonth}.csv…`);
+        try {
+            const r = await fetch(`/api/relatorio?tipo=M&data=${encodeURIComponent(detectedMonth)}`, { credentials: 'include' });
+            if (r.ok) {
+                const { rows: cached } = await r.json();
+                (cached || []).forEach(row => {
+                    cacheByName.set(cacheKey(row.arquivo, row.pasta), row);
+                    let cp = null;
+                    try { cp = JSON.parse(row.dados_parser || 'null'); } catch {}
+                    const dk = docKey(cp);
+                    if (dk) cacheByDocKey.set(dk, row);
+                });
+            }
+        } catch (_) {}
+        $('cacheBanner').style.display = 'none';
+    }
+
+    // ── 3) Setup da tabela ───────────────────────────────────────────────────
+    results.length = 0;
+    results.length = pdfs.length;
+    $('resultsBody').innerHTML = '';
+    $('empty').classList.add('hidden');
+    $('resultsWrap').classList.remove('hidden');
+
+    const trs = pdfs.map((file, idx) => {
+        const tr = makePlaceholderRow(file, idx);
+        $('resultsBody').appendChild(tr);
+        return tr;
+    });
+
+    // ── 4) Arquivos já no CSV → carrega do cache diretamente ─────────────────
+    let done = 0;
+    const toProcess = [];
+
+    pdfs.forEach((file, idx) => {
+        const key = cacheKey(file.name, fileFolder(file));
+        if (cacheByName.has(key)) {
+            results[idx] = cacheRowToResult(cacheByName.get(key), idx, file);
+            fillRow(trs[idx], results[idx]);
+            done++;
+        } else {
+            toProcess.push({ file, idx });
+        }
+    });
+
+    if (toProcess.length === 0) {
+        setProgress(pdfs.length, pdfs.length, `Tudo em cache: ${pdfs.length} PDF(s) carregados${folderInfo}.`);
+        activeTypeFilter = '';
+        renderSummary();
+        renderTypeFilters();
+        $('status').textContent = '';
+        return;
+    }
+
+    // ── 5) Processa arquivos novos ────────────────────────────────────────────
+    const parallel = toProcess.length > PARALLEL_THRESHOLD
+        ? Math.max(2, Math.min(navigator.hardwareConcurrency || 4, 6))
+        : 1;
+    const modo     = parallel > 1 ? ` · ${parallel} em paralelo` : '';
+    const cacheMsg = done > 0 ? `${done} em cache · ` : '';
+    setProgress(done, pdfs.length, `${cacheMsg}processando ${toProcess.length} novo(s)${folderInfo}${modo}…`);
+
+    const renames = []; // arquivos renomeados: { oldName, oldFolder }
+    let nextNew = 0;
+
+    async function worker() {
+        while (true) {
+            const pos = nextNew++;
+            if (pos >= toProcess.length) return;
+            const { file, idx } = toProcess[pos];
+            const rec = await analyzeFile(file, idx, forceOcr);
+
+            // Confere se é o mesmo documento com nome diferente (Remetente/Nº nota)
+            const dk = docKey(rec.parser);
+            if (dk && cacheByDocKey.has(dk)) {
+                const old = cacheByDocKey.get(dk);
+                if (old.arquivo !== rec.name || (old.pasta || '') !== (rec.folder || '')) {
+                    renames.push({ oldName: old.arquivo, oldFolder: old.pasta || '' });
+                    rec.fromRename = old.arquivo;
+                }
+            }
+
+            results[idx] = rec;
+            fillRow(trs[idx], rec);
+            done++;
+            setProgress(done, pdfs.length, `${cacheMsg}Analisados ${done}/${pdfs.length}${folderInfo}${modo}`);
+        }
+    }
+    await Promise.all(Array.from({ length: parallel }, worker));
+
+    // ── 6) Salva D- e M- automaticamente (se caminho configurado) ───────────
+    let finalMsg = `Concluído: ${pdfs.length} PDF(s)${folderInfo}.`;
+    if (hasRelatorio) {
+        setProgress(pdfs.length, pdfs.length, 'Salvando relatórios…');
+        const [okD, okM] = await Promise.all([
+            autoSaveRelatorio({ tipo: 'D', data: detectedDay   }, renames),
+            autoSaveRelatorio({ tipo: 'M', data: detectedMonth }, renames),
+        ]);
+        finalMsg = (okD && okM)
+            ? `Concluído · D-${detectedDay}.csv e M-${detectedMonth}.csv salvos`
+            : `Concluído (erro ao salvar um dos relatórios)`;
+    }
+
+    setProgress(pdfs.length, pdfs.length, finalMsg);
+    activeTypeFilter = '';
+    renderSummary();
+    renderTypeFilters();
+    $('status').textContent = '';
+}
+
+async function autoSaveRelatorio({ tipo, data }, renames = []) {
+    const rows = results.filter(Boolean).map(rec => ({
+        arquivo:      rec.name,
+        pasta:        rec.folder || '',
+        paginas:      String(rec.pages),
+        conteudo:     rec.isImage ? `Imagem${rec.ocrUsed ? ' (OCR)' : ''}` : 'Texto',
+        tipo:         rec.tipo,
+        evidencia:    rec.evidencia,
+        origem:       rec.origem,
+        ocr_usado:    String(rec.ocrUsed),
+        dados_parser: JSON.stringify(rec.parser || null),
+    }));
+    try {
+        const r = await fetch('/api/relatorio', {
+            method:      'POST',
+            credentials: 'include',
+            headers:     { 'Content-Type': 'application/json' },
+            body:        JSON.stringify({ tipo, data, rows, deletions: renames }),
+        });
+        const json = await r.json();
+        return !!json.success;
+    } catch (e) { console.error('[relatorio] erro ao salvar:', e); return false; }
+}
+
+// ── seleção de pasta (recursiva: pasta + subpastas) ─────────────────────────
+// Percorre a árvore de diretórios coletando todos os PDFs. O caminho relativo
+// (subpasta/arquivo.pdf) é anexado ao File para exibição.
+async function collectPdfs(dirHandle, prefix = '') {
+    const files = [];
+    for await (const entry of dirHandle.values()) {
+        const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.kind === 'file' && /\.pdf$/i.test(entry.name)) {
+            const file = await entry.getFile();
+            file.relPath = rel;          // caminho relativo p/ exibição
+            files.push(file);
+        } else if (entry.kind === 'directory') {
+            files.push(...await collectPdfs(entry, rel));  // desce na subpasta
+        }
+    }
+    return files;
+}
+
+// Caminho da subpasta de um arquivo (vazio se estiver na raiz)
+function fileFolder(file) {
+    const rel = file.relPath || file.webkitRelativePath || '';
+    const parts = rel.split('/');
+    parts.pop();                    // remove o nome do arquivo
+    parts.shift();                  // remove a pasta raiz selecionada (redundante)
+    return parts.join('/');
+}
+
+async function pickFolder() {
+    if (window.showDirectoryPicker) {
+        try {
+            const handle = await window.showDirectoryPicker();
+            $('status').textContent = 'Varrendo pastas e subpastas…';
+            // prefixo inicial = nome da pasta raiz, p/ casar com webkitRelativePath
+            const files = await collectPdfs(handle, handle.name);
+            await processFiles(files);
+            return;
+        } catch (e) {
+            if (e.name === 'AbortError') return;
+        }
+    }
+    $('dirInput').click();
+}
+
+$('btnFolder').addEventListener('click', pickFolder);
+$('dirInput').addEventListener('change', e => processFiles(Array.from(e.target.files)));
+
+// ── filtro ────────────────────────────────────────────────────────────────────
+$('filterInput').addEventListener('input', filterRows);
+
+$('typeFilters').addEventListener('click', e => {
+    const chip = e.target.closest('[data-filter]');
+    if (!chip) return;
+    activeTypeFilter = chip.dataset.filter;
+    renderTypeFilters(); // re-render chips para atualizar estado ativo
+    filterRows();
+});
+
+// ── cliques na tabela (detalhes + visualizar) ────────────────────────────────
+$('resultsBody').addEventListener('click', e => {
+    // Detalhes (parser)
+    const btnDetail = e.target.closest('[data-detail]');
+    if (btnDetail) {
+        const rec = results[+btnDetail.dataset.detail];
+        $('modalTitle').textContent = `${rec.tipo} — ${rec.name}`;
+        $('modalBody').innerHTML = '<dl class="space-y-2">' +
+            Object.entries(rec.parser).map(([k, v]) =>
+                `<div class="flex justify-between gap-4 pb-1.5" style="border-bottom:1px solid rgba(255,255,255,.10)">
+                    <dt style="color:rgba(255,255,255,.50)">${k}</dt>
+                    <dd class="font-medium mono" style="color:rgba(255,255,255,.90)">${v}</dd>
+                 </div>`).join('') + '</dl>';
+        $('modal').classList.remove('hidden');
+        return;
+    }
+
+    // Visualizar PDF
+    const btnView = e.target.closest('[data-view]');
+    if (btnView) {
+        const rec = results[+btnView.dataset.view];
+        if (rec.pdfData || rec.fileRef) openViewer(rec);
+    }
+});
+
+// ── modal detalhes ────────────────────────────────────────────────────────────
+$('modalClose').addEventListener('click', () => $('modal').classList.add('hidden'));
+$('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').classList.add('hidden'); });
+
+// ── viewer controls ───────────────────────────────────────────────────────────
+$('pdfModalClose').addEventListener('click', () => {
+    $('pdfModal').classList.add('hidden');
+    viewerPdf = null;
+});
+$('pdfModal').addEventListener('click', e => {
+    if (e.target === $('pdfModal')) { $('pdfModal').classList.add('hidden'); viewerPdf = null; }
+});
+document.addEventListener('keydown', e => {
+    if (!$('pdfModal').classList.contains('hidden') && e.key === 'Escape') {
+        $('pdfModal').classList.add('hidden');
+        viewerPdf = null;
+    }
+});
+
+</script>
+</body>
+</html>

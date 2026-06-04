@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Debug NF Local</title>
+  <style>
+    body { font-family: 'Montserrat', Arial, sans-serif; background: #f8faf8; color: #222; padding: 32px; }
+    pre { background: #f4f4f4; border: 1px solid #ddd; border-radius: 8px; padding: 18px; font-size: 1rem; overflow-x: auto; }
+    h2 { color: #2c5529; margin-bottom: 18px; }
+    button { margin-bottom: 18px; padding: 8px 18px; border-radius: 6px; border: 1px solid #bbb; background: #eee; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h2>Debug: Resultado do Parser Local</h2>
+  <button onclick="window.location.href='nota-fiscal.html'">Voltar</button>
+  <pre id="json"></pre>
+  <script>
+    // NÃO exige login/sessionStorage!
+    var data = localStorage.getItem('nf_debug_parsed');
+    document.getElementById('json').textContent = data || 'Nenhum dado encontrado.';
+  </script>
+</body>
+</html>
