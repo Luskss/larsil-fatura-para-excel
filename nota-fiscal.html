@@ -1059,30 +1059,55 @@ function renderResumoDetalhado(notas) {
     if (mCNPJ14) cnpjEmit = mCNPJ14[0];
 
     // ── Destinatário: busca CNPJ/CPF no bloco e nome na linha anterior/mesma ──
-    var razaoDest = '', cpfCnpjDest = '';
-    var mDB = txt.match(/DESTINAT[A\u00c1]RIO\/REMETENTE([\s\S]{0,800}?)(?:C[A\u00c1]LCULO\s+DO|DADOS\s+ADICIONAIS|TRANSPORTA|$)/i);
-    if (mDB) {
-      var dBlock = mDB[1];
-      var DEST_DOC = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/g;
-      var dm;
-      while ((dm = DEST_DOC.exec(dBlock)) !== null) {
-        var beforeDoc = dBlock.substring(0, dm.index);
-        var lastNL    = beforeDoc.lastIndexOf('\n');
-        var sameLine  = beforeDoc.substring(lastNL + 1).trim();
-        var candidate = '';
-        if (sameLine && !/^(?:CNPJ|CPF|NOME|RAZ[A\u00c3]O|DATA|EMISS|DESTINAT)/i.test(sameLine)) {
-          candidate = sameLine;
-        } else {
-          var beforeNL = beforeDoc.substring(0, lastNL);
-          var prevNL   = beforeNL.lastIndexOf('\n');
-          var prevLine = beforeNL.substring(prevNL + 1).trim();
-          if (prevLine && !/^(?:CNPJ|CPF|NOME|RAZ[A\u00c3]O|DATA|EMISS|DESTINAT)/i.test(prevLine)) {
-            candidate = prevLine;
-          }
-        }
-        if (candidate) { razaoDest = candidate; cpfCnpjDest = dm[0]; break; }
-      }
-    }
+     var razaoDest = '', cpfCnpjDest = '';
+     var SKIP_DEST_RE = /^(?:CNPJ|CPF|NOME|RAZ[AÃ]O|DATA|EMISS|DESTINAT|INSCRI|ENDERE|BAIRRO|MUNIC|FONE|UF\b|CEP\b)/i;
+
+     // Estratégia 1: dentro do bloco DESTINATARIO/REMETENTE
+     var mDB = txt.match(/DESTINAT[AÁ]RIO\/REMETENTE([\s\S]{0,800}?)(?:C[AÁ]LCULO\s+DO|DADOS\s+ADICIONAIS|TRANSPORTA|$)/i);
+     if (mDB) {
+       var dBlock = mDB[1];
+       var DEST_DOC = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/g;
+       var dm;
+       while ((dm = DEST_DOC.exec(dBlock)) !== null) {
+         var beforeDoc = dBlock.substring(0, dm.index);
+         var lastNL    = beforeDoc.lastIndexOf('\n');
+         var sameLine  = beforeDoc.substring(lastNL + 1).trim();
+         var candidate = '';
+         if (sameLine && !SKIP_DEST_RE.test(sameLine)) {
+           candidate = sameLine;
+         } else {
+           var beforeNL = beforeDoc.substring(0, lastNL);
+           var prevNL   = beforeNL.lastIndexOf('\n');
+           var prevLine = beforeNL.substring(prevNL + 1).trim();
+           if (prevLine && !SKIP_DEST_RE.test(prevLine)) {
+             candidate = prevLine;
+           }
+         }
+         if (candidate) { razaoDest = candidate; cpfCnpjDest = dm[0]; break; }
+       }
+     }
+
+     // Estratégia 2: 'Destinatário: NOME' no rodapé de recebimento
+     if (!razaoDest) {
+       var mDestLine = txt.match(/Destinat[aá]rio:\s*([^\.\n]{3,80})/i);
+       if (mDestLine) razaoDest = mDestLine[1].trim();
+     }
+
+     // Estratégia 3: segundo CPF/CNPJ distinto do emitente = destinatário
+     if (!razaoDest) {
+       var allDocs = [];
+       var reDocs = /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})/g;
+       var mDoc;
+       while ((mDoc = reDocs.exec(txt)) !== null) allDocs.push({ doc: mDoc[0], idx: mDoc.index });
+       var destDoc = allDocs.find(function(d) { return d.doc !== cnpjEmit; });
+       if (destDoc) {
+         cpfCnpjDest = destDoc.doc;
+         var beforeDest = txt.substring(0, destDoc.idx);
+         var lastNL2 = beforeDest.lastIndexOf('\n');
+         var sameLine2 = beforeDest.substring(lastNL2 + 1).trim();
+         if (sameLine2 && !SKIP_DEST_RE.test(sameLine2)) razaoDest = sameLine2;
+       }
+     }
 
     // ── Fazenda (do endereço do destinatário) ──
     var fazenda = '';
