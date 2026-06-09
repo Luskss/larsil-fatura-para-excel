@@ -791,17 +791,18 @@ function renderResumoDetalhado(notas) {
     setLoadingResumo(false);
   }
 
-  // ── Handler: parser local (sem IA) ────────────────────────────────────────
+  // ── Handler: parser local (sem IA) com fallback automático para IA ────────
   async function btnLocal_handler() {
     if (!selectedFiles.length) return;
     setLoadingProcessar(true); hideError();
     var allNotas = [];
+    var failedFiles = []; // arquivos que falharam no parser local
     try {
       var total = selectedFiles.length;
       var _debugEntries = [];
       for (var i = 0; i < total; i++) {
         var file = selectedFiles[i];
-        setProgress(Math.round((i / total) * 90), 'Extraindo ' + (i + 1) + '/' + total + '...');
+        setProgress(Math.round((i / total) * 50), 'Extraindo ' + (i + 1) + '/' + total + '...');
         var rawText = await extractTextFromPDF(file);
         _debugEntries.push({ name: file.name, text: rawText });
         var parsed = parseNFLocal(rawText, file.name);
@@ -811,9 +812,49 @@ function renderResumoDetalhado(notas) {
             notas[j]._arquivo = file.name;
             allNotas.push(notas[j]);
           }
+        } else {
+          failedFiles.push({ file: file, rawText: rawText });
         }
       }
-      if (!allNotas.length) { showDebugRaw(_debugEntries); showError('Nenhuma nota reconhecida pelo parser local.'); setLoadingProcessar(false); return; }
+
+      // Se algum arquivo falhou, tenta com a IA (Vision se for imagem, caso contrário texto)
+      if (failedFiles.length > 0) {
+        showToast('Parser local falhou em ' + failedFiles.length + ' arquivo(s). Tentando com IA...');
+        for (var fi = 0; fi < failedFiles.length; fi++) {
+          var failedEntry = failedFiles[fi];
+          var file = failedEntry.file;
+          var rawText = failedEntry.rawText;
+          setProgress(Math.round(50 + (fi / failedFiles.length) * 50), 'Arquivo "' + file.name + '" — IA Vision...');
+
+          var isSemTexto = !rawText.trim();
+          var imagesParaIA = [];
+          if (isSemTexto) {
+            try {
+              imagesParaIA = await renderPDFToImages(file);
+            } catch (renderErr) {
+              console.warn('[btnLocal_fallback] Erro ao renderizar imagens:', renderErr.message);
+              continue; // pula este arquivo se não conseguir renderizar
+            }
+          }
+
+          try {
+            var textParaIA = isSemTexto ? '(PDF SEM TEXTO — use as imagens anexas)' : rawText;
+            var result = await callResumoAI(file.name, textParaIA, imagesParaIA);
+            var notas = result.notas || [];
+            for (var j = 0; j < notas.length; j++) {
+              notas[j]._arquivo = file.name;
+              notas[j]._parser = 'ia-fallback';
+              allNotas.push(notas[j]);
+            }
+          } catch (iaErr) {
+            console.warn('[btnLocal_fallback] Erro na IA para ' + file.name + ':', iaErr.message);
+            // continua para o próximo arquivo
+          }
+        }
+        hideToast();
+      }
+
+      if (!allNotas.length) { showDebugRaw(_debugEntries); showError('Nenhuma nota reconhecida (local ou IA).'); setLoadingProcessar(false); return; }
       showDebugRaw(_debugEntries);
       renderPreview(allNotas);
       renderSummaryChips(allNotas);
