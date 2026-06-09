@@ -12,6 +12,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="dist/theme.js"></script>
+  <script src="transitions.js" defer></script>
   <link rel="stylesheet" href="dist/style.css">
   <style>
     .opt-group label { display: block; font-size: .8rem; font-weight: 600; color: rgba(255,255,255,.55); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .4px; }
@@ -63,6 +64,14 @@
     .summary-chip .chip-label { font-size: .72rem; font-weight: 700; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
     .summary-chip .chip-value { font-size: 1.1rem; font-weight: 900; color: #6cd47e; }
     tbody td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    /* Debug: texto bruto */
+    #debugRawWrap { display:none; margin-top:20px; border:1px solid rgba(255,200,80,.25); border-radius:10px; overflow:hidden; }
+    #debugRawWrap summary { cursor:pointer; padding:10px 16px; font-size:.8rem; font-weight:700; color:rgba(255,200,80,.8); text-transform:uppercase; letter-spacing:.4px; background:rgba(255,200,80,.06); user-select:none; }
+    #debugRawWrap summary:hover { background:rgba(255,200,80,.1); }
+    #debugRawInner { padding:14px 16px; display:flex; flex-direction:column; gap:14px; }
+    .debug-file-block { background:rgba(0,0,0,.25); border-radius:8px; overflow:hidden; }
+    .debug-file-label { font-size:.72rem; font-weight:700; color:rgba(255,200,80,.65); padding:6px 12px; border-bottom:1px solid rgba(255,255,255,.07); text-transform:uppercase; letter-spacing:.3px; }
+    .debug-raw-pre { margin:0; padding:12px; font-size:.72rem; line-height:1.55; color:rgba(200,230,200,.85); white-space:pre-wrap; word-break:break-all; max-height:320px; overflow-y:auto; font-family:monospace; }
   </style>
 </head>
   <body>
@@ -138,37 +147,34 @@
 
   <div class="options-card">
     <h3 class="text-[.9rem] font-bold uppercase tracking-[.4px] mb-4 text-accent-text">Opções de exportação</h3>
-    <div class="opt-group" style="max-width:300px">
-      <label>Nome do arquivo Excel</label>
-      <input type="text" id="outFileName" class="glass-input" value="notas-fiscais" placeholder="notas-fiscais" />
+    <div class="flex gap-4 flex-wrap">
+      <div class="opt-group mb-3.5">
+        <label>Tipo de extração</label>
+        <div id="nfModeToggle" style="display:inline-flex;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.15);margin-top:2px">
+          <button type="button" class="nf-toggle-btn active" data-mode="local" style="padding:8px 16px;font-size:.82rem;font-family:inherit;cursor:pointer;border:none;transition:all .18s;background:rgba(77,181,94,.22);color:#a0d87a;font-weight:600">Sem IA</button>
+          <button type="button" class="nf-toggle-btn" data-mode="resumo" style="padding:8px 16px;font-size:.82rem;font-family:inherit;cursor:pointer;border:none;border-left:1px solid rgba(255,255,255,.1);transition:all .18s;background:rgba(255,255,255,.05);color:rgba(255,255,255,.55)">Resumo simples</button>
+          <button type="button" class="nf-toggle-btn" data-mode="detalhado" style="padding:8px 16px;font-size:.82rem;font-family:inherit;cursor:pointer;border:none;border-left:1px solid rgba(255,255,255,.1);transition:all .18s;background:rgba(255,255,255,.05);color:rgba(255,255,255,.55)">Resumo detalhado</button>
+        </div>
+        <div id="nfModeHint" style="font-size:.74rem;color:rgba(255,255,255,.35);margin-top:5px">Parser local — instantâneo e sem custo.</div>
+        <input type="hidden" id="nfMode" value="local">
+      </div>
+      <div class="opt-group" style="min-width:200px">
+        <label>Nome do arquivo Excel</label>
+        <input type="text" id="outFileName" class="glass-input" value="notas-fiscais" placeholder="notas-fiscais" />
+      </div>
     </div>
   </div>
 
   <div class="btn-row">
-    <button class="btn-resumo" id="btnResumo" disabled title="Resumo simples por IA: nº, data, emissor, destinatário (com endereço), itens e total">
+    <button class="btn-resumo" id="btnProcessar" disabled>
       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
            fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="8" y1="6" x2="21" y2="6"/>
-        <line x1="8" y1="12" x2="21" y2="12"/>
-        <line x1="8" y1="18" x2="21" y2="18"/>
-        <line x1="3" y1="6" x2="3.01" y2="6"/>
-        <line x1="3" y1="12" x2="3.01" y2="12"/>
-        <line x1="3" y1="18" x2="3.01" y2="18"/>
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
       </svg>
-      <span id="btnResumoLabel">Resumo simples (IA)</span>
-      <div class="spinner" id="spinnerResumo" style="display:none"></div>
-    </button>
-
-    <button class="btn-resumo" id="btnResumoDetalhado" disabled title="Resumo detalhado por IA: todos os campos extraídos da nota fiscal">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-           fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2"/>
-        <line x1="9" y1="9" x2="15" y2="9"/>
-        <line x1="9" y1="15" x2="15" y2="15"/>
-        <line x1="9" y1="12" x2="15" y2="12"/>
-      </svg>
-      <span id="btnResumoDetalhadoLabel">Resumo detalhado (IA)</span>
-      <div class="spinner" id="spinnerResumoDetalhado" style="display:none"></div>
+      <span id="btnProcessarLabel">Processar notas</span>
+      <div class="spinner" id="spinnerProcessar" style="display:none"></div>
     </button>
   </div>
   <div class="resumo-section" id="resumoDetalhadoSection" style="display:none;">
@@ -274,17 +280,19 @@
   });
 </script>
 
-  <div class="progress-wrap" id="progressWrap" style="display:none">
-    <div class="progress-label">
-      <span id="progressText">Processando...</span>
-      <span id="progressPct">0%</span>
+  <div id="progressWrap" style="display:none;margin-top:16px">
+    <div class="progress-bg">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
     </div>
-    <div class="progress-bar-bg">
-      <div class="progress-bar-fill" id="progressFill"></div>
-    </div>
+    <p id="progressText" style="font-size:.75rem;color:rgba(255,255,255,.4);margin-top:6px"></p>
   </div>
 
   <div class="error-box" id="errorBox"></div>
+
+  <details id="debugRawWrap">
+    <summary>&#128270; Texto bruto extraído (debug)</summary>
+    <div id="debugRawInner"></div>
+  </details>
 
   <div class="resumo-section" id="resumoSection">
     <h3>Resumo simples (IA)</h3>
@@ -334,8 +342,6 @@
   </div>
 </main>
 
-<footer>Conversor de Nota Fiscal &bull; Versao 1.0 &bull; Uso interno</footer>
-
 <script>
   if (!sessionStorage.getItem('cf_loggedIn')) window.location.replace('index.html');
   document.getElementById('navUser').textContent = 'Olá, ' + (sessionStorage.getItem('cf_username') || 'usuário');
@@ -365,21 +371,41 @@
   const uploadZone    = document.getElementById('uploadZone');
   const filesList     = document.getElementById('filesList');
   const fileCount     = document.getElementById('fileCount');
-  const btnResumo     = document.getElementById('btnResumo');
-  const btnResumoLabel= document.getElementById('btnResumoLabel');
-  const spinnerResumo = document.getElementById('spinnerResumo');
-  const btnResumoDetalhado = document.getElementById('btnResumoDetalhado');
-  const btnResumoDetalhadoLabel = document.getElementById('btnResumoDetalhadoLabel');
-  const spinnerResumoDetalhado = document.getElementById('spinnerResumoDetalhado');
+  const btnProcessar  = document.getElementById('btnProcessar');
+  const btnProcessarLabel = document.getElementById('btnProcessarLabel');
+  const spinnerProcessar = document.getElementById('spinnerProcessar');
+  // aliases legados para compatibilidade com código abaixo
+  const btnResumo = btnProcessar;
+  const btnResumoDetalhado = btnProcessar;
   const resumoDetalhadoSection = document.getElementById('resumoDetalhadoSection');
   const resumoDetalhadoList = document.getElementById('resumoDetalhadoList');
   const resumoSection = document.getElementById('resumoSection');
   const resumoList    = document.getElementById('resumoList');
   const btnExportResumo = document.getElementById('btnExportResumo');
+
+  // ── Toggle de modo ────────────────────────────────────────────────────────
+  const nfModeHints = {
+    local:     'Parser local — instantâneo e sem custo. IA não é usada.',
+    resumo:    'IA extrai: nº, data, emissor, destinatário e itens.',
+    detalhado: 'IA extrai todos os campos incluindo impostos e chave de acesso.',
+  };
+  document.getElementById('nfModeToggle').addEventListener('click', e => {
+    const btn = e.target.closest('.nf-toggle-btn');
+    if (!btn) return;
+    document.querySelectorAll('.nf-toggle-btn').forEach(b => {
+      b.style.background = 'rgba(255,255,255,.05)';
+      b.style.color = 'rgba(255,255,255,.55)';
+      b.style.fontWeight = '';
+    });
+    btn.style.background = 'rgba(77,181,94,.22)';
+    btn.style.color = '#a0d87a';
+    btn.style.fontWeight = '600';
+    document.getElementById('nfMode').value = btn.dataset.mode;
+    document.getElementById('nfModeHint').textContent = nfModeHints[btn.dataset.mode] || '';
+  });
   const progressWrap  = document.getElementById('progressWrap');
   const progressFill  = document.getElementById('progressFill');
   const progressText  = document.getElementById('progressText');
-  const progressPct   = document.getElementById('progressPct');
   const errorBox      = document.getElementById('errorBox');
   const resultSection = document.getElementById('resultSection');
   const btnExport     = document.getElementById('btnExport');
@@ -392,6 +418,33 @@
   let allNotas = [];
   let resumoWorkbook = null;
   let allResumosLast = [];
+
+  const debugRawWrap  = document.getElementById('debugRawWrap');
+  const debugRawInner = document.getElementById('debugRawInner');
+
+  function showDebugRaw(entries) {
+    // entries = [{ name, text }]
+    debugRawInner.innerHTML = '';
+    entries.forEach(function(e) {
+      var block = document.createElement('div');
+      block.className = 'debug-file-block';
+      var label = document.createElement('div');
+      label.className = 'debug-file-label';
+      label.textContent = e.name + ' — ' + e.text.length + ' chars';
+      var pre = document.createElement('pre');
+      pre.className = 'debug-raw-pre';
+      pre.textContent = e.text || '(vazio)';
+      block.appendChild(label);
+      block.appendChild(pre);
+      debugRawInner.appendChild(block);
+    });
+    debugRawWrap.style.display = 'block';
+  }
+
+  function hideDebugRaw() {
+    debugRawWrap.style.display = 'none';
+    debugRawInner.innerHTML = '';
+  }
 
   pdfInput.addEventListener('change', e => addFiles(Array.from(e.target.files || [])));
   uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
@@ -411,8 +464,7 @@
     if (rejected) showError(rejected + ' arquivo(s) ignorado(s) por exceder 20 MB.');
     else hideError();
     renderFileList();
-    btnResumo.disabled   = selectedFiles.length === 0;
-    btnResumoDetalhado.disabled = selectedFiles.length === 0;
+    btnProcessar.disabled = selectedFiles.length === 0;
   }
 
   function renderFileList() {
@@ -446,9 +498,15 @@
     });
   }
 
-  // ── Botão "Resumo simples (IA)" ─────────────────────────────────────────────────
-    // ── Botão "Resumo detalhado (IA)" ────────────────────────────────────────────────
-    btnResumoDetalhado.addEventListener('click', async function() {
+  // ── Botão único "Processar" — despacha conforme o toggle ─────────────────────────
+    btnProcessar.addEventListener('click', async function() {
+      const nfMode = document.getElementById('nfMode').value || 'local';
+      if (nfMode === 'resumo')    { btnResumo_handler(); return; }
+      if (nfMode === 'detalhado') { btnResumoDetalhado_handler(); return; }
+      btnLocal_handler();
+    });
+
+    async function btnResumoDetalhado_handler() {
       console.log('[btnResumoDetalhado] Clicado', { filesCount: selectedFiles.length });
       if (!selectedFiles.length) {
         console.warn('[btnResumoDetalhado] Nenhum arquivo selecionado');
@@ -467,34 +525,52 @@
 
         var total = selectedFiles.length;
         console.log('[btnResumoDetalhado] Total de arquivos:', total);
+        var _debugEntries = [];
         for (var i = 0; i < total; i++) {
           var file = selectedFiles[i];
           console.log('[btnResumoDetalhado] Processando arquivo', i + 1, '/', total, file.name);
           setProgress(Math.round((i / total) * 30), 'Extraindo texto do arquivo ' + (i + 1) + '/' + total + '...');
           console.log('[btnResumoDetalhado] setProgress chamado, extraindo texto...');
           var rawText = await extractTextFromPDF(file);
+          _debugEntries.push({ name: file.name, text: rawText });
           console.log('[btnResumoDetalhado] Texto extraído, comprimento:', rawText.length);
 
+          var nfMode = (document.getElementById('nfMode') || {}).value || 'auto';
           var isSemTexto = !rawText.trim();
-          var textParaIA = isSemTexto
-            ? '(PDF SEM TEXTO SELECIONÁVEL — use a(s) imagem(ns) anexa(s) para extrair os dados.)'
-            : rawText;
-          var imagesParaIA = [];
-          if (isSemTexto) {
-            showToast('Nota é uma imagem — renderizando páginas e enviando para IA Vision...');
-            setProgress(Math.round(30 + (i / total) * 50), 'Arquivo ' + (i + 1) + '/' + total + ' - renderizando imagens...');
-            try {
-              imagesParaIA = await renderPDFToImages(file);
-            } catch (renderErr) {
-              hideToast();
-              throw new Error('Falha ao renderizar PDF imagem: ' + (renderErr && renderErr.message ? renderErr.message : renderErr));
+          var notas = [];
+
+          // Tenta parser local se modo auto e PDF tem texto
+          if (nfMode === 'auto' && !isSemTexto) {
+            var localParsed = parseNFLocal(rawText, file.name);
+            if (localParsed) {
+              localParsed._arquivo = file.name;
+              localParsed._parser = localParsed._parser || 'local';
+              notas = [localParsed];
+              setProgress(Math.round(30 + ((i + 1) / total) * 70), 'Arquivo ' + (i + 1) + '/' + total + ' - extraído localmente.');
             }
           }
-          setProgress(Math.round(30 + (i / total) * 60), 'Arquivo ' + (i + 1) + '/' + total + ' - resumo detalhado via IA...');
-          var result = await callDetalhadoAI(file.name, textParaIA, imagesParaIA);
-          if (isSemTexto) hideToast();
 
-          var notas = result.notas || [];
+          // Cai na IA se parser local não achou nada ou modo sempre-IA
+          if (!notas.length) {
+            var textParaIA = isSemTexto
+              ? '(PDF SEM TEXTO SELECIONÁVEL — use a(s) imagem(ns) anexa(s) para extrair os dados.)'
+              : rawText;
+            var imagesParaIA = [];
+            if (isSemTexto) {
+              showToast('Nota é uma imagem — renderizando páginas e enviando para IA Vision...');
+              setProgress(Math.round(30 + (i / total) * 50), 'Arquivo ' + (i + 1) + '/' + total + ' - renderizando imagens...');
+              try {
+                imagesParaIA = await renderPDFToImages(file);
+              } catch (renderErr) {
+                hideToast();
+                throw new Error('Falha ao renderizar PDF imagem: ' + (renderErr && renderErr.message ? renderErr.message : renderErr));
+              }
+            }
+            setProgress(Math.round(30 + (i / total) * 60), 'Arquivo ' + (i + 1) + '/' + total + ' - resumo detalhado via IA...');
+            var result = await callDetalhadoAI(file.name, textParaIA, imagesParaIA);
+            if (isSemTexto) hideToast();
+            notas = result.notas || [];
+          }
           for (var j = 0; j < notas.length; j++) {
             notas[j]._arquivo = file.name;
             allDetalhados.push(notas[j]);
@@ -507,6 +583,7 @@
           return;
         }
 
+        showDebugRaw(_debugEntries);
         renderResumoDetalhado(allDetalhados);
         resumoDetalhadoWorkbook = buildResumoDetalhadoWorkbook(allDetalhados);
         resumoDetalhadoSection.style.display = 'block';
@@ -518,7 +595,7 @@
       }
 
       setLoadingResumoDetalhado(false);
-    });
+    }
 
     async function callDetalhadoAI(filename, text, images) {
       var resp = await fetch('api/openai-nota-fiscal.php', {
@@ -611,16 +688,17 @@ function renderResumoDetalhado(notas) {
   }
 }
 
-    function setLoadingResumoDetalhado(on) {
-      btnResumoDetalhado.disabled        = on || selectedFiles.length === 0;
-      spinnerResumoDetalhado.style.display = on ? 'block' : 'none';
-      btnResumoDetalhadoLabel.textContent  = on ? 'Processando...' : 'Resumo detalhado (IA)';
+    function setLoadingProcessar(on) {
+      btnProcessar.disabled = on || selectedFiles.length === 0;
+      spinnerProcessar.style.display = on ? 'block' : 'none';
+      btnProcessarLabel.textContent  = on ? 'Processando...' : 'Processar notas';
       progressWrap.style.display  = on ? 'block' : 'none';
-      if (!on) { progressFill.style.width = '0%'; progressPct.textContent = '0%'; }
+      if (!on) { progressFill.style.width = '0%'; progressText.textContent = ''; }
     }
-  // Pede para a IA extrair só: nº, data, emissor, CNPJ emissor,
-  // destinatário (nome, CNPJ, endereço), itens (apenas descrição) e total da nota.
-  btnResumo.addEventListener('click', async function() {
+    function setLoadingResumoDetalhado(on) { setLoadingProcessar(on); }
+    function setLoadingResumo(on) { setLoadingProcessar(on); }
+  // ── Handler: Resumo simples (IA) ─────────────────────────────────────────
+  async function btnResumo_handler() {
     console.log('[btnResumo] Clicado', { filesCount: selectedFiles.length });
     if (!selectedFiles.length) {
       console.warn('[btnResumo] Nenhum arquivo selecionado');
@@ -639,34 +717,53 @@ function renderResumoDetalhado(notas) {
 
       var total = selectedFiles.length;
       console.log('[btnResumo] Total de arquivos:', total);
+      var _debugEntries = [];
       for (var i = 0; i < total; i++) {
         var file = selectedFiles[i];
         console.log('[btnResumo] Processando arquivo', i + 1, '/', total, file.name);
         setProgress(Math.round((i / total) * 30), 'Extraindo texto do arquivo ' + (i + 1) + '/' + total + '...');
         console.log('[btnResumo] setProgress chamado, extraindo texto...');
         var rawText = await extractTextFromPDF(file);
+        _debugEntries.push({ name: file.name, text: rawText });
         console.log('[btnResumo] Texto extraído, comprimento:', rawText.length);
 
+        var nfMode = (document.getElementById('nfMode') || {}).value || 'auto';
         var isSemTexto = !rawText.trim();
-        var textParaIA = isSemTexto
-          ? '(PDF SEM TEXTO SELECIONÁVEL — use a(s) imagem(ns) anexa(s) para extrair os dados.)'
-          : rawText;
-        var imagesParaIA = [];
-        if (isSemTexto) {
-          showToast('Nota é uma imagem — renderizando páginas e enviando para IA Vision...');
-          setProgress(Math.round(30 + (i / total) * 50), 'Arquivo ' + (i + 1) + '/' + total + ' - renderizando imagens...');
-          try {
-            imagesParaIA = await renderPDFToImages(file);
-          } catch (renderErr) {
-            hideToast();
-            throw new Error('Falha ao renderizar PDF imagem: ' + (renderErr && renderErr.message ? renderErr.message : renderErr));
+        var notas = [];
+
+        // Tenta parser local se modo auto e PDF tem texto
+        if (nfMode === 'auto' && !isSemTexto) {
+          var localParsed = parseNFLocal(rawText, file.name);
+          if (localParsed) {
+            localParsed._arquivo = file.name;
+            localParsed._parser = localParsed._parser || 'local';
+            notas = [localParsed];
+            setProgress(Math.round(30 + ((i + 1) / total) * 70), 'Arquivo ' + (i + 1) + '/' + total + ' - extraído localmente.');
           }
         }
-        setProgress(Math.round(30 + (i / total) * 60), 'Arquivo ' + (i + 1) + '/' + total + ' - resumindo via IA...');
-        var result = await callResumoAI(file.name, textParaIA, imagesParaIA);
-        if (isSemTexto) hideToast();
 
-        var notas = result.notas || [];
+        // Cai na IA se parser local não achou nada ou modo sempre-IA
+        if (!notas.length) {
+          var textParaIA = isSemTexto
+            ? '(PDF SEM TEXTO SELECIONÁVEL — use a(s) imagem(ns) anexa(s) para extrair os dados.)'
+            : rawText;
+          var imagesParaIA = [];
+          if (isSemTexto) {
+            showToast('Nota é uma imagem — renderizando páginas e enviando para IA Vision...');
+            setProgress(Math.round(30 + (i / total) * 50), 'Arquivo ' + (i + 1) + '/' + total + ' - renderizando imagens...');
+            try {
+              imagesParaIA = await renderPDFToImages(file);
+            } catch (renderErr) {
+              hideToast();
+              throw new Error('Falha ao renderizar PDF imagem: ' + (renderErr && renderErr.message ? renderErr.message : renderErr));
+            }
+          }
+          setProgress(Math.round(30 + (i / total) * 60), 'Arquivo ' + (i + 1) + '/' + total + ' - resumindo via IA...');
+          var result = await callResumoAI(file.name, textParaIA, imagesParaIA);
+          if (isSemTexto) hideToast();
+          notas = result.notas || [];
+        }
+
         for (var j = 0; j < notas.length; j++) {
           notas[j]._arquivo = file.name;
           allResumos.push(notas[j]);
@@ -679,6 +776,7 @@ function renderResumoDetalhado(notas) {
         return;
       }
 
+      showDebugRaw(_debugEntries);
       renderResumo(allResumos);
       allResumosLast = allResumos;
       resumoWorkbook = buildResumoWorkbook(allResumos);
@@ -691,7 +789,42 @@ function renderResumoDetalhado(notas) {
     }
 
     setLoadingResumo(false);
-  });
+  }
+
+  // ── Handler: parser local (sem IA) ────────────────────────────────────────
+  async function btnLocal_handler() {
+    if (!selectedFiles.length) return;
+    setLoadingProcessar(true); hideError();
+    var allNotas = [];
+    try {
+      var total = selectedFiles.length;
+      var _debugEntries = [];
+      for (var i = 0; i < total; i++) {
+        var file = selectedFiles[i];
+        setProgress(Math.round((i / total) * 90), 'Extraindo ' + (i + 1) + '/' + total + '...');
+        var rawText = await extractTextFromPDF(file);
+        _debugEntries.push({ name: file.name, text: rawText });
+        var parsed = parseNFLocal(rawText, file.name);
+        if (parsed) {
+          var notas = parsed.notas || [parsed];
+          for (var j = 0; j < notas.length; j++) {
+            notas[j]._arquivo = file.name;
+            allNotas.push(notas[j]);
+          }
+        }
+      }
+      if (!allNotas.length) { showDebugRaw(_debugEntries); showError('Nenhuma nota reconhecida pelo parser local.'); setLoadingProcessar(false); return; }
+      showDebugRaw(_debugEntries);
+      renderPreview(allNotas);
+      renderSummaryChips(allNotas);
+      workbook = buildWorkbook(allNotas);
+      resultSection.style.display = 'block';
+      setProgress(100, 'Concluído!');
+    } catch (err) {
+      showError('Erro: ' + err.message);
+    }
+    setLoadingProcessar(false);
+  }
 
   async function callResumoAI(filename, text, images) {
     var resp = await fetch('api/openai-nota-fiscal-resumo.php', {
@@ -1728,17 +1861,8 @@ function renderResumoDetalhado(notas) {
     return wb;
   }
 
-  function setLoadingResumo(on) {
-    btnResumo.disabled        = on || selectedFiles.length === 0;
-    spinnerResumo.style.display = on ? 'block' : 'none';
-    btnResumoLabel.textContent  = on ? 'Processando...' : 'Resumo simples (IA)';
-    progressWrap.style.display  = on ? 'block' : 'none';
-    if (!on) { progressFill.style.width = '0%'; progressPct.textContent = '0%'; }
-  }
-
   function setProgress(pct, label) {
     progressFill.style.width = pct + '%';
-    progressPct.textContent = pct + '%';
     if (label) progressText.textContent = label;
   }
 
