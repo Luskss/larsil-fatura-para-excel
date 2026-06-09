@@ -72,6 +72,16 @@
     .debug-file-block { background:rgba(0,0,0,.25); border-radius:8px; overflow:hidden; }
     .debug-file-label { font-size:.72rem; font-weight:700; color:rgba(255,200,80,.65); padding:6px 12px; border-bottom:1px solid rgba(255,255,255,.07); text-transform:uppercase; letter-spacing:.3px; }
     .debug-raw-pre { margin:0; padding:12px; font-size:.72rem; line-height:1.55; color:rgba(200,230,200,.85); white-space:pre-wrap; word-break:break-all; max-height:320px; overflow-y:auto; font-family:monospace; }
+    /* Debug: resposta da IA */
+    #debugIAResponseWrap { display:none; margin-top:20px; border:1px solid rgba(100,200,255,.25); border-radius:10px; overflow:hidden; }
+    #debugIAResponseWrap summary { cursor:pointer; padding:10px 16px; font-size:.8rem; font-weight:700; color:rgba(100,200,255,.8); text-transform:uppercase; letter-spacing:.4px; background:rgba(100,200,255,.06); user-select:none; }
+    #debugIAResponseWrap summary:hover { background:rgba(100,200,255,.1); }
+    #debugIAResponseInner { padding:14px 16px; display:flex; flex-direction:column; gap:14px; }
+    .debug-ia-block { background:rgba(0,0,0,.25); border-radius:8px; overflow:hidden; }
+    .debug-ia-label { font-size:.72rem; font-weight:700; color:rgba(100,200,255,.65); padding:6px 12px; border-bottom:1px solid rgba(255,255,255,.07); text-transform:uppercase; letter-spacing:.3px; }
+    .debug-ia-pre { margin:0; padding:12px; font-size:.7rem; line-height:1.45; color:rgba(180,220,255,.85); white-space:pre-wrap; word-break:break-all; max-height:400px; overflow-y:auto; font-family:monospace; }
+    .debug-ia-success { color:rgba(100,255,150,.85); }
+    .debug-ia-error { color:rgba(255,100,100,.85); }
   </style>
 </head>
   <body>
@@ -294,6 +304,11 @@
     <div id="debugRawInner"></div>
   </details>
 
+  <details id="debugIAResponseWrap">
+    <summary>🤖 Resposta da IA (debug)</summary>
+    <div id="debugIAResponseInner"></div>
+  </details>
+
   <div class="resumo-section" id="resumoSection">
     <h3>Resumo simples (IA)</h3>
     <div id="resumoList"></div>
@@ -418,9 +433,12 @@
   let allNotas = [];
   let resumoWorkbook = null;
   let allResumosLast = [];
+  let _debugIAResponses = []; // para debug: rastrear respostas da IA
 
   const debugRawWrap  = document.getElementById('debugRawWrap');
   const debugRawInner = document.getElementById('debugRawInner');
+  const debugIAResponseWrap  = document.getElementById('debugIAResponseWrap');
+  const debugIAResponseInner = document.getElementById('debugIAResponseInner');
 
   function showDebugRaw(entries) {
     // entries = [{ name, text }]
@@ -444,6 +462,44 @@
   function hideDebugRaw() {
     debugRawWrap.style.display = 'none';
     debugRawInner.innerHTML = '';
+  }
+
+  function showDebugIAResponse(entries) {
+    // entries = [{ name, success, data, error, rawResponse }]
+    debugIAResponseInner.innerHTML = '';
+    entries.forEach(function(e) {
+      var block = document.createElement('div');
+      block.className = 'debug-ia-block';
+      var label = document.createElement('div');
+      label.className = 'debug-ia-label';
+      if (e.success) {
+        label.innerHTML = '✓ ' + e.name + ' — sucesso';
+        label.classList.add('debug-ia-success');
+      } else {
+        label.innerHTML = '✗ ' + e.name + ' — erro';
+        label.classList.add('debug-ia-error');
+      }
+      var pre = document.createElement('pre');
+      pre.className = 'debug-ia-pre';
+      if (e.success && e.data) {
+        pre.textContent = JSON.stringify(e.data, null, 2);
+      } else if (e.error) {
+        pre.textContent = 'Erro: ' + e.error;
+      } else if (e.rawResponse) {
+        pre.textContent = e.rawResponse;
+      } else {
+        pre.textContent = '(sem resposta)';
+      }
+      block.appendChild(label);
+      block.appendChild(pre);
+      debugIAResponseInner.appendChild(block);
+    });
+    debugIAResponseWrap.style.display = 'block';
+  }
+
+  function hideDebugIAResponse() {
+    debugIAResponseWrap.style.display = 'none';
+    debugIAResponseInner.innerHTML = '';
   }
 
   pdfInput.addEventListener('change', e => addFiles(Array.from(e.target.files || [])));
@@ -512,6 +568,7 @@
         console.warn('[btnResumoDetalhado] Nenhum arquivo selecionado');
         return;
       }
+      _debugIAResponses = [];
       setLoadingResumoDetalhado(true); hideError();
       console.log('[btnResumoDetalhado] setLoadingResumoDetalhado(true) executado');
       var allDetalhados = [];
@@ -584,6 +641,7 @@
         }
 
         showDebugRaw(_debugEntries);
+        if (_debugIAResponses.length > 0) showDebugIAResponse(_debugIAResponses);
         renderResumoDetalhado(allDetalhados);
         resumoDetalhadoWorkbook = buildResumoDetalhadoWorkbook(allDetalhados);
         resumoDetalhadoSection.style.display = 'block';
@@ -609,6 +667,14 @@
         var s = raw.indexOf('{'), e = raw.lastIndexOf('}');
         if (s >= 0 && e > s) { try { payload = JSON.parse(raw.slice(s, e + 1)); } catch (_) {} }
       }
+      // Debug: registra resposta
+      _debugIAResponses.push({
+        name: filename,
+        success: payload && resp.ok && payload.success,
+        data: payload && payload.notas ? payload.notas : null,
+        error: !payload ? 'JSON inválido' : (!resp.ok ? ('HTTP ' + resp.status) : (payload.message || 'Erro desconhecido')),
+        rawResponse: raw.slice(0, 1000)
+      });
       if (!payload) throw new Error('Resposta invalida (HTTP ' + resp.status + ').');
       if (!resp.ok || !payload.success) {
         var msg = payload.message || ('HTTP ' + resp.status);
@@ -704,6 +770,7 @@ function renderResumoDetalhado(notas) {
       console.warn('[btnResumo] Nenhum arquivo selecionado');
       return;
     }
+    _debugIAResponses = [];
     setLoadingResumo(true); hideError();
     console.log('[btnResumo] setLoadingResumo(true) executado');
     var allResumos = [];
@@ -777,6 +844,7 @@ function renderResumoDetalhado(notas) {
       }
 
       showDebugRaw(_debugEntries);
+      if (_debugIAResponses.length > 0) showDebugIAResponse(_debugIAResponses);
       renderResumo(allResumos);
       allResumosLast = allResumos;
       resumoWorkbook = buildResumoWorkbook(allResumos);
@@ -794,6 +862,7 @@ function renderResumoDetalhado(notas) {
   // ── Handler: parser local (sem IA) com fallback automático para IA ────────
   async function btnLocal_handler() {
     if (!selectedFiles.length) return;
+    _debugIAResponses = [];
     setLoadingProcessar(true); hideError();
     var allNotas = [];
     var failedFiles = []; // arquivos que falharam no parser local
@@ -854,8 +923,9 @@ function renderResumoDetalhado(notas) {
         hideToast();
       }
 
-      if (!allNotas.length) { showDebugRaw(_debugEntries); showError('Nenhuma nota reconhecida (local ou IA).'); setLoadingProcessar(false); return; }
+      if (!allNotas.length) { showDebugRaw(_debugEntries); if (_debugIAResponses.length > 0) showDebugIAResponse(_debugIAResponses); showError('Nenhuma nota reconhecida (local ou IA).'); setLoadingProcessar(false); return; }
       showDebugRaw(_debugEntries);
+      if (_debugIAResponses.length > 0) showDebugIAResponse(_debugIAResponses);
       renderPreview(allNotas);
       renderSummaryChips(allNotas);
       workbook = buildWorkbook(allNotas);
@@ -879,6 +949,14 @@ function renderResumoDetalhado(notas) {
       var s = raw.indexOf('{'), e = raw.lastIndexOf('}');
       if (s >= 0 && e > s) { try { payload = JSON.parse(raw.slice(s, e + 1)); } catch (_) {} }
     }
+    // Debug: registra resposta
+    _debugIAResponses.push({
+      name: filename,
+      success: payload && resp.ok && payload.success,
+      data: payload && payload.notas ? payload.notas : null,
+      error: !payload ? 'JSON inválido' : (!resp.ok ? ('HTTP ' + resp.status) : (payload.message || 'Erro desconhecido')),
+      rawResponse: raw.slice(0, 1000)
+    });
     if (!payload) throw new Error('Resposta invalida (HTTP ' + resp.status + ').');
     if (!resp.ok || !payload.success) {
       var msg = payload.message || ('HTTP ' + resp.status);
