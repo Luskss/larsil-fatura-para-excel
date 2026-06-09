@@ -562,6 +562,18 @@
       btnLocal_handler();
     });
 
+    // Helper: extrai nome da fazenda do endereço do destinatário
+    function enrichFazendaFromAddress(nota) {
+      if (!nota.fazenda && nota.destinatario && nota.destinatario.endereco) {
+        var addr = nota.destinatario.endereco;
+        var mFaz = addr.match(/\b(SITIO|FAZENDA|RANCHO|EST[ÂA]NCIA|CHACARA)\s+([A-ZÀ-Ú][A-ZÀ-ú\s]{1,50}?)(?:\s*[,\-]|\s*$)/i);
+        if (mFaz) {
+          nota.fazenda = (mFaz[1] + ' ' + mFaz[2]).trim().replace(/\s+/g, ' ');
+        }
+      }
+      return nota;
+    }
+
     async function btnResumoDetalhado_handler() {
       console.log('[btnResumoDetalhado] Clicado', { filesCount: selectedFiles.length });
       if (!selectedFiles.length) {
@@ -630,6 +642,7 @@
           }
           for (var j = 0; j < notas.length; j++) {
             notas[j]._arquivo = file.name;
+            enrichFazendaFromAddress(notas[j]);
             allDetalhados.push(notas[j]);
           }
         }
@@ -833,6 +846,7 @@ function renderResumoDetalhado(notas) {
 
         for (var j = 0; j < notas.length; j++) {
           notas[j]._arquivo = file.name;
+          enrichFazendaFromAddress(notas[j]);
           allResumos.push(notas[j]);
         }
       }
@@ -879,6 +893,7 @@ function renderResumoDetalhado(notas) {
           var notas = parsed.notas || [parsed];
           for (var j = 0; j < notas.length; j++) {
             notas[j]._arquivo = file.name;
+            enrichFazendaFromAddress(notas[j]);
             allNotas.push(notas[j]);
           }
         } else {
@@ -913,6 +928,7 @@ function renderResumoDetalhado(notas) {
             for (var j = 0; j < notas.length; j++) {
               notas[j]._arquivo = file.name;
               notas[j]._parser = 'ia-fallback';
+              enrichFazendaFromAddress(notas[j]);
               allNotas.push(notas[j]);
             }
           } catch (iaErr) {
