@@ -660,12 +660,20 @@ module.exports = async function compararNotasRoute(req, res) {
         const planilhaUsada  = new Set(); // notas da planilha já consumidas por algum match
         const tributos       = [];        // DAMs/guias de tributo — não existem como NF na planilha
 
-        // DAMs e guias de tributo (GOVERNO, PREFEITURA) nunca constam na planilha como NF.
-        // Identificados pela NF no range 9039xx/9049xx ou emitente contendo GOVERNO/PREFEITURA.
+        // DAMs e guias de tributo (DARF/FGTS/DCTFWeb/PIS/COFINS/IRPJ/CSLL/ISS/IPVA...) nunca
+        // constam na planilha como NF — têm aba própria. Identificados por:
+        //   • tipo IMPOSTO classificado pelo banco (sinal mais forte e abrangente);
+        //   • NF no range 9039xx/9049xx (nº de RCB de guia do governo);
+        //   • emitente/nome do arquivo contendo GOVERNO/PREFEITURA.
+        // Sem o tipo IMPOSTO, ~70 guias vazavam para "Faltando na planilha" porque a IA
+        // extrai um nº de controle (ex.: "2026051111463728") e não o RCB 9039xx, e o
+        // emitente não vem como "GOVERNO".
         function isTributo(rowB) {
+            if (norm(rowB.tipo) === 'IMPOSTO') return true;
             if (/^9039\d{2}$|^9049\d{2}$/.test(rowB.nf)) return true;
-            const e = rowB.emitente.toUpperCase();
-            return e.includes('GOVERNO') || e.includes('PREFEITURA');
+            const e = (rowB.emitente || '').toUpperCase();
+            const arq = String(rowB.arquivo || '').toUpperCase();
+            return e.includes('GOVERNO') || e.includes('PREFEITURA') || /\bGOVERNO\b/.test(arq);
         }
 
         // Lançamentos de cartão de crédito (código contábil "CC278" no nome do arquivo)
