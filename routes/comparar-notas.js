@@ -570,22 +570,6 @@ function parseCsvLine(line, idxArquivo, idxPasta, idxTipo, idxDadosParser) {
     const nfArq = extrairNFDoArquivo(arquivo);
     const nfAlt = (nfArq && nfArq !== nf) ? nfArq : '';
 
-    const emitente = norm(extrairEmitenteDeParsed(parser, arquivo));
-    let valor = extrairValorDeParsed(parser, arquivo);
-
-    // ── REGRA LOCALIZA ──────────────────────────────────────────────────────────
-    // As faturas da Localiza são pacotes multi-documento (fatura central + vários
-    // contratos/carros + boleto + NF complementar). O parser frequentemente captura um
-    // SUBTOTAL errado — ex.: "VALOR TOTAL FAT. CENTRAL R$41.690,89" (de outra fatura
-    // complementar) em vez do valor efetivamente cobrado R$18.767,74; ou o total da
-    // fatura (3 carros = 5.259,95) quando a planilha lançou só parte (4.885,69). O NOME
-    // do arquivo ("DOC- 18.767,74") traz o valor real conferido pelo arquivista e é o que
-    // bate com a planilha. Para a Localiza, ele tem prioridade sobre o valor do parser.
-    if (/LOCALIZA/i.test(emitente) || /LOCALIZA/i.test(arquivo)) {
-        const vArq = extrairValorDoArquivo(arquivo);
-        if (vArq > 0) valor = vArq;
-    }
-
     return {
         arquivo,
         pasta:       fields[idxPasta] ?? '',
@@ -593,8 +577,8 @@ function parseCsvLine(line, idxArquivo, idxPasta, idxTipo, idxDadosParser) {
         nf,
         nfAlt,
         ocp:         extrairOCPDeParsed(parser, arquivo),
-        emitente,
-        valor,
+        emitente:    norm(extrairEmitenteDeParsed(parser, arquivo)),
+        valor:       extrairValorDeParsed(parser, arquivo),
         vencimento:  venc,
         dataMs,
     };
