@@ -45,3 +45,6 @@ temp-files/
 
 # PDFs de teste/depuração local
 teste/
+
+# Memória persistente do Claude Code (fora do repo)
+.claude/

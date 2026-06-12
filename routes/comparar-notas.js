@@ -129,12 +129,28 @@ function valorBate(valorBanco, nota) {
 // VALIDA o tipo. Só compara quando a planilha tem um TIPO mapeável (tipoBanco)
 // e o banco classificou algo conhecido. Retorna true se compatível ou se não há
 // base para comparar (não inventa divergência).
-function tipoBate(tipoBanco, nota) {
+function tipoBate(tipoBanco, nota, rowB) {
     const tb = norm(tipoBanco);
     const tp = norm(nota.tipoBanco);
     if (tp === '*') return true; // 'RECIBO E OUTROS' (guarda-chuva) aceita qualquer tipo
     if (!tp || !tb || tb === 'NÃO IDENTIFICADO') return true; // sem base p/ comparar
-    return tb === tp;
+    if (tb === tp) return true;
+    // NF (produto) e NFS (serviço) são intercambiáveis: a planilha Delsoft costuma
+    // lançar nota de serviço como "NOTA FISCAL RFB" (→ NF), então não é divergência.
+    if ((tb === 'NF' || tb === 'NFS') && (tp === 'NF' || tp === 'NFS')) return true;
+    // Fatura em lote (FT no nome do arquivo): um boleto/duplicata que paga em lote
+    // NFS-e/NF-e anexas. A planilha lança como FATURA, mas o PDF é classificado como
+    // NFS/NF pelo conteúdo. Só vale para docs "FT..." → não afeta notas normais.
+    if (tp === 'FATURA' && (tb === 'NF' || tb === 'NFS') && ehFaturaLote(rowB)) return true;
+    return false;
+}
+
+// "Fatura em lote": doc do banco cujo NOME traz número de FATURA (FT.../FATURA) — um
+// boleto que paga em lote uma ou mais NFS-e/NF-e anexas (ex.: FT9476 = NFS-e 58676 +
+// NF-e 20294). Marcador exclusivo dessa convenção: o "FT" no nome do arquivo.
+function ehFaturaLote(rowB) {
+    const arq = String((rowB && rowB.arquivo) || '').replace(/#p\d+$/i, '').toUpperCase();
+    return /\bFT\s*\.?\s*\d/.test(arq) || /\bFATURA\b/.test(arq);
 }
 
 // ── Cache da planilha ─────────────────────────────────────────────────────────
@@ -638,6 +654,57 @@ module.exports = async function compararNotasRoute(req, res) {
             return `${String(d.getUTCMonth() + 1).padStart(2, '0')}.${d.getUTCFullYear()}` === periodo;
         }
 
+        // Verifica se o campo DATA da planilha cai no período consultado.
+        // (A planilha não tem DT_VENCIMENTO; DATA é a data do documento — pode ser o
+        // vencimento agendado quando DT_LANCAMENTO registra a entrada contábil.)
+        // Usado em section 6: nota emitida em outro mês mas com DATA no mês atual
+        // não é "outro mês" — é um pagamento lançado no vencimento correto.
+        function planilhaVencNoMes(rowP, periodo) {
+            const ms = rowP.dataMs;
+            if (ms == null) return false;
+            const d = new Date(ms);
+            return `${String(d.getUTCMonth() + 1).padStart(2, '0')}.${d.getUTCFullYear()}` === periodo;
+        }
+
+        // Notas da planilha consumidas por uma CONSOLIDAÇÃO: um único doc do banco
+        // (fatura/duplicata) cujo valor é a SOMA de várias notas do MESMO emitente,
+        // lançadas como linhas separadas na planilha (ex.: FT131313 R$308,32 = NF
+        // 138719 + 138720 + 138750). Essas notas saem de "faltando no banco".
+        const consolidadas = new Set();
+
+        // Tenta explicar `valorBanco` como a SOMA de um subconjunto de notas NÃO usadas
+        // do MESMO emitente no período (fatura consolidada). Heurística: só vale quando
+        // 1 nota não basta — exige ≥2 notas e soma exata (folga ~2 centavos por nota,
+        // p/ arredondamento). `notaObrigatoria`, se dada, precisa estar no subconjunto.
+        // Limita a 12 candidatos (custo 2^N) e prefere o menor conjunto que fecha a soma.
+        function acharConsolidacao(valorBanco, emitente, notaObrigatoria) {
+            if (!(valorBanco > 0) || !emitente) return null;
+            let pool = (porPeriodo.get(periodo) || []).filter(p =>
+                p.valor > 0 && !planilhaUsada.has(p) && !consolidadas.has(p) &&
+                p.entidade && entidadeMatch(emitente, p.entidade)
+            );
+            if (notaObrigatoria && !pool.includes(notaObrigatoria)) pool = [notaObrigatoria, ...pool];
+            if (pool.length < 2) return null;
+            pool = pool.slice(0, 12);
+            const n = pool.length;
+            const alvo = Math.round(valorBanco * 100);
+            const baseIdx = notaObrigatoria ? pool.indexOf(notaObrigatoria) : -1;
+            let melhor = null;
+            for (let mask = 1; mask < (1 << n); mask++) {
+                if (baseIdx >= 0 && !(mask & (1 << baseIdx))) continue;
+                let soma = 0, cnt = 0;
+                for (let i = 0; i < n; i++) if (mask & (1 << i)) { soma += Math.round(pool[i].valor * 100); cnt++; }
+                if (cnt < 2) continue;
+                if (Math.abs(soma - alvo) <= cnt * 2 + 1) {
+                    if (!melhor || cnt < melhor.cnt) melhor = { mask, cnt };
+                }
+            }
+            if (!melhor) return null;
+            const out = [];
+            for (let i = 0; i < n; i++) if (melhor.mask & (1 << i)) out.push(pool[i]);
+            return out;
+        }
+
         // Registra um match achado por NF/OCP, VALIDANDO tipo e valor.
         // O match já foi decidido por NÚMERO (NF ou OCP); aqui só validamos e geramos
         // os alertas de tipo/valor/data. Sempre conta como "encontrada".
@@ -651,16 +718,28 @@ module.exports = async function compararNotasRoute(req, res) {
             // VALIDA VALOR (cabeçalho / soma itens / parcela / fração total÷N)
             const vRes = valorBate(rowB.valor, nota);
             if (rowB.valor > 0 && !vRes.ok) {
-                valorDiverge = true;
-                partes.push(`⚠ Valor: banco R$${rowB.valor.toFixed(2)} × planilha R$${nota.valor.toFixed(2)}` +
-                    (nota.valorItem > 0 && Math.abs(nota.valorItem - nota.valor) > TOL_VAL ? ` (itens R$${nota.valorItem.toFixed(2)})` : ''));
+                // Antes de marcar divergência: o doc do banco pode ser uma FATURA que
+                // CONSOLIDA várias notas do mesmo emitente (valor = soma). Só tenta
+                // quando o valor do banco é MAIOR que a nota (1 nota não explica o total).
+                let grupo = null;
+                if (rowB.valor > nota.valor + TOL_VAL)
+                    grupo = acharConsolidacao(rowB.valor, rowB.emitente || nota.entidade, nota);
+                if (grupo) {
+                    for (const p of grupo) { planilhaUsada.add(p); consolidadas.add(p); }
+                    const nfs = grupo.map(p => p.nf).filter(Boolean).join(', ');
+                    partes.push(`ℹ Fatura consolida ${grupo.length} notas (${nfs}) — soma R$${rowB.valor.toFixed(2)}`);
+                } else {
+                    valorDiverge = true;
+                    partes.push(`⚠ Valor: banco R$${rowB.valor.toFixed(2)} × planilha R$${nota.valor.toFixed(2)}` +
+                        (nota.valorItem > 0 && Math.abs(nota.valorItem - nota.valor) > TOL_VAL ? ` (itens R$${nota.valorItem.toFixed(2)})` : ''));
+                }
             } else if (vRes.ok && /^parcela \d+x$/.test(vRes.base || '')) {
                 // Compra parcelada: informativo, não é divergência.
                 partes.push(`ℹ Parcela ${vRes.base.match(/\d+/)[0]}x — banco R$${rowB.valor.toFixed(2)} × total planilha R$${nota.valor.toFixed(2)}`);
             }
 
             // VALIDA TIPO (banco classificado × TIPO da planilha mapeado)
-            if (!tipoBate(rowB.tipo, nota)) {
+            if (!tipoBate(rowB.tipo, nota, rowB)) {
                 tipoDiverge = true;
                 partes.push(`⚠ Tipo: banco ${rowB.tipo || '—'} × planilha ${nota.tipo || '—'}`);
             }
@@ -697,6 +776,8 @@ module.exports = async function compararNotasRoute(req, res) {
         // Cada doc do banco e cada nota da planilha são usados UMA única vez.
         const naoEncontradas = [];
         for (const nota of notasPlanilha) {
+            // Nota já absorvida por uma fatura consolidada (match anterior) → não reprocessa.
+            if (planilhaUsada.has(nota)) continue;
             const chave = nota.nfClean;
             if (!chave) { naoEncontradas.push({ ...nota, status: 'faltando' }); continue; }
 
@@ -733,7 +814,7 @@ module.exports = async function compararNotasRoute(req, res) {
             let melhor = null;
             for (const c of candidatos) {
                 const vOk = valorBate(c.rowB.valor, nota).ok;
-                const tOk = tipoBate(c.rowB.tipo, nota);
+                const tOk = tipoBate(c.rowB.tipo, nota, c.rowB);
                 const score = (vOk ? 2 : 0) + (tOk ? 1 : 0);
                 if (!melhor || score > melhor.score) melhor = { rowB: c.rowB, via: c.via, score };
             }
@@ -820,9 +901,11 @@ module.exports = async function compararNotasRoute(req, res) {
                     planilhaUsada.add(naPlanilha);
                     usadasBanco.add(rowB);
                     // Opção A — mês pelo vencimento: se o vencimento (extraído pela IA do
-                    // documento) cai no mês conferido, lançar a nota nesse mês está correto
-                    // mesmo com emissão de mês anterior → não marca "data-divergente".
-                    const vencNoMes = vencimentoNoMes(rowB, periodo);
+                    // documento OU do campo DT_VENCIMENTO da planilha) cai no mês conferido,
+                    // lançar a nota nesse mês está correto mesmo com emissão de mês anterior.
+                    const vencBancoNoMes     = vencimentoNoMes(rowB, periodo);
+                    const vencPlanilhaNoMes  = planilhaVencNoMes(naPlanilha, periodo);
+                    const vencNoMes          = vencBancoNoMes || vencPlanilhaNoMes;
                     const emissaoOutroMes = (naPlanilha.periodoEmissao || naPlanilha.periodo) !== periodo;
                     const outroMes = emissaoOutroMes && !vencNoMes;
                     const via = chavesBanco.length === 0 ? 'data' : 'nf-global';
@@ -830,14 +913,26 @@ module.exports = async function compararNotasRoute(req, res) {
 
                     // VALIDA VALOR e TIPO (mesma regra das encontradas do mês)
                     const vRes = valorBate(rowB.valor, naPlanilha);
-                    const valorDiverge = rowB.valor > 0 && !vRes.ok;
+                    let valorDiverge = rowB.valor > 0 && !vRes.ok;
+                    // Antes de marcar divergência: a fatura do banco pode CONSOLIDAR várias
+                    // notas do mesmo emitente (valor = soma). naPlanilha é só uma delas.
+                    if (valorDiverge && rowB.valor > naPlanilha.valor + TOL_VAL) {
+                        const grupo = acharConsolidacao(rowB.valor, rowB.emitente || naPlanilha.entidade, naPlanilha);
+                        if (grupo) {
+                            for (const p of grupo) { planilhaUsada.add(p); consolidadas.add(p); }
+                            const nfs = grupo.map(p => p.nf).filter(Boolean).join(', ');
+                            partes.push(`ℹ Fatura consolida ${grupo.length} notas (${nfs}) — soma R$${rowB.valor.toFixed(2)}`);
+                            valorDiverge = false;
+                        }
+                    }
                     if (valorDiverge) partes.push(`⚠ Valor: banco R$${rowB.valor.toFixed(2)} × planilha R$${naPlanilha.valor.toFixed(2)}`);
                     else if (vRes.ok && /^parcela \d+x$/.test(vRes.base || '')) partes.push(`ℹ Parcela ${vRes.base.match(/\d+/)[0]}x — banco R$${rowB.valor.toFixed(2)} × total planilha R$${naPlanilha.valor.toFixed(2)}`);
-                    const tipoDiverge = !tipoBate(rowB.tipo, naPlanilha);
+                    const tipoDiverge = !tipoBate(rowB.tipo, naPlanilha, rowB);
                     if (tipoDiverge) partes.push(`⚠ Tipo: banco ${rowB.tipo || '—'} × planilha ${naPlanilha.tipo || '—'}`);
                     const dataAlerta = false; // planilha não tem vencimento p/ alertar divergência de data
                     if (outroMes) partes.push(`Lançada em ${nomeMesPeriodo(periodo)}, emitida em ${naPlanilha.emissao} (${nomeMesPeriodo(naPlanilha.periodoEmissao || naPlanilha.periodo)})`);
-                    else if (emissaoOutroMes && vencNoMes) partes.push(`ℹ Vence em ${nomeMesPeriodo(periodo)} — emitida em ${naPlanilha.emissao}, vencimento ${rowB.vencimento}`);
+                    else if (emissaoOutroMes && vencBancoNoMes) partes.push(`ℹ Vence em ${nomeMesPeriodo(periodo)} — emitida em ${naPlanilha.emissao}, vencimento ${rowB.vencimento}`);
+                    else if (emissaoOutroMes && vencPlanilhaNoMes) partes.push(`ℹ Vence em ${nomeMesPeriodo(periodo)} (planilha) — emitida em ${naPlanilha.emissao}`);
                     if (via === 'data') partes.push('Casado por data+emitente (sem nº de NF)');
 
                     encontradas.push({
@@ -857,6 +952,34 @@ module.exports = async function compararNotasRoute(req, res) {
                     continue;
                 }
 
+                // Consolidação: a fatura do banco não casou por número, mas seu valor
+                // pode ser a SOMA de várias notas do mesmo emitente lançadas separadas
+                // na planilha (ex.: FT131313 R$308,32 = NF 138719+138720+138750).
+                if (rowB.emitente && rowB.valor > 0) {
+                    const grupo = acharConsolidacao(rowB.valor, rowB.emitente, null);
+                    if (grupo) {
+                        usadasBanco.add(rowB);
+                        for (const p of grupo) { planilhaUsada.add(p); consolidadas.add(p); }
+                        const nfs = grupo.map(p => p.nf).filter(Boolean).join(', ');
+                        encontradas.push({
+                            ...grupo[0],
+                            arquivo:    rowB.arquivo,
+                            pasta:      rowB.pasta,
+                            tipo:       rowB.tipo,
+                            tipoPlanilha: grupo[0].tipo,
+                            valor:      rowB.valor,           // total da fatura (= soma)
+                            valorBanco: rowB.valor,
+                            vencimentoBanco: rowB.vencimento || '—',
+                            dataAlerta: false, valorItemAlerta: false, tipoDiverge: false,
+                            divergencia: `ℹ Fatura consolida ${grupo.length} notas (${nfs}) — soma R$${rowB.valor.toFixed(2)}`,
+                            periodoPlanilha: grupo[0].periodo,
+                            matchVia:   'consolidada',
+                            status:     'ok',
+                        });
+                        continue;
+                    }
+                }
+
                 faltandoPlanilha.push({
                     nf:       rowB.nf,
                     entidade: rowB.emitente,
@@ -869,9 +992,15 @@ module.exports = async function compararNotasRoute(req, res) {
             }
         }
 
+        // Notas consumidas por consolidação na seção 6 podem já ter sido empurradas
+        // para "faltando no banco" na seção 5 — remove-as agora (a fatura as cobre).
+        const chaveNota = n => `${n.periodo}|${n.nf}|${n.entidade}`;
+        const consolidadasKeys = new Set([...consolidadas].map(chaveNota));
+        const naoEncontradasFinal = naoEncontradas.filter(n => !consolidadasKeys.has(chaveNota(n)));
+
         const valorParcialCount = encontradas.filter(n => n.status === 'valor-parcial').length;
         const divergentesCount  = encontradas.filter(n => n.status === 'divergente').length;
-        console.log(`[comparar-notas] resultado: ${encontradas.length} encontradas (${divergentesCount} divergentes), ${naoEncontradas.length} faltando no banco, ${faltandoPlanilha.length} faltando na planilha, ${tributos.length} tributos`);
+        console.log(`[comparar-notas] resultado: ${encontradas.length} encontradas (${divergentesCount} divergentes), ${naoEncontradasFinal.length} faltando no banco, ${faltandoPlanilha.length} faltando na planilha, ${tributos.length} tributos`);
 
         return res.json({
             success: true,
@@ -879,7 +1008,7 @@ module.exports = async function compararNotasRoute(req, res) {
             resumo: {
                 totalPlanilha:    notasPlanilha.length,
                 encontradas:      encontradas.length,
-                naoEncontradas:   naoEncontradas.length,
+                naoEncontradas:   naoEncontradasFinal.length,
                 divergentes:      encontradas.filter(n => n.status === 'divergente').length,
                 dataDivergente:   encontradas.filter(n => n.status === 'data-divergente').length,
                 valorParcial:     valorParcialCount,
@@ -889,7 +1018,7 @@ module.exports = async function compararNotasRoute(req, res) {
                 outroMesBanco:    encontradas.filter(n => n.periodoPlanilha && n.periodoPlanilha !== periodo).length,
            },
             encontradas,
-            naoEncontradas,
+            naoEncontradas: naoEncontradasFinal,
             faltandoPlanilha,
             tributos,
         });
