@@ -950,6 +950,30 @@ module.exports = async function compararNotasRoute(req, res) {
                     }
                 }
 
+                // Recuperação por VALOR + EMITENTE (conservadora): o match por número falhou,
+                // mas o doc pode estar na planilha sob OUTRO número — a IA extraiu o nº errado,
+                // a planilha usou outro nº de fatura, ou é uma conta recorrente lançada em outro
+                // mês (ex.: MEV NF 7190 no banco = NF 7261 na planilha; BIOS/ENERGISA/VIVO).
+                // Casa SÓ com valor + emitente compatível e marca como match fraco p/ conferir o
+                // número. Prioriza o mês conferido; depois varre a planilha inteira pelo valor.
+                let viaRecuperacao = false;
+                if (!naPlanilha && rowB.emitente && rowB.valor > 0) {
+                    // Valor EXATO (cabeçalho/soma itens/item individual) — SEM a lógica de
+                    // "parcela ÷ N", que aqui geraria falso positivo (ex.: R$100 = 20x de
+                    // R$2.000 casaria MEGA REDES com MEGA GUINDASTES). Conservador: só recupera
+                    // quando o valor bate de verdade, não como fração.
+                    const valorExato = p =>
+                        (p.valor > 0 && Math.abs(rowB.valor - p.valor) <= TOL_VAL) ||
+                        (p.valorItem > 0 && Math.abs(rowB.valor - p.valorItem) <= TOL_VAL) ||
+                        (p.itens || []).some(v => Math.abs(rowB.valor - v) <= TOL_VAL);
+                    const casaVE = p => !planilhaUsada.has(p) && p.entidade &&
+                        entidadeMatch(rowB.emitente, p.entidade) && valorExato(p);
+                    naPlanilha = (porPeriodo.get(periodo) || []).find(casaVE)
+                              || (planilhaPorVal.get(Math.round(rowB.valor * 100)) || []).find(casaVE)
+                              || null;
+                    if (naPlanilha) viaRecuperacao = true;
+                }
+
                 if (naPlanilha) {
                     planilhaUsada.add(naPlanilha);
                     usadasBanco.add(rowB);
@@ -961,7 +985,7 @@ module.exports = async function compararNotasRoute(req, res) {
                     const vencNoMes          = vencBancoNoMes || vencPlanilhaNoMes;
                     const emissaoOutroMes = (naPlanilha.periodoEmissao || naPlanilha.periodo) !== periodo;
                     const outroMes = emissaoOutroMes && !vencNoMes;
-                    const via = chavesBanco.length === 0 ? 'data' : 'nf-global';
+                    const via = viaRecuperacao ? 'valor-emitente' : (chavesBanco.length === 0 ? 'data' : 'nf-global');
                     const partes = [];
 
                     // VALIDA VALOR e TIPO (mesma regra das encontradas do mês)
@@ -987,6 +1011,7 @@ module.exports = async function compararNotasRoute(req, res) {
                     else if (emissaoOutroMes && vencBancoNoMes) partes.push(`ℹ Vence em ${nomeMesPeriodo(periodo)} — emitida em ${naPlanilha.emissao}, vencimento ${rowB.vencimento}`);
                     else if (emissaoOutroMes && vencPlanilhaNoMes) partes.push(`ℹ Vence em ${nomeMesPeriodo(periodo)} (planilha) — emitida em ${naPlanilha.emissao}`);
                     if (via === 'data') partes.push('Casado por data+emitente (sem nº de NF)');
+                    else if (via === 'valor-emitente') partes.push(`ℹ Casado por valor+emitente — conferir número (banco ${rowB.nf || '—'} × planilha ${naPlanilha.nf || '—'})`);
 
                     encontradas.push({
                         ...naPlanilha,
