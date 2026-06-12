@@ -15,7 +15,7 @@
 const { getConnection, sql } = require('../config');
 const { setFullSecurityHeaders, requireAuth } = require('./_helpers');
 
-const COLS = ['arquivo', 'pasta', 'paginas', 'conteudo', 'tipo', 'evidencia', 'origem', 'ocr_usado', 'dados_parser'];
+const COLS = ['arquivo', 'pasta', 'paginas', 'conteudo', 'tipo', 'evidencia', 'origem', 'ocr_usado', 'dados_parser', 'cnpj'];
 
 // ── helpers CSV ──────────────────────────────────────────────────────────────
 
@@ -61,6 +61,20 @@ function csvToRows(csv) {
     });
 }
 
+// Inverte a ordem de uma data pontilhada: DD.MM.YYYY ↔ YYYY.MM.DD e
+// MM.YYYY ↔ YYYY.MM. Retorna null se o formato não bater.
+function flipDateOrder(s) {
+    let m = String(s).match(/^(\d{2})\.(\d{2})\.(\d{4})$/); // DD.MM.YYYY
+    if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+    m = String(s).match(/^(\d{4})\.(\d{2})\.(\d{2})$/);     // YYYY.MM.DD
+    if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+    m = String(s).match(/^(\d{2})\.(\d{4})$/);              // MM.YYYY
+    if (m) return `${m[2]}.${m[1]}`;
+    m = String(s).match(/^(\d{4})\.(\d{2})$/);              // YYYY.MM
+    if (m) return `${m[2]}.${m[1]}`;
+    return null;
+}
+
 // ── rota ─────────────────────────────────────────────────────────────────────
 
 module.exports = async function relatorioRoute(req, res) {
@@ -74,20 +88,54 @@ module.exports = async function relatorioRoute(req, res) {
         console.error('[relatorio] 400 — body recebido:', JSON.stringify(params).slice(0, 300));
         return res.status(400).json({ error: 'Parâmetros tipo e data obrigatórios.' });
     }
+
+    const pool = await getConnection();
+
+    // tipo=dias: lista dias com registros diários num mês (data = MM.YYYY)
+    if (tipo === 'dias' && req.method === 'GET') {
+        const m = String(data).match(/^(\d{2})\.(\d{4})$/); // MM.YYYY
+        if (!m) return res.json({ dias: [] });
+        const mm = m[1], yyyy = m[2];
+        // PERIODO pode estar em DD.MM.YYYY (terminando em .MM.YYYY)
+        // ou YYYY.MM.DD (começando em YYYY.MM.). Busca ambos.
+        const result = await pool.request()
+            .input('tipo',   sql.Char(1),     'D')
+            .input('sufixo', sql.VarChar(10), `%.${mm}.${yyyy}`)   // DD.MM.YYYY
+            .input('prefixo', sql.VarChar(10), `${yyyy}.${mm}.%`)  // YYYY.MM.DD
+            .query(`SELECT PERIODO FROM nfs.RELATORIOS_CONFERENCIA
+                    WHERE TIPO = @tipo AND (PERIODO LIKE @sufixo OR PERIODO LIKE @prefixo)`);
+        const dias = [];
+        for (const r of result.recordset) {
+            const p = r.PERIODO;
+            let dm = p.match(/^(\d{2})\.\d{2}\.\d{4}$/);      // DD.MM.YYYY → dia = grupo 1
+            if (dm) { dias.push(parseInt(dm[1], 10)); continue; }
+            dm = p.match(/^\d{4}\.\d{2}\.(\d{2})$/);          // YYYY.MM.DD → dia = grupo 1
+            if (dm) dias.push(parseInt(dm[1], 10));
+        }
+        return res.json({ dias: [...new Set(dias)] });
+    }
+
     if (!['D', 'M'].includes(tipo)) {
         console.error('[relatorio] 400 — tipo inválido:', tipo);
         return res.status(400).json({ error: 'tipo deve ser D ou M.' });
     }
 
     const filename = `${tipo}-${data}.csv`;
-    const pool     = await getConnection();
 
     // ── GET ────────────────────────────────────────────────────────────────
     if (req.method === 'GET') {
-        const result = await pool.request()
+        const lookup = async periodo => pool.request()
             .input('tipo',    sql.Char(1),     tipo)
-            .input('periodo', sql.VarChar(10), data)
+            .input('periodo', sql.VarChar(10), periodo)
             .query('SELECT CONTEUDO FROM nfs.RELATORIOS_CONFERENCIA WHERE TIPO = @tipo AND PERIODO = @periodo');
+
+        let result = await lookup(data);
+        // Fallback: períodos podem ter sido salvos com a ordem de data invertida
+        // (DD.MM.YYYY ↔ YYYY.MM.DD, MM.YYYY ↔ YYYY.MM).
+        if (!result.recordset.length) {
+            const alt = flipDateOrder(data);
+            if (alt && alt !== data) result = await lookup(alt);
+        }
 
         if (!result.recordset.length) return res.json({ rows: [], filename });
 

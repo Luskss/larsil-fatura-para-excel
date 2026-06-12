@@ -76,6 +76,49 @@ async function callOpenAI(apiKey, payload) {
   }
 }
 
+/**
+ * Chama a API de Messages da Anthropic (Claude).
+ * payload deve ser no formato Anthropic: { model, max_tokens, system, messages }.
+ * Retorna { ok, httpCode, body (texto cru), error }.
+ */
+async function callAnthropic(apiKey, payload) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 280000);
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const text = await resp.text();
+    return { ok: true, httpCode: resp.status, body: text, error: '' };
+  } catch (e) {
+    return { ok: false, httpCode: 0, body: '', error: e.message || String(e) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Lê o provider de IA ativo do settings.json.
+ * Retorna 'anthropic' ou 'openai'.
+ */
+function getActiveAiProvider() {
+  try {
+    const fs   = require('fs');
+    const path = require('path');
+    const cfg  = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'settings.json'), 'utf8'));
+    return cfg.aiProvider === 'openai' ? 'openai' : 'anthropic';
+  } catch {
+    return 'anthropic';
+  }
+}
+
 /** Exige sessão autenticada; envia 401 e retorna false se não houver. */
 function requireAuth(req, res) {
   if (!req.session || !req.session.cf_loggedIn) {
@@ -92,5 +135,7 @@ module.exports = {
   setApiSecurityHeaders,
   setFullSecurityHeaders,
   callOpenAI,
+  callAnthropic,
+  getActiveAiProvider,
   requireAuth,
 };

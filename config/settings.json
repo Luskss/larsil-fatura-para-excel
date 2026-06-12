@@ -1,3 +1,4 @@
 {
-  "caminhoRelatorio": ""
+  "caminhoRelatorio": "",
+  "aiProvider": "openai"
 }

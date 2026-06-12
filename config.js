@@ -75,8 +75,8 @@ function getConnection() {
       trustServerCertificate: String(DB_TRUST_CERT).toLowerCase() === 'yes',
     },
     pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
-    requestTimeout: 30000,
-    connectionTimeout: 30000,
+    requestTimeout: 60000,
+    connectionTimeout: 60000,
   };
 
   _poolPromise = new sql.ConnectionPool(config)

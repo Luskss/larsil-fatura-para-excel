@@ -19,19 +19,36 @@ function writeConfig(data) {
 
 module.exports = async function configRoute(req, res) {
     setFullSecurityHeaders(res);
-    if (!requireAuth(req, res)) return;
 
     if (req.method === 'GET') {
+        // Leitura de config é pública (sem dados sensíveis)
         return res.json({ success: true, config: readConfig() });
     }
 
     if (req.method === 'POST') {
-        const { caminhoRelatorio } = req.body || {};
+        const { caminhoRelatorio, aiProvider } = req.body || {};
+        const current = readConfig();
+
+        // aiProvider não requer auth — é preferência de sistema sem dado sensível
+        if (aiProvider !== undefined) {
+            const p = String(aiProvider).trim().toLowerCase();
+            if (p !== 'openai' && p !== 'anthropic') {
+                return res.status(400).json({ success: false, message: 'aiProvider deve ser "openai" ou "anthropic".' });
+            }
+            current.aiProvider = p;
+            // Se só veio aiProvider, salva e retorna sem exigir auth
+            if (caminhoRelatorio === undefined) {
+                writeConfig(current);
+                return res.json({ success: true, config: current, message: 'Provedor de IA salvo.' });
+            }
+        }
+
+        // caminhoRelatorio e demais campos sensíveis exigem auth
+        if (!requireAuth(req, res)) return;
 
         if (caminhoRelatorio !== undefined) {
             const p = String(caminhoRelatorio).trim();
 
-            // Valida: deve ser caminho absoluto (Windows ou Unix)
             if (p && !path.isAbsolute(p)) {
                 return res.status(400).json({ success: false, message: 'Use um caminho absoluto (ex: C:\\Relatorios ou /home/user/relatorios).' });
             }
@@ -39,7 +56,6 @@ module.exports = async function configRoute(req, res) {
             if (p) {
                 try {
                     if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
-                    // Testa permissão de escrita
                     const probe = path.join(p, '.write-test');
                     fs.writeFileSync(probe, '');
                     fs.unlinkSync(probe);
@@ -47,11 +63,12 @@ module.exports = async function configRoute(req, res) {
                     return res.status(400).json({ success: false, message: `Caminho inacessível: ${e.message}` });
                 }
             }
+
+            current.caminhoRelatorio = p;
         }
 
-        const updated = { ...readConfig(), ...(caminhoRelatorio !== undefined ? { caminhoRelatorio: String(caminhoRelatorio).trim() } : {}) };
-        writeConfig(updated);
-        return res.json({ success: true, config: updated, message: 'Configuração salva.' });
+        writeConfig(current);
+        return res.json({ success: true, config: current, message: 'Configuração salva.' });
     }
 
     return res.status(405).json({ success: false, message: 'Método não permitido.' });

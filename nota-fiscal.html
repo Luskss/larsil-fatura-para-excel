@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -25,28 +25,36 @@
     .btn-row .btn-primary { margin-top: 0; flex: 1; }
     .btn-force-ai {
       display: flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 14px 22px; flex-shrink: 0;
-      background: linear-gradient(135deg, #1a2a5e, #3b5bdb);
-      color: #fff; border: none; border-radius: 10px;
-      font-size: .9rem; font-weight: 900; font-family: 'Montserrat', sans-serif;
-      cursor: pointer; letter-spacing: .4px; text-transform: uppercase;
-      transition: opacity .2s, transform .1s; white-space: nowrap;
-      box-shadow: 0 6px 24px rgba(59,91,219,.25);
+      padding: 12px 20px; flex-shrink: 0;
+      background: linear-gradient(135deg, #2d5e1a, #6cd47e);
+      color: #fff; border: 1px solid rgba(160,216,122,.4); border-radius: 8px;
+      font-size: .85rem; font-weight: 800; font-family: 'Montserrat', sans-serif;
+      cursor: pointer; letter-spacing: .5px; text-transform: uppercase;
+      transition: all .25s cubic-bezier(.34,.1,.68,.55); white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(108,212,126,.2), inset 0 1px 0 rgba(255,255,255,.1);
+      position: relative; overflow: hidden;
     }
-    .btn-force-ai:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
-    .btn-force-ai:not(:disabled):hover { opacity: .9; }
+    .btn-force-ai::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,.15), rgba(255,255,255,0)); opacity: 0; transition: opacity .25s; }
+    .btn-force-ai:not(:disabled):hover::before { opacity: 1; }
+    .btn-force-ai:not(:disabled):hover { background: linear-gradient(135deg, #2d5e1a, #7ee699); box-shadow: 0 6px 24px rgba(108,212,126,.35), inset 0 1px 0 rgba(255,255,255,.15); transform: translateY(-2px); }
+    .btn-force-ai:not(:disabled):active { transform: translateY(0); }
+    .btn-force-ai:disabled { opacity: .5; cursor: not-allowed; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
     .btn-resumo {
       display: flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 14px 22px; flex-shrink: 0;
-      background: linear-gradient(135deg, #5e2d1a, #c27035);
-      color: #fff; border: none; border-radius: 10px;
-      font-size: .9rem; font-weight: 900; font-family: 'Montserrat', sans-serif;
-      cursor: pointer; letter-spacing: .4px; text-transform: uppercase;
-      transition: opacity .2s, transform .1s; white-space: nowrap;
-      box-shadow: 0 6px 24px rgba(194,112,53,.25);
+      padding: 12px 20px; flex-shrink: 0;
+      background: linear-gradient(135deg, #2d5e1a, #6cd47e);
+      color: #fff; border: 1px solid rgba(160,216,122,.4); border-radius: 8px;
+      font-size: .85rem; font-weight: 800; font-family: 'Montserrat', sans-serif;
+      cursor: pointer; letter-spacing: .5px; text-transform: uppercase;
+      transition: all .25s cubic-bezier(.34,.1,.68,.55); white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(108,212,126,.2), inset 0 1px 0 rgba(255,255,255,.1);
+      position: relative; overflow: hidden;
     }
-    .btn-resumo:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
-    .btn-resumo:not(:disabled):hover { opacity: .9; }
+    .btn-resumo::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,.15), rgba(255,255,255,0)); opacity: 0; transition: opacity .25s; }
+    .btn-resumo:not(:disabled):hover::before { opacity: 1; }
+    .btn-resumo:not(:disabled):hover { background: linear-gradient(135deg, #2d5e1a, #7ee699); box-shadow: 0 6px 24px rgba(108,212,126,.35), inset 0 1px 0 rgba(255,255,255,.15); transform: translateY(-2px); }
+    .btn-resumo:not(:disabled):active { transform: translateY(0); }
+    .btn-resumo:disabled { opacity: .5; cursor: not-allowed; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
     .resumo-section { display: none; margin-top: 28px; }
     .resumo-section h3 { font-size: .95rem; color: #a0d87a; margin-bottom: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
     .resumo-card { background: rgba(255,255,255,.06); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 18px 22px; margin-bottom: 14px; }
@@ -113,6 +121,9 @@
     .col-panel-btn.sel-all { background:rgba(160,216,122,.18); color:#a0d87a; }
     .col-panel-btn.sel-none { background:rgba(255,255,255,.08); color:rgba(255,255,255,.55); }
     .col-panel-btn:hover { opacity:.8; }
+    /* Caixa de erro */
+    .error-box { display:none; margin-top:12px; padding:12px 16px; background:rgba(252,165,165,.12); border:1px solid rgba(252,165,165,.3); border-radius:8px; color:#fca5a5; font-size:.85rem; line-height:1.5; animation:slideDown .3s ease-out; }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
   </style>
 </head>
   <body>
@@ -157,13 +168,6 @@
 </script>
 
 <main class="max-w-[1000px] mx-auto mt-4 px-4 relative z-10">
-  <div class="flex justify-end mb-2">
-    <button id="btnUsarLocalmente"
-            class="text-[.85rem] px-3.5 py-1.5 rounded-lg cursor-pointer font-sans transition-colors"
-            style="background:rgba(255,255,255,.08);color:rgba(255,255,255,.65);border:1px solid rgba(255,255,255,.15);">
-      Usar localmente
-    </button>
-  </div>
   <h2 class="section-title">Conversor de Nota Fiscal em Excel</h2>
   <p class="section-subtitle">Extrai dados de NF-e, NFS-e e notas de papel (itens, impostos, emitente, destinatário) e exporta para Excel usando IA.</p>
 
@@ -189,16 +193,6 @@
   <div class="options-card">
     <h3 class="text-[.9rem] font-bold uppercase tracking-[.4px] mb-4 text-accent-text">Opções de exportação</h3>
     <div class="flex gap-4 flex-wrap">
-      <div class="opt-group mb-3.5">
-        <label>Tipo de extração</label>
-        <div id="nfModeToggle" style="display:inline-flex;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.15);margin-top:2px">
-          <button type="button" class="nf-toggle-btn active" data-mode="local" style="padding:8px 16px;font-size:.82rem;font-family:inherit;cursor:pointer;border:none;transition:all .18s;background:rgba(77,181,94,.22);color:#a0d87a;font-weight:600">Sem IA</button>
-          <button type="button" class="nf-toggle-btn" data-mode="resumo" style="padding:8px 16px;font-size:.82rem;font-family:inherit;cursor:pointer;border:none;border-left:1px solid rgba(255,255,255,.1);transition:all .18s;background:rgba(255,255,255,.05);color:rgba(255,255,255,.55)">Resumo simples</button>
-          <button type="button" class="nf-toggle-btn" data-mode="detalhado" style="padding:8px 16px;font-size:.82rem;font-family:inherit;cursor:pointer;border:none;border-left:1px solid rgba(255,255,255,.1);transition:all .18s;background:rgba(255,255,255,.05);color:rgba(255,255,255,.55)">Resumo detalhado</button>
-        </div>
-        <div id="nfModeHint" style="font-size:.74rem;color:rgba(255,255,255,.35);margin-top:5px">Parser local — instantâneo e sem custo.</div>
-        <input type="hidden" id="nfMode" value="local">
-      </div>
       <div class="opt-group" style="min-width:200px">
         <label>Nome do arquivo Excel</label>
         <input type="text" id="outFileName" class="glass-input" value="notas-fiscais" placeholder="notas-fiscais" />
@@ -218,6 +212,17 @@
       <div class="spinner" id="spinnerProcessar" style="display:none"></div>
     </button>
 
+    <button class="btn-force-ai" id="btnForceIA" disabled title="Reprocessar todos os arquivos com IA, ignorando parser local">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2v20M2 12h20"/>
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v12M6 12h12" opacity="0.5"/>
+      </svg>
+      <span id="btnForceIALabel">Enviar para IA</span>
+      <div class="spinner" id="spinnerForceIA" style="display:none"></div>
+    </button>
+
     <div class="col-panel-wrap">
       <button class="btn-col-toggle" id="btnColToggle" title="Escolher colunas da tabela">
         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -229,6 +234,7 @@
       <div class="col-panel" id="colPanel">
         <div class="col-panel-title">Colunas a importar</div>
         <div class="col-check-list">
+          <label class="col-check-item"><input type="checkbox" class="col-check" data-col="arquivo"         ><span>Arquivo</span></label>
           <label class="col-check-item"><input type="checkbox" class="col-check" data-col="nf"      checked><span>Nº NF</span></label>
           <label class="col-check-item"><input type="checkbox" class="col-check" data-col="data"    checked><span>Data</span></label>
           <label class="col-check-item"><input type="checkbox" class="col-check" data-col="emit"    checked><span>Remetente</span></label>
@@ -238,7 +244,11 @@
           <label class="col-check-item"><input type="checkbox" class="col-check" data-col="item"    checked><span>Item e Quantidades</span></label>
           <label class="col-check-item"><input type="checkbox" class="col-check" data-col="vlrUnit" checked><span>Valor Unitário</span></label>
           <label class="col-check-item"><input type="checkbox" class="col-check" data-col="vlrNota" checked><span>Valor da Nota</span></label>
-          <label class="col-check-item"><input type="checkbox" class="col-check" data-col="imp"     checked><span>Impostos</span></label>
+          <label class="col-check-item"><input type="checkbox" class="col-check" data-col="icms"   checked><span>ICMS</span></label>
+          <label class="col-check-item"><input type="checkbox" class="col-check" data-col="iss"    checked><span>ISS</span></label>
+          <label class="col-check-item"><input type="checkbox" class="col-check" data-col="pis"    checked><span>PIS</span></label>
+          <label class="col-check-item"><input type="checkbox" class="col-check" data-col="cofins" checked><span>COFINS</span></label>
+          <label class="col-check-item"><input type="checkbox" class="col-check" data-col="ipi"    checked><span>IPI</span></label>
         </div>
         <div class="col-panel-actions">
           <button class="col-panel-btn sel-all" id="colSelAll">Marcar todos</button>
@@ -248,7 +258,7 @@
     </div>
   </div>
   <div class="resumo-section" id="resumoDetalhadoSection" style="display:none;">
-    <h3>Resumo detalhado (IA)</h3>
+    <h3>Notas fiscais extraídas</h3>
     <div id="resumoDetalhadoList"></div>
     <div class="export-actions">
       <button class="btn-export" id="btnExportResumoDetalhado">
@@ -345,8 +355,12 @@
 
   document.getElementById('btnExportResumoDetalhado').addEventListener('click', function() {
     if (!resumoDetalhadoWorkbook) return;
-    var base = outFileName.value.trim() || 'notas-fiscais';
-    XLSX.writeFile(resumoDetalhadoWorkbook, base + '-detalhado.xlsx');
+    try {
+      var base = outFileName.value.trim() || 'notas-fiscais';
+      XLSX.writeFile(resumoDetalhadoWorkbook, base + '-detalhado.xlsx');
+    } catch (err) {
+      showError('Erro ao exportar Excel: ' + err.message);
+    }
   });
 </script>
 
@@ -443,6 +457,9 @@
   const btnProcessar  = document.getElementById('btnProcessar');
   const btnProcessarLabel = document.getElementById('btnProcessarLabel');
   const spinnerProcessar = document.getElementById('spinnerProcessar');
+  const btnForceIA = document.getElementById('btnForceIA');
+  const btnForceIALabel = document.getElementById('btnForceIALabel');
+  const spinnerForceIA = document.getElementById('spinnerForceIA');
   // aliases legados para compatibilidade com código abaixo
   const btnResumo = btnProcessar;
   const btnResumoDetalhado = btnProcessar;
@@ -452,26 +469,6 @@
   const resumoList    = document.getElementById('resumoList');
   const btnExportResumo = document.getElementById('btnExportResumo');
 
-  // ── Toggle de modo ────────────────────────────────────────────────────────
-  const nfModeHints = {
-    local:     'Parser local — instantâneo e sem custo. IA não é usada.',
-    resumo:    'IA extrai: nº, data, emissor, destinatário e itens.',
-    detalhado: 'IA extrai todos os campos incluindo impostos e chave de acesso.',
-  };
-  document.getElementById('nfModeToggle').addEventListener('click', e => {
-    const btn = e.target.closest('.nf-toggle-btn');
-    if (!btn) return;
-    document.querySelectorAll('.nf-toggle-btn').forEach(b => {
-      b.style.background = 'rgba(255,255,255,.05)';
-      b.style.color = 'rgba(255,255,255,.55)';
-      b.style.fontWeight = '';
-    });
-    btn.style.background = 'rgba(77,181,94,.22)';
-    btn.style.color = '#a0d87a';
-    btn.style.fontWeight = '600';
-    document.getElementById('nfMode').value = btn.dataset.mode;
-    document.getElementById('nfModeHint').textContent = nfModeHints[btn.dataset.mode] || '';
-  });
   const progressWrap  = document.getElementById('progressWrap');
   const progressFill  = document.getElementById('progressFill');
   const progressText  = document.getElementById('progressText');
@@ -504,11 +501,25 @@
       btnColToggle.classList.remove('active');
     }
   });
+  var _lastNotas = null;
+
+  function refreshTableIfVisible() {
+    if (_lastNotas && resultSection.style.display !== 'none') {
+      renderPreview(_lastNotas);
+      workbook = buildWorkbook(_lastNotas);
+    }
+  }
+
   document.getElementById('colSelAll').addEventListener('click', function() {
     document.querySelectorAll('.col-check').forEach(function(c) { c.checked = true; });
+    refreshTableIfVisible();
   });
   document.getElementById('colSelNone').addEventListener('click', function() {
     document.querySelectorAll('.col-check').forEach(function(c) { c.checked = false; });
+    refreshTableIfVisible();
+  });
+  document.getElementById('colPanel').addEventListener('change', function(e) {
+    if (e.target.classList.contains('col-check')) refreshTableIfVisible();
   });
 
   function getActiveCols() {
@@ -603,6 +614,7 @@
     else hideError();
     renderFileList();
     btnProcessar.disabled = selectedFiles.length === 0;
+    btnForceIA.disabled = selectedFiles.length === 0;
   }
 
   function renderFileList() {
@@ -636,12 +648,14 @@
     });
   }
 
-  // ── Botão único "Processar" — despacha conforme o toggle ─────────────────────────
+  // ── Botão único "Processar" ───────────────────────────────────────────────
     btnProcessar.addEventListener('click', async function() {
-      const nfMode = document.getElementById('nfMode').value || 'local';
-      if (nfMode === 'resumo')    { btnResumo_handler(); return; }
-      if (nfMode === 'detalhado') { btnResumoDetalhado_handler(); return; }
-      btnLocal_handler();
+      btnResumoDetalhado_handler();
+    });
+
+    // ── Botão "Enviar para IA" ───────────────────────────────────────────────
+    document.getElementById('btnForceIA').addEventListener('click', async function() {
+      btnForceIA_handler();
     });
 
     // Helper: extrai nome da fazenda do endereço do destinatário
@@ -656,78 +670,93 @@
       return nota;
     }
 
-    async function btnResumoDetalhado_handler() {
-      console.log('[btnResumoDetalhado] Clicado', { filesCount: selectedFiles.length });
-      if (!selectedFiles.length) {
-        console.warn('[btnResumoDetalhado] Nenhum arquivo selecionado');
-        return;
+    async function processOneFile(file) {
+      var rawText = await extractTextFromPDF(file);
+      var isSemTexto = !rawText.trim();
+      var notas = [];
+      var usouIA = false;
+
+      if (!isSemTexto) {
+        var localResult = parseNFLocal(rawText, file.name);
+        if (localResult) {
+          notas = (localResult.notas || [localResult]).map(function(n) {
+            n._arquivo = file.name;
+            n._parser  = n._parser || 'local';
+            return n;
+          });
+        }
       }
+
+      if (!notas.length) {
+        usouIA = true;
+        var textParaIA = isSemTexto
+          ? '(PDF SEM TEXTO SELECIONÁVEL — use a(s) imagem(ns) anexa(s) para extrair os dados.)'
+          : rawText;
+        var imagesParaIA = [];
+        if (isSemTexto) {
+          imagesParaIA = await renderPDFToImages(file);
+        }
+        var result = await callDetalhadoAI(file.name, textParaIA, imagesParaIA);
+        notas = result.notas || [];
+      }
+
+      notas.forEach(function(n) {
+        n._arquivo = file.name;
+        n._usouIA = usouIA;
+        enrichFazendaFromAddress(n);
+      });
+
+      return { notas: notas, rawText: rawText };
+    }
+
+    async function btnResumoDetalhado_handler() {
+      if (!selectedFiles.length) return;
+
       _debugIAResponses = [];
-      setLoadingResumoDetalhado(true); hideError();
-      console.log('[btnResumoDetalhado] setLoadingResumoDetalhado(true) executado');
+      setLoadingResumoDetalhado(true);
+      hideError();
+
+      resultSection.style.display = 'none';
+      resumoDetalhadoSection.style.display = 'none';
+      resumoDetalhadoList.innerHTML = '';
+
+      var total = selectedFiles.length;
+      var _debugEntries = [];
       var allDetalhados = [];
+      var done = 0;
+      var nextIdx = 0;
+
+      // Número de workers paralelos: 1 para poucos arquivos, até 4 para muitos
+      var PARALLEL_THRESHOLD = 3;
+      var parallel = total > PARALLEL_THRESHOLD
+        ? Math.min(Math.max(navigator.hardwareConcurrency || 4, 2), 4)
+        : 1;
+      var modoMsg = parallel > 1 ? ' · ' + parallel + ' em paralelo' : '';
+
+      setProgress(0, 'Processando ' + total + ' arquivo(s)' + modoMsg + '...');
 
       try {
-        console.log('[btnResumoDetalhado] Limpando seções...');
-        resultSection.style.display = 'none';
-        resumoDetalhadoSection.style.display = 'none';
-        resumoDetalhadoList.innerHTML = '';
-        console.log('[btnResumoDetalhado] Seções limpas');
-
-        var total = selectedFiles.length;
-        console.log('[btnResumoDetalhado] Total de arquivos:', total);
-        var _debugEntries = [];
-        for (var i = 0; i < total; i++) {
-          var file = selectedFiles[i];
-          console.log('[btnResumoDetalhado] Processando arquivo', i + 1, '/', total, file.name);
-          setProgress(Math.round((i / total) * 30), 'Extraindo texto do arquivo ' + (i + 1) + '/' + total + '...');
-          console.log('[btnResumoDetalhado] setProgress chamado, extraindo texto...');
-          var rawText = await extractTextFromPDF(file);
-          _debugEntries.push({ name: file.name, text: rawText });
-          console.log('[btnResumoDetalhado] Texto extraído, comprimento:', rawText.length);
-
-          var nfMode = (document.getElementById('nfMode') || {}).value || 'auto';
-          var isSemTexto = !rawText.trim();
-          var notas = [];
-
-          // Tenta parser local se modo auto e PDF tem texto
-          if (nfMode === 'auto' && !isSemTexto) {
-            var localParsed = parseNFLocal(rawText, file.name);
-            if (localParsed) {
-              localParsed._arquivo = file.name;
-              localParsed._parser = localParsed._parser || 'local';
-              notas = [localParsed];
-              setProgress(Math.round(30 + ((i + 1) / total) * 70), 'Arquivo ' + (i + 1) + '/' + total + ' - extraído localmente.');
+        async function worker() {
+          while (true) {
+            var pos = nextIdx++;
+            if (pos >= total) return;
+            var file = selectedFiles[pos];
+            try {
+              var res = await processOneFile(file);
+              _debugEntries.push({ name: file.name, text: res.rawText });
+              res.notas.forEach(function(n) { allDetalhados.push(n); });
+            } catch (fileErr) {
+              console.error('[nf] Erro em ' + file.name + ':', fileErr);
+              _debugEntries.push({ name: file.name, text: '[ERRO: ' + fileErr.message + ']' });
             }
-          }
-
-          // Cai na IA se parser local não achou nada ou modo sempre-IA
-          if (!notas.length) {
-            var textParaIA = isSemTexto
-              ? '(PDF SEM TEXTO SELECIONÁVEL — use a(s) imagem(ns) anexa(s) para extrair os dados.)'
-              : rawText;
-            var imagesParaIA = [];
-            if (isSemTexto) {
-              showToast('Nota é uma imagem — renderizando páginas e enviando para IA Vision...');
-              setProgress(Math.round(30 + (i / total) * 50), 'Arquivo ' + (i + 1) + '/' + total + ' - renderizando imagens...');
-              try {
-                imagesParaIA = await renderPDFToImages(file);
-              } catch (renderErr) {
-                hideToast();
-                throw new Error('Falha ao renderizar PDF imagem: ' + (renderErr && renderErr.message ? renderErr.message : renderErr));
-              }
-            }
-            setProgress(Math.round(30 + (i / total) * 60), 'Arquivo ' + (i + 1) + '/' + total + ' - resumo detalhado via IA...');
-            var result = await callDetalhadoAI(file.name, textParaIA, imagesParaIA);
-            if (isSemTexto) hideToast();
-            notas = result.notas || [];
-          }
-          for (var j = 0; j < notas.length; j++) {
-            notas[j]._arquivo = file.name;
-            enrichFazendaFromAddress(notas[j]);
-            allDetalhados.push(notas[j]);
+            done++;
+            setProgress(Math.round((done / total) * 100), 'Analisados ' + done + '/' + total + modoMsg);
           }
         }
+
+        var workers = [];
+        for (var w = 0; w < parallel; w++) workers.push(worker());
+        await Promise.all(workers);
 
         if (allDetalhados.length === 0) {
           showError('Nenhuma nota fiscal reconhecida nos PDFs.');
@@ -737,14 +766,15 @@
 
         showDebugRaw(_debugEntries);
         if (_debugIAResponses.length > 0) showDebugIAResponse(_debugIAResponses);
-        renderResumoDetalhado(allDetalhados);
-        resumoDetalhadoWorkbook = buildResumoDetalhadoWorkbook(allDetalhados);
-        resumoDetalhadoSection.style.display = 'block';
-        setProgress(100, 'Concluido!');
+        _lastNotas = allDetalhados;
+        renderPreview(allDetalhados);
+        renderSummaryChips(allDetalhados);
+        workbook = buildWorkbook(allDetalhados);
+        resultSection.style.display = 'block';
+        setProgress(100, 'Concluído: ' + allDetalhados.length + ' nota(s) em ' + total + ' arquivo(s).');
       } catch (err) {
-        console.error('[btnResumoDetalhado] ERRO CAPTURADO:', err);
-        console.error('[btnResumoDetalhado] Stack:', err.stack);
-        showError('Erro ao processar resumo detalhado: ' + err.message);
+        console.error('[nf] ERRO:', err);
+        showError('Erro ao processar notas: ' + err.message);
       }
 
       setLoadingResumoDetalhado(false);
@@ -858,6 +888,96 @@ function renderResumoDetalhado(notas) {
     }
     function setLoadingResumoDetalhado(on) { setLoadingProcessar(on); }
     function setLoadingResumo(on) { setLoadingProcessar(on); }
+
+    async function btnForceIA_handler() {
+      if (!selectedFiles.length) return;
+      _debugIAResponses = [];
+      btnForceIA.disabled = true;
+      spinnerForceIA.style.display = 'block';
+      btnForceIALabel.textContent = 'Enviando para IA...';
+      hideError();
+      resultSection.style.display = 'none';
+      resumoDetalhadoSection.style.display = 'none';
+      resumoDetalhadoList.innerHTML = '';
+
+      var total = selectedFiles.length;
+      var _debugEntries = [];
+      var allDetalhados = [];
+      var done = 0;
+      var nextIdx = 0;
+
+      var PARALLEL_THRESHOLD = 3;
+      var parallel = total > PARALLEL_THRESHOLD
+        ? Math.min(Math.max(navigator.hardwareConcurrency || 4, 2), 4)
+        : 1;
+      var modoMsg = parallel > 1 ? ' · ' + parallel + ' em paralelo' : '';
+
+      setProgress(0, 'Processando com IA ' + total + ' arquivo(s)' + modoMsg + '...');
+
+      try {
+        async function worker() {
+          while (true) {
+            var pos = nextIdx++;
+            if (pos >= total) return;
+            var file = selectedFiles[pos];
+            try {
+              var rawText = await extractTextFromPDF(file);
+              var isSemTexto = !rawText.trim();
+              var textParaIA = isSemTexto
+                ? '(PDF SEM TEXTO SELECIONÁVEL — use a(s) imagem(ns) anexa(s) para extrair os dados.)'
+                : rawText;
+              var imagesParaIA = [];
+              if (isSemTexto) {
+                imagesParaIA = await renderPDFToImages(file);
+              }
+              var result = await callDetalhadoAI(file.name, textParaIA, imagesParaIA);
+              var notas = result.notas || [];
+              notas.forEach(function(n) {
+                n._arquivo = file.name;
+                n._usouIA = true;
+                enrichFazendaFromAddress(n);
+                allDetalhados.push(n);
+              });
+              _debugEntries.push({ name: file.name, text: rawText });
+            } catch (fileErr) {
+              console.error('[forceIA] Erro em ' + file.name + ':', fileErr);
+              _debugEntries.push({ name: file.name, text: '[ERRO IA: ' + fileErr.message + ']' });
+            }
+            done++;
+            setProgress(Math.round((done / total) * 100), 'Processados ' + done + '/' + total + ' com IA' + modoMsg);
+          }
+        }
+
+        var workers = [];
+        for (var w = 0; w < parallel; w++) workers.push(worker());
+        await Promise.all(workers);
+
+        if (allDetalhados.length === 0) {
+          showError('Nenhuma nota fiscal extraída pela IA nos PDFs.');
+          btnForceIA.disabled = false;
+          spinnerForceIA.style.display = 'none';
+          btnForceIALabel.textContent = 'Enviar para IA';
+          return;
+        }
+
+        showDebugRaw(_debugEntries);
+        if (_debugIAResponses.length > 0) showDebugIAResponse(_debugIAResponses);
+        _lastNotas = allDetalhados;
+        renderPreview(allDetalhados);
+        renderSummaryChips(allDetalhados);
+        workbook = buildWorkbook(allDetalhados);
+        resultSection.style.display = 'block';
+        setProgress(100, 'Concluído: ' + allDetalhados.length + ' nota(s) processadas com IA.');
+      } catch (err) {
+        console.error('[forceIA] ERRO:', err);
+        showError('Erro ao processar com IA: ' + err.message);
+      }
+
+      btnForceIA.disabled = false;
+      spinnerForceIA.style.display = 'none';
+      btnForceIALabel.textContent = 'Enviar para IA';
+    }
+
   // ── Handler: Resumo simples (IA) ─────────────────────────────────────────
   async function btnResumo_handler() {
     console.log('[btnResumo] Clicado', { filesCount: selectedFiles.length });
@@ -889,12 +1009,11 @@ function renderResumoDetalhado(notas) {
         _debugEntries.push({ name: file.name, text: rawText });
         console.log('[btnResumo] Texto extraído, comprimento:', rawText.length);
 
-        var nfMode = (document.getElementById('nfMode') || {}).value || 'auto';
         var isSemTexto = !rawText.trim();
         var notas = [];
 
-        // Tenta parser local se modo auto e PDF tem texto
-        if (nfMode === 'auto' && !isSemTexto) {
+        // Tenta parser local primeiro se PDF tem texto
+        if (!isSemTexto) {
           var localParsed = parseNFLocal(rawText, file.name);
           if (localParsed) {
             localParsed._arquivo = file.name;
@@ -1024,6 +1143,7 @@ function renderResumoDetalhado(notas) {
       if (!allNotas.length) { showDebugRaw(_debugEntries); if (_debugIAResponses.length > 0) showDebugIAResponse(_debugIAResponses); showError('Nenhuma nota reconhecida (local ou IA).'); setLoadingProcessar(false); return; }
       showDebugRaw(_debugEntries);
       if (_debugIAResponses.length > 0) showDebugIAResponse(_debugIAResponses);
+      _lastNotas = allNotas;
       renderPreview(allNotas);
       renderSummaryChips(allNotas);
       workbook = buildWorkbook(allNotas);
@@ -1117,12 +1237,12 @@ function renderResumoDetalhado(notas) {
     };
 
     // ── Número (“Nº: 166966” ou “Nº 166966”) ──
-    var mNum = txt.match(/N[\u00b0º]\s*:\s*(\d+)/i) || txt.match(/N[\u00b0º]\s+(\d+)\b/i);
-    var numero = mNum ? mNum[1] : '';
+    var mNum = txt.match(/N[\u00b0\u00bao]\s*:\s*([\d.]+)/i) || txt.match(/N[\u00b0\u00ba]\s+([\d.]+)\b/i);
+    var numero = mNum ? mNum[1].replace(/\.(?=\d)/g, '') : '';
     if (!numero) return null;
 
     // ── Série (“SÉRIE: 5”) ──
-    var mSerie = txt.match(/S[\u00c9E]RIE:\s*(\d+)/i) || txt.match(/S[e\u00e9]rie:\s*(\d+)/i);
+    var mSerie = txt.match(/S[\u00c9E]RIE:?\s*(\d+)/i) || txt.match(/S[e\u00e9]rie:?\s*(\d+)/i);
     var serie = mSerie ? mSerie[1] : '';
 
     // ── Data (“Emissão: DD/MM/AAAA”) ──
@@ -1130,10 +1250,10 @@ function renderResumoDetalhado(notas) {
              || txt.match(/DATA DE EMISS[A\u00c3]O\D{1,40}?(\d{2}\/\d{2}\/\d{4})/i);
     var dataEmissao = mData ? mData[1] : '';
 
-    // ── Emitente (“Recebemos de EMPRESA os produtos”) ──
+    // ── Emitente ("Recebemos de EMPRESA os produtos" | com CNPJ embutido) ──
     var razaoEmit = '';
-    var mEmit = txt.match(/Recebemos de\s+(.+?)\s+os produtos/i);
-    if (mEmit) razaoEmit = mEmit[1].trim();
+    var mEmit = txt.match(/Recebemos de\s+(.+?)\s+(?:os produtos|OS PRODUTOS)/i);
+    if (mEmit) razaoEmit = mEmit[1].replace(/,?\s*CNPJ\b.*$/i, '').replace(/,?\s*CPF\b.*$/i, '').trim();
 
     // ── CNPJ Emitente (primeiro XX.XXX.XXX/XXXX-XX do documento) ──
     var cnpjEmit = '';
@@ -1191,10 +1311,24 @@ function renderResumoDetalhado(notas) {
        }
      }
 
-    // ── Fazenda (do endereço do destinatário) ──
+    // ── Endereco do destinatario + Fazenda (apos cabecalho ENDERECO BAIRRO/DISTRITO) ──
+    var enderecoDest = '';
+    var mEndBloco = txt.match(/ENDERE[ÇC]O\s+BAIRRO[^\n]*\n([\s\S]{0,300}?)(?:MUNIC[ÍI]PIO|\n\n)/i);
+    if (mEndBloco) {
+      var endLines = mEndBloco[1].split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+      for (var ei2 = 0; ei2 < endLines.length; ei2++) {
+        var el = endLines[ei2];
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(el)) continue;
+        if (/^\d{2}:\d{2}/.test(el)) continue;
+        if (el.length < 5) continue;
+        enderecoDest = el.replace(/\s+/g, ' ').trim();
+        break;
+      }
+    }
+    // Fazenda: nome do imovel rural (inclui abreviacao FAZ)
     var fazenda = '';
-    var mFaz = txt.match(
-      /\b(SITIO|FAZENDA|RANCHO|EST[\u00c2A]NCIA|CHACARA)\s+([A-Z\u00c0-\u00da][A-Z\u00c0-\u00fa\s]{1,50}?)(?:\s*[-,]|\s*\n)/i
+    var mFaz = (enderecoDest || txt).match(
+      /\b(SITIO|S[ÍI]TIO|FAZENDA|FAZ|RANCHO|EST[ÂA]NCIA|CH[ÁA]CARA|CHACARA)\s+([A-ZÀ-Ú][A-ZÀ-ú\s]{1,50}?)(?:\s*[-,]|\s*\n|\s*\$)/i
     );
     if (mFaz) fazenda = (mFaz[1] + ' ' + mFaz[2]).trim().replace(/\s+/g, ' ');
 
@@ -1211,12 +1345,22 @@ function renderResumoDetalhado(notas) {
     var mTNF = afterTNF.match(/\b(\d{1,3}(?:\.\d{3})+,\d{2})\b/);
     if (mTNF) totalNF = parseMoney(mTNF[1]);
 
-    // ── Impostos (‘VALOR DO ICMS’ → linha seguinte → primeiro valor) ──
-    var icms = 0;
-    var mICMSLine = txt.match(/VALOR DO ICMS\s*\n([^\n]+)/i);
-    if (mICMSLine) {
-      var icmsVals = mICMSLine[1].match(/\d{1,3}(?:\.\d{3})*,\d{2}/g);
-      if (icmsVals) icms = parseMoney(icmsVals[0]);
+    // ── Impostos (layout DANFE em colunas: cabecalho + linha de valores) ──
+    var icms = 0, pis = 0, cofins = 0, ipi = 0, iss = 0;
+    // Bloco 1: 'BASE DE CALCULO DO ICMS | VALOR DO ICMS | BC ST | VALOR ST | VALOR TOTAL PRODUTOS'
+    var mICMSh = txt.match(/BASE DE C[ÁA]LCULO DO ICMS\b[^\n]*\n([^\n]+)/i);
+    if (mICMSh) {
+      var icmsVals = mICMSh[1].match(/\d{1,3}(?:\.\d{3})*,\d{2}/g);
+      if (icmsVals && icmsVals.length >= 2) icms = parseMoney(icmsVals[1]);
+    }
+    // Bloco 2 (PIS/COFINS): cabecalho 'VALOR DO II | ICMS UF REMET | VALOR DO PIS | VALOR DO COFINS | VALOR TOTAL TRIB | ...'
+    // A linha de valores so e confiavel quando tem >=5 numeros (colunas completas):
+    // index 2 = PIS, index 3 = COFINS, index 4 = total tributos. Com menos numeros o
+    // layout colapsou colunas vazias e as posicoes nao sao mais confiaveis (deixa 0).
+    var mPCh = txt.match(/VALOR DO PIS\s+VALOR DO COFINS[^\n]*\n(?:[^\n]*\n)?([^\n]+)/i);
+    if (mPCh) {
+      var pcVals = mPCh[1].match(/\d{1,3}(?:\.\d{3})*,\d{2}/g);
+      if (pcVals && pcVals.length >= 5) { pis = parseMoney(pcVals[2]); cofins = parseMoney(pcVals[3]); }
     }
 
     // ── Itens (entre DADOS DOS PRODUTOS e DADOS ADICIONAIS) ──
@@ -1263,7 +1407,7 @@ function renderResumoDetalhado(notas) {
 
       // Helper para extrair descrição da própria linha de dados (entre código e NCM)
       var stripCode = function(s) {
-        return s.replace(/^(?:[A-Z]{2,5}\d+|[A-Z0-9]+-\d+|\d{4,})\s*/, '').trim();
+        return s.replace(/^(?:[A-Z]{2,5}\d+|[A-Z0-9]+-\d+|\d+(?:\.\d+){2,}|\d{4,})\s*/, '').trim();
       };
       var cleanDesc = function(s) {
         return s
@@ -1274,7 +1418,11 @@ function renderResumoDetalhado(notas) {
           .replace(/\s*GRUBO\s+EMB[\s\S]*$/i, '')
           .replace(/\s*Al[ií]quota\s+Zero[\s\S]*$/i, '')
           .replace(/\s*art\.?\s*\d+[ºo]?\s+da\s+Lei[\s\S]*$/i, '')
-          .replace(/\s*[-\u2013]\s*(?:null|undefined|n\/a)\s*$/i, '')
+          // Layout COCARI: 'Trigo Graos PH: 79 - Valor' / linha 'Saca: 73,00' sao ruido
+          .replace(/\s*PH:\s*\d+[\s\S]*$/i, '')
+          .replace(/\s*[-–]\s*Valor\b[\s\S]*$/i, '')
+          .replace(/^\s*Saca:\s*[\d.,]+\s*$/i, '')
+          .replace(/\s*[-–]?\s*(?:null|undefined|n\/a)(?=\s|$)/ig, '')
           .replace(/\s+/g, ' ')
           .trim();
       };
@@ -1283,13 +1431,14 @@ function renderResumoDetalhado(notas) {
       //  (a) descrição na própria linha (entre código e NCM)
       //  (b) próximas linhas de texto (concatena, limpa, aceita só se sobrar conteúdo)
       //  (c) linhas de texto anteriores (idem)
-      var tryGather = function(direction) {
+      var tryGather = function(direction, maxLines) {
         var collected = [], idxs = [];
         for (var k = ei + direction; k >= 0 && k < entries.length && entries[k].type !== 'data'; k += direction) {
           if (entries[k].type === 'text' && !entries[k]._used) {
             if (direction > 0) collected.push(entries[k].line);
             else collected.unshift(entries[k].line);
             idxs.push(k);
+            if (maxLines && collected.length >= maxLines) break;
           }
         }
         return { desc: cleanDesc(collected.join(' ').replace(/\s+/g, ' ')), idxs: idxs };
@@ -1306,17 +1455,24 @@ function renderResumoDetalhado(notas) {
         if (rawDesc && /^\d+(?:[.,]\d+)?$/.test(rawDesc)) rawDesc = '';
         rawDesc = cleanDesc(rawDesc);
 
-        // (b) Próximas linhas (forward) — ex.: AGRO TRINDADE com desc após cada data
+        // (b) Próximas linhas (forward) — ex.: AGRO TRINDADE / E-Vino com desc após cada data
         if (!rawDesc) {
-          var fwd = tryGather(1);
+          var fwd = tryGather(1, 1);
           if (fwd.desc) {
             rawDesc = fwd.desc;
             fwd.idxs.forEach(function(i) { entries[i]._used = true; });
+            // E-Vino: descrição às vezes quebra em 2 — a continuação fica na linha
+            // de texto órfã imediatamente ANTES desta data. Prefixa se houver.
+            var prev = entries[ei - 1];
+            if (prev && prev.type === 'text' && !prev._used) {
+              var prevClean = cleanDesc(prev.line);
+              if (prevClean) { rawDesc = (prevClean + ' ' + rawDesc).replace(/\s+/g, ' ').trim(); prev._used = true; }
+            }
           }
         }
         // (c) Linhas anteriores (backward) — ex.: COCARI com desc multilinha antes do data
         if (!rawDesc) {
-          var bwd = tryGather(-1);
+          var bwd = tryGather(-1, 1);
           if (bwd.desc) {
             rawDesc = bwd.desc;
             bwd.idxs.forEach(function(i) { entries[i]._used = true; });
@@ -1375,9 +1531,9 @@ function renderResumoDetalhado(notas) {
         chaveAcesso:   '',
         fazenda:       fazenda,
         emitente:      { razaoSocial: razaoEmit,  cnpj: cnpjEmit },
-        destinatario:  { razaoSocial: razaoDest,  cnpj: cpfCnpjDest },
+        destinatario:  { razaoSocial: razaoDest,  cnpj: cpfCnpjDest, endereco: enderecoDest },
         itens:         itens,
-        impostos:      { icms: icms, iss: 0, pis: 0, cofins: 0, ipi: 0 },
+        impostos:      { icms: icms, iss: iss, pis: pis, cofins: cofins, ipi: ipi },
         totalProdutos: totalProdutos,
         totalNF:       totalNF || totalProdutos,
         _parser:       'DANFE-local',
@@ -1932,6 +2088,7 @@ function renderResumoDetalhado(notas) {
   function renderPreview(notas) {
     var cols = getActiveCols();
     var colDefs = [
+      { key: 'arquivo', label: 'Arquivo' },
       { key: 'nf',      label: 'Nº NF' },
       { key: 'data',    label: 'Data' },
       { key: 'emit',    label: 'Remetente' },
@@ -1942,7 +2099,11 @@ function renderResumoDetalhado(notas) {
       { key: 'item',    label: 'Qtd',   sub: 'qtd' },
       { key: 'vlrUnit', label: 'Vlr Unit.' },
       { key: 'vlrNota', label: 'Vlr Total' },
-      { key: 'imp',     label: 'Impostos' },
+      { key: 'icms',   label: 'ICMS' },
+      { key: 'iss',    label: 'ISS' },
+      { key: 'pis',    label: 'PIS' },
+      { key: 'cofins', label: 'COFINS' },
+      { key: 'ipi',    label: 'IPI' },
     ];
     var activeDefs = colDefs.filter(function(d) { return cols[d.key] !== false; });
 
@@ -1953,6 +2114,7 @@ function renderResumoDetalhado(notas) {
     tbodyItens.innerHTML = '';
     for (var ni = 0; ni < notas.length; ni++) {
       var nota  = notas[ni];
+      var arq   = nota._arquivo    || '-';
       var nf    = nota.numero      || '-';
       var data  = nota.dataEmissao || '-';
       var emit  = (nota.emitente     && nota.emitente.razaoSocial) || '-';
@@ -1960,17 +2122,13 @@ function renderResumoDetalhado(notas) {
       var dest  = (nota.destinatario && nota.destinatario.razaoSocial) || '-';
       var end_  = (nota.destinatario && nota.destinatario.endereco) || nota.fazenda || '-';
       var imp   = nota.impostos || {};
-      var impStr = [
-        imp.icms   ? 'ICMS: '   + fmtBRL.format(imp.icms)   : '',
-        imp.iss    ? 'ISS: '    + fmtBRL.format(imp.iss)    : '',
-        imp.pis    ? 'PIS: '    + fmtBRL.format(imp.pis)    : '',
-        imp.cofins ? 'COFINS: ' + fmtBRL.format(imp.cofins) : '',
-        imp.ipi    ? 'IPI: '    + fmtBRL.format(imp.ipi)    : '',
-      ].filter(Boolean).join(' · ') || '-';
       var itens = nota.itens || [];
+
+      var fmtImp = function(v) { return (v && v > 0) ? fmtBRL.format(v) : '-'; };
 
       var makeRowHTML = function(desc, qtd, vlrUnit, vlrTotal) {
         return activeDefs.map(function(d) {
+          if (d.key === 'arquivo')                 return '<td class="file-name">' + esc(arq)   + '</td>';
           if (d.key === 'nf')                      return '<td>' + esc(nf)    + '</td>';
           if (d.key === 'data')                    return '<td>' + esc(data)  + '</td>';
           if (d.key === 'emit')                    return '<td>' + esc(emit)  + '</td>';
@@ -1981,7 +2139,11 @@ function renderResumoDetalhado(notas) {
           if (d.key === 'item')                    return '<td>' + esc(desc)  + '</td>';
           if (d.key === 'vlrUnit')                 return '<td class="num">' + fmtBRL.format(vlrUnit) + '</td>';
           if (d.key === 'vlrNota')                 return '<td class="num" style="font-weight:700">' + fmtBRL.format(vlrTotal) + '</td>';
-          if (d.key === 'imp')                     return '<td>' + esc(impStr) + '</td>';
+          if (d.key === 'icms')                    return '<td class="num">' + fmtImp(imp.icms)   + '</td>';
+          if (d.key === 'iss')                     return '<td class="num">' + fmtImp(imp.iss)    + '</td>';
+          if (d.key === 'pis')                     return '<td class="num">' + fmtImp(imp.pis)    + '</td>';
+          if (d.key === 'cofins')                  return '<td class="num">' + fmtImp(imp.cofins) + '</td>';
+          if (d.key === 'ipi')                     return '<td class="num">' + fmtImp(imp.ipi)    + '</td>';
           return '<td></td>';
         }).join('');
       };
@@ -1995,11 +2157,12 @@ function renderResumoDetalhado(notas) {
       for (var ii = 0; ii < itens.length; ii++) {
         var item = itens[ii];
         var tr = document.createElement('tr');
+        var vlrTotalRow = ii === 0 ? (nota.totalNF || 0) : 0;
         tr.innerHTML = makeRowHTML(
           item.descricao     || '-',
           item.quantidade    || 0,
           item.valorUnitario || 0,
-          item.valorTotal    || nota.totalNF || 0
+          vlrTotalRow
         );
         tbodyItens.appendChild(tr);
       }
@@ -2023,6 +2186,7 @@ function renderResumoDetalhado(notas) {
 
     // Define quais colunas entram e em que ordem
     var colDefs = [
+      { key: 'arquivo', label: 'Arquivo' },
       { key: 'nf',      label: 'Nº NF' },
       { key: 'data',    label: 'Data' },
       { key: 'emit',    label: 'Remetente' },
@@ -2033,17 +2197,25 @@ function renderResumoDetalhado(notas) {
       { key: 'item',    label: 'Qtd',           sub: 'qtd' },
       { key: 'vlrUnit', label: 'Valor Unitário (R$)' },
       { key: 'vlrNota', label: 'Valor Total (R$)' },
-      { key: 'imp',     label: 'Impostos' },
+      { key: 'icms',   label: 'ICMS (R$)' },
+      { key: 'iss',    label: 'ISS (R$)' },
+      { key: 'pis',    label: 'PIS (R$)' },
+      { key: 'cofins', label: 'COFINS (R$)' },
+      { key: 'ipi',    label: 'IPI (R$)' },
     ];
     var activeDefs = colDefs.filter(function(d) { return cols[d.key] !== false; });
     var header = activeDefs.map(function(d) { return d.label; });
     var currencyCols = [];
-    activeDefs.forEach(function(d, i) { if (d.key === 'vlrUnit' || d.key === 'vlrNota') currencyCols.push(i); });
+    var impKeys = ['icms', 'iss', 'pis', 'cofins', 'ipi'];
+    activeDefs.forEach(function(d, i) {
+      if (d.key === 'vlrUnit' || d.key === 'vlrNota' || impKeys.indexOf(d.key) >= 0) currencyCols.push(i);
+    });
 
     var rows = [header];
 
     for (var ni = 0; ni < notas.length; ni++) {
       var nota  = notas[ni];
+      var arq   = nota._arquivo    || '';
       var nf    = nota.numero      || '';
       var data  = nota.dataEmissao || '';
       var emit  = (nota.emitente     && nota.emitente.razaoSocial) || '';
@@ -2051,17 +2223,11 @@ function renderResumoDetalhado(notas) {
       var dest  = (nota.destinatario && nota.destinatario.razaoSocial) || '';
       var end_  = (nota.destinatario && nota.destinatario.endereco) || nota.fazenda || '';
       var imp   = nota.impostos || {};
-      var impStr = [
-        imp.icms   ? 'ICMS: '   + fmtBRL.format(imp.icms)   : '',
-        imp.iss    ? 'ISS: '    + fmtBRL.format(imp.iss)    : '',
-        imp.pis    ? 'PIS: '    + fmtBRL.format(imp.pis)    : '',
-        imp.cofins ? 'COFINS: ' + fmtBRL.format(imp.cofins) : '',
-        imp.ipi    ? 'IPI: '    + fmtBRL.format(imp.ipi)    : '',
-      ].filter(Boolean).join(' · ');
       var itens = nota.itens || [];
 
       var makeRow = function(desc, qtd, vlrUnit, vlrTotal) {
         return activeDefs.map(function(d) {
+          if (d.key === 'arquivo') return arq;
           if (d.key === 'nf')      return nf;
           if (d.key === 'data')    return data;
           if (d.key === 'emit')    return emit;
@@ -2072,7 +2238,11 @@ function renderResumoDetalhado(notas) {
           if (d.key === 'item')    return desc;
           if (d.key === 'vlrUnit') return vlrUnit;
           if (d.key === 'vlrNota') return vlrTotal;
-          if (d.key === 'imp')     return impStr;
+          if (d.key === 'icms')    return imp.icms   || 0;
+          if (d.key === 'iss')     return imp.iss    || 0;
+          if (d.key === 'pis')     return imp.pis    || 0;
+          if (d.key === 'cofins')  return imp.cofins || 0;
+          if (d.key === 'ipi')     return imp.ipi    || 0;
           return '';
         });
       };
@@ -2082,11 +2252,12 @@ function renderResumoDetalhado(notas) {
       } else {
         for (var ii = 0; ii < itens.length; ii++) {
           var item = itens[ii];
+          var vlrTotalRow = ii === 0 ? (nota.totalNF || 0) : 0;
           rows.push(makeRow(
             item.descricao     || '',
             item.quantidade    || 0,
             item.valorUnitario || 0,
-            item.valorTotal    || nota.totalNF || 0
+            vlrTotalRow
           ));
         }
       }

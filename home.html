@@ -110,7 +110,8 @@
   })();
 
   const userName = sessionStorage.getItem('cf_username') || '';
-  if (userName) document.getElementById('navUser').textContent = 'Olá, ' + userName;
+  const navUser = document.getElementById('navUser');
+  if (userName && navUser) navUser.textContent = 'Olá, ' + userName;
 
   document.getElementById('btnLogout').addEventListener('click', async () => {
     try { await fetch('api/logout.php', { method: 'POST' }); } catch (_) {}

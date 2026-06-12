@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <script src="dist/theme.js"></script>
+  <script src="transitions.js" defer></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'" />
   <title>Larsil — Configurações</title>
@@ -44,7 +45,7 @@
 
     /* ── MAIN ── */
     main {
-      max-width: 860px;
+      max-width: 1200px;
       margin: 16px auto;
       padding: 0 16px 48px;
       display: flex;
@@ -52,6 +53,67 @@
       gap: 28px;
       position: relative;
       z-index: 1;
+    }
+    .two-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 900px) {
+      .two-cols { grid-template-columns: 1fr; }
+    }
+
+    /* ── SEÇÃO COLAPSÁVEL ── */
+    .collapsible-section {
+      margin-bottom: 28px;
+    }
+    .collapsible-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all .2s;
+      user-select: none;
+    }
+    .collapsible-header:hover {
+      background: rgba(255,255,255,.12);
+      border-color: rgba(255,255,255,.18);
+    }
+    .collapsible-header h2 {
+      font-size: .95rem;
+      font-weight: 900;
+      color: #a0d87a;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+      flex: 1;
+    }
+    .collapsible-icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,.5);
+      transition: transform .3s;
+    }
+    .collapsible-section.collapsed .collapsible-icon {
+      transform: rotate(-90deg);
+    }
+    .collapsible-content {
+      max-height: 1000px;
+      overflow: hidden;
+      transition: max-height .3s ease, opacity .3s ease;
+      opacity: 1;
+      margin-top: 16px;
+    }
+    .collapsible-section.collapsed .collapsible-content {
+      max-height: 0;
+      opacity: 0;
+      margin-top: 0;
     }
 
     .page-title { font-size: 1.35rem; color: #a0d87a; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; }
@@ -196,6 +258,38 @@
     }
     .horarios-loading { color: var(--muted); font-size: .88rem; }
 
+    /* ── CHIPS DE EMPRESA ── */
+    .empresa-chip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(30,58,100,.5);
+      border: 1px solid rgba(96,165,250,.2);
+      border-radius: 10px;
+      padding: 10px 14px;
+      min-width: 200px;
+      max-width: 340px;
+      transition: border-color .15s;
+    }
+    .empresa-chip:hover { border-color: rgba(96,165,250,.4); }
+    .empresa-chip .emp-nome {
+      font-size: .85rem;
+      font-weight: 800;
+      color: #93c5fd;
+      letter-spacing: .2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .empresa-chip .emp-detalhe {
+      font-size: .7rem;
+      color: rgba(147,197,253,.5);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     /* ── INFO BOX ── */
     .info-box {
       display: flex;
@@ -235,6 +329,60 @@
     }
     #toast.show { opacity: 1; transform: translateY(0); }
     #toast.error { background: rgba(180,30,30,.95); border-color: rgba(252,165,165,.3); }
+    #toast.loading { background: rgba(30,80,120,.95); border-color: rgba(96,184,240,.3); }
+    #toast.loading::before {
+      content: '';
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(96,184,240,.4);
+      border-top-color: #60b8f0;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Barra de progresso (inline, abaixo do botão) ── */
+    #scanProgressWrap {
+      display: none;
+      margin-top: 12px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    #scanProgressWrap.visible { display: block; }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: .75rem;
+      font-weight: 700;
+      color: rgba(255,255,255,.55);
+      margin-bottom: 8px;
+    }
+    .progress-label .pct { color: #60b8f0; font-weight: 900; }
+    .progress-track {
+      height: 6px;
+      background: rgba(255,255,255,.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #2e6b8b, #60b8f0);
+      border-radius: 3px;
+      transition: width .4s ease;
+      width: 0%;
+    }
+    .progress-file {
+      margin-top: 7px;
+      font-size: .7rem;
+      color: rgba(255,255,255,.35);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     /* ── CAMINHOS ── */
     .path-row {
@@ -279,6 +427,34 @@
 
     @media (max-width: 600px) {
       .add-row, .path-row { flex-direction: column; align-items: stretch; }
+    }
+
+    /* ── Toggle de provider de IA ── */
+    .ai-toggle-btn {
+      background: rgba(255,255,255,.05);
+      color: rgba(255,255,255,.4);
+    }
+    .ai-toggle-btn.active[data-provider="anthropic"] {
+      background: rgba(210,110,30,.22);
+      color: #f5a55a;
+    }
+    .ai-toggle-btn.active[data-provider="anthropic"] img { opacity: 1; filter: brightness(1.3) sepia(.4) saturate(3) hue-rotate(-10deg); }
+    .ai-toggle-btn.active[data-provider="openai"] {
+      background: rgba(180,180,180,.15);
+      color: #d0d0d0;
+    }
+    .ai-toggle-btn.active[data-provider="openai"] img { opacity: 1; filter: brightness(1.4); }
+    html.light .ai-toggle-btn {
+      background: rgba(0,0,0,.05);
+      color: rgba(0,0,0,.4);
+    }
+    html.light .ai-toggle-btn.active[data-provider="anthropic"] {
+      background: rgba(210,100,20,.12);
+      color: #c25a10;
+    }
+    html.light .ai-toggle-btn.active[data-provider="openai"] {
+      background: rgba(100,100,100,.12);
+      color: #555;
     }
 
     /* ── Tema claro ── */
@@ -359,30 +535,209 @@
     <p class="page-subtitle">Gerencie as configurações do sistema</p>
   </div>
 
-  <!-- Caminhos -->
+  <!-- Seção Colapsável: Caminhos -->
+  <div class="collapsible-section">
+    <div class="collapsible-header">
+      <h2>🗂️ Caminhos</h2>
+      <div class="collapsible-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:100%;height:100%">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+    </div>
+    <div class="collapsible-content">
+      <div class="two-cols">
+        <!-- Monitoramento Automático -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Monitoramento Automático</h3>
+              <p>Pasta a ser monitorada nos horários agendados</p>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:16px">
+            <div class="form-group" style="flex:1;margin:0">
+              <label for="inputMonitorPath" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;font-weight:600;color:rgba(255,255,255,.55);margin-bottom:8px;display:block">Caminho da pasta</label>
+              <input type="text" id="inputMonitorPath" placeholder="\\\\larsil-dell\FINANCEIRO ou /home/user/notas"
+                style="width:100%;padding:10px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#fff;font-size:.85rem;font-family:monospace;transition:all .15s"
+                onmouseover="this.style.borderColor='rgba(255,255,255,.25)';this.style.background='rgba(255,255,255,.08)'"
+                onmouseout="this.style.borderColor='rgba(255,255,255,.14)';this.style.background='rgba(255,255,255,.05)'" />
+            </div>
+            <button id="btnSalvarMonitor" style="padding:8px 16px;font-size:.8rem;font-weight:700;white-space:nowrap;border-radius:8px;height:40px;display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#2e6b2b,#4db55e);border:1px solid rgba(77,181,94,.3);color:#fff;cursor:pointer;transition:all .15s"
+              onmouseover="this.style.background='linear-gradient(135deg,#3e7b3b,#5dc56e)';this.style.borderColor='rgba(77,181,94,.5)'"
+              onmouseout="this.style.background='linear-gradient(135deg,#2e6b2b,#4db55e)';this.style.borderColor='rgba(77,181,94,.3)'">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="w-3.5 h-3.5">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+              Salvar
+            </button>
+          </div>
+
+          <div id="monitorStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:14px;min-height:1.3em;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.04)"></div>
+
+          <div style="margin-bottom:14px">
+            <button id="btnForceScan" style="padding:8px 16px;font-size:.8rem;font-weight:700;white-space:nowrap;border-radius:8px;height:40px;display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#5e3a1a,#b55e2e);border:1px solid rgba(181,94,46,.3);color:#fff;cursor:pointer;transition:all .15s"
+              onmouseover="this.style.background='linear-gradient(135deg,#6e4a2a,#c56e3e)';this.style.borderColor='rgba(181,94,46,.5)'"
+              onmouseout="this.style.background='linear-gradient(135deg,#5e3a1a,#b55e2e)';this.style.borderColor='rgba(181,94,46,.3)'">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14">
+                <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+              Forçar Leitura
+            </button>
+            <button id="btnForceScanAi" title="Relê todos os PDFs pela IA (tipo, emitente, CNPJ, data, valor e parcelas). Mais lento e usa créditos de IA." style="margin-left:8px;padding:8px 16px;font-size:.8rem;font-weight:700;white-space:nowrap;border-radius:8px;height:40px;display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#4c1d95,#7c3aed);border:1px solid rgba(124,58,237,.35);color:#fff;cursor:pointer;transition:all .15s"
+              onmouseover="this.style.background='linear-gradient(135deg,#5b27b0,#8b4ef0)';this.style.borderColor='rgba(124,58,237,.6)'"
+              onmouseout="this.style.background='linear-gradient(135deg,#4c1d95,#7c3aed)';this.style.borderColor='rgba(124,58,237,.35)'">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+                <path d="M12 1.5l1.9 5.6 5.6 1.9-5.6 1.9L12 16.5l-1.9-5.6L4.5 9l5.6-1.9z"/><path d="M5 15l.7 2.1 2.1.7-2.1.7L5 20.7l-.7-2.2L2 17.8l2.1-.7z"/>
+              </svg>
+              Forçar Leitura via IA
+            </button>
+            <span id="forceScanStatus" style="font-size:.78rem;color:var(--muted);margin-left:10px"></span>
+          </div>
+
+          <!-- Barra de progresso inline -->
+          <div id="scanProgressWrap">
+            <div class="progress-label">
+              <span id="scanProgressText">Processando...</span>
+              <span class="pct" id="scanProgressPct">0%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="scanProgressFill"></div>
+            </div>
+            <div class="progress-file" id="scanProgressFile"></div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button id="btnPauseScan" style="padding:6px 14px;font-size:.75rem;font-weight:700;border-radius:7px;border:1px solid rgba(250,200,80,.3);background:rgba(100,80,20,.5);color:#fcd34d;cursor:pointer;transition:all .15s;font-family:'Montserrat',sans-serif"
+                onmouseover="this.style.background='rgba(140,110,30,.6)'" onmouseout="this.style.background='rgba(100,80,20,.5)'">
+                ⏸ Pausar
+              </button>
+              <button id="btnStopScan" style="padding:6px 14px;font-size:.75rem;font-weight:700;border-radius:7px;border:1px solid rgba(239,68,68,.3);background:rgba(80,20,20,.5);color:#fca5a5;cursor:pointer;transition:all .15s;font-family:'Montserrat',sans-serif"
+                onmouseover="this.style.background='rgba(120,30,30,.6)'" onmouseout="this.style.background='rgba(80,20,20,.5)'">
+                ⏹ Parar
+              </button>
+            </div>
+          </div>
+
+          <div class="info-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#a0d87a;flex-shrink:0">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span style="font-size:.8rem">O sistema monitora esta pasta nos horários agendados e processa PDFs automaticamente, incluindo em subpastas.</span>
+          </div>
+        </div>
+
+        <!-- Planilha Central -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Planilha Central</h3>
+              <p>Arquivo XLSX Delsoft para comparação</p>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:16px">
+            <div class="form-group" style="flex:1;margin:0">
+              <label for="inputPlanilhaPath" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;font-weight:600;color:rgba(255,255,255,.55);margin-bottom:8px;display:block">Caminho da planilha</label>
+              <input type="text" id="inputPlanilhaPath" placeholder="C:\Delsoft\Lançamentos 05-2026.xlsx"
+                style="width:100%;padding:10px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#fff;font-size:.85rem;font-family:monospace;transition:all .15s"
+                onmouseover="this.style.borderColor='rgba(255,255,255,.25)';this.style.background='rgba(255,255,255,.08)'"
+                onmouseout="this.style.borderColor='rgba(255,255,255,.14)';this.style.background='rgba(255,255,255,.05)'" />
+            </div>
+            <button id="btnSalvarPlanilha" style="padding:8px 16px;font-size:.8rem;font-weight:700;white-space:nowrap;border-radius:8px;height:40px;display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#2d7ab5,#1e4d6b);border:1px solid rgba(76,155,190,.3);color:#fff;cursor:pointer;transition:all .15s"
+              onmouseover="this.style.background='linear-gradient(135deg,#3d8ac5,#2e5d7b)';this.style.borderColor='rgba(76,155,190,.5)'"
+              onmouseout="this.style.background='linear-gradient(135deg,#2d7ab5,#1e4d6b)';this.style.borderColor='rgba(76,155,190,.3)'">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="w-3.5 h-3.5">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+              </svg>
+              Salvar
+            </button>
+          </div>
+
+          <div id="planilhaStatus" style="font-size:.8rem;color:var(--muted);margin-bottom:14px;min-height:1.3em;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.04)"></div>
+
+          <div class="info-box" style="background:linear-gradient(135deg,rgba(109,40,217,.12),rgba(139,45,181,.08));border:1px solid rgba(139,45,181,.24);padding:12px 13px;border-radius:10px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="color:#d8b4fe;flex-shrink:0;margin-top:1px">
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
+            </svg>
+            <span style="color:rgba(255,255,255,.72);font-size:.8rem">Configure aqui e acesse <strong>Conferência de Notas</strong> para comparar quais notas estão faltando.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Provider de IA -->
   <div class="card">
     <div class="card-header">
       <div>
-        <h3>Caminhos</h3>
-        <p>Pasta do servidor onde os relatórios de conferência serão salvos em CSV</p>
+        <h3>Provedor de IA</h3>
+        <p>Motor de inteligência artificial usado nas extrações</p>
       </div>
     </div>
 
-    <div class="path-row">
-      <div class="form-group">
-        <label for="inputCaminho">Pasta de relatórios</label>
-        <input type="text" id="inputCaminho" class="input-path"
-               placeholder="Ex: C:\Relatorios  ou  /home/user/relatorios" autocomplete="off" />
+    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <!-- Toggle Anthropic / OpenAI -->
+      <div id="aiProviderToggle" style="display:inline-flex;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.15)">
+        <button type="button" class="ai-toggle-btn" data-provider="anthropic"
+          style="padding:10px 20px;font-size:.85rem;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;border:none;transition:all .18s;display:flex;align-items:center;gap:8px">
+          <img src="img/anthropic.png" width="16" height="16" style="object-fit:contain;opacity:.85" alt="Anthropic">
+          Haiku 4.5 (Claude)
+        </button>
+        <button type="button" class="ai-toggle-btn" data-provider="openai"
+          style="padding:10px 20px;font-size:.85rem;font-family:'Montserrat',sans-serif;font-weight:700;cursor:pointer;border:none;border-left:1px solid rgba(255,255,255,.1);transition:all .18s;display:flex;align-items:center;gap:8px">
+          <img src="img/openai.png" width="16" height="16" style="object-fit:contain;opacity:.85" alt="OpenAI">
+          GPT-4o-mini (OpenAI)
+        </button>
       </div>
-      <button class="btn btn-primary" id="btnSalvarCaminho">Salvar</button>
-    </div>
-    <div id="pathStatus" class="path-status"></div>
 
-    <div class="info-box" style="margin-top:16px">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-      <span>Os relatórios diários (<strong>D-DD.MM.AAAA.csv</strong>) e mensais (<strong>M-MM.AAAA.csv</strong>) serão gravados nessa pasta. O sistema também lê esses arquivos antes de cada conferência para pular arquivos já processados.</span>
+      <div id="aiProviderStatus" style="font-size:.8rem;color:rgba(255,255,255,.4);min-height:1.3em"></div>
+    </div>
+
+    <div id="aiProviderHint" style="font-size:.8rem;color:rgba(255,255,255,.4);margin-top:14px;padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.04)"></div>
+  </div>
+
+  <!-- Empresas Contas -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h3>Empresas de Contas</h3>
+        <p>Empresas cujos documentos são Contas (Água, Luz, Gás, Internet, etc.)</p>
+        <p>Notas Destas Empresas serão processadas automaticamente para o sistema de Contas</p>
+      </div>
+      <button id="btnScanEmpresas" style="padding:9px 16px;font-size:.78rem;font-weight:700;white-space:nowrap;border-radius:8px;display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#1e3a64,#3b82f6);border:1px solid rgba(96,165,250,.3);color:#fff;cursor:pointer;transition:all .15s;font-family:'Montserrat',sans-serif"
+        onmouseover="this.style.background='linear-gradient(135deg,#2e4a74,#4b92ff)';this.style.borderColor='rgba(96,165,250,.5)'"
+        onmouseout="this.style.background='linear-gradient(135deg,#1e3a64,#3b82f6)';this.style.borderColor='rgba(96,165,250,.3)'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        Escanear notas das empresas
+      </button>
+    </div>
+
+    <div class="add-row" style="flex-wrap:wrap;gap:12px">
+      <div class="form-group" style="flex:3;min-width:180px">
+        <label for="inputEmpNome">Nome</label>
+        <input type="text" id="inputEmpNome" class="input-path" placeholder="Ex: BANCO SANTANDER" style="text-transform:uppercase" />
+      </div>
+      <div class="form-group" style="flex:2;min-width:160px">
+        <label for="inputEmpCnpj">CNPJ</label>
+        <input type="text" id="inputEmpCnpj" class="input-path" placeholder="00.000.000/0001-00" maxlength="18" inputmode="numeric" />
+      </div>
+      <div class="form-group" style="flex:1;min-width:120px">
+        <label for="inputEmpTipo">Tipo</label>
+        <input type="text" id="inputEmpTipo" class="input-path" placeholder="Ex: BANCO" style="text-transform:uppercase" />
+      </div>
+      <div class="form-group" style="flex:0 0 80px">
+        <label for="inputEmpEstado">UF</label>
+        <input type="text" id="inputEmpEstado" class="input-path" placeholder="SP" maxlength="2" style="text-transform:uppercase;text-align:center" />
+      </div>
+      <div style="display:flex;align-items:flex-end;padding-bottom:1px">
+        <button class="btn btn-primary" id="btnAdicionarEmpresa">Adicionar</button>
+      </div>
+    </div>
+
+    <div id="empresasContainer" style="margin-top:4px">
+      <span class="horarios-loading">Carregando...</span>
     </div>
   </div>
 
@@ -427,22 +782,31 @@
     window.location.replace('index.html');
   }
   const cfUser = sessionStorage.getItem('cf_username') || '';
-  if (cfUser) document.getElementById('navUser').textContent = 'Olá, ' + cfUser;
-
-  document.getElementById('btnLogout').addEventListener('click', async () => {
-    try { await fetch('api/logout.php', { method: 'POST', credentials: 'same-origin' }); } catch (_) {}
-    sessionStorage.clear();
-    window.location.replace('index.html');
-  });
+  if (cfUser) {
+    const navUser = document.getElementById('navUser');
+    if (navUser) navUser.textContent = 'Olá, ' + cfUser;
+  }
 
   /* ── Toast ──────────────────────────────────────────────────────────── */
   let toastTimer = null;
-  function showToast(msg, isError = false) {
+  function showToast(msg, isError = false, isLoading = false, persistent = false) {
     const t = document.getElementById('toast');
+    if (!t) return;
     t.textContent = msg;
-    t.className = 'show' + (isError ? ' error' : '');
+    let className = 'show';
+    if (isError) className += ' error';
+    if (isLoading) className += ' loading';
+    t.className = className;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { t.className = ''; }, 3200);
+    if (!persistent && !isLoading) {
+      toastTimer = setTimeout(() => { t.className = ''; }, 3200);
+    }
+  }
+
+  function hideToast() {
+    const t = document.getElementById('toast');
+    clearTimeout(toastTimer);
+    t.className = '';
   }
 
   /* ── API helper ─────────────────────────────────────────────────────── */
@@ -479,6 +843,295 @@
       '</div>';
   }
 
+  // Aguarda carregamento completo do DOM
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+  });
+
+  function initializeApp() {
+    // Seção colapsável
+    document.querySelectorAll('.collapsible-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const section = header.parentElement;
+        section.classList.toggle('collapsed');
+      });
+    });
+
+    // Event listeners dos botões
+    const btnSalvarCaminho = document.getElementById('btnSalvarCaminho');
+    if (btnSalvarCaminho) {
+      btnSalvarCaminho.addEventListener('click', async () => {
+        const val = document.getElementById('inputCaminho').value.trim();
+        if (!val) { showToast('Digite o caminho.', true); return; }
+        const btn = document.getElementById('btnSalvarCaminho');
+        btn.disabled = true; btn.textContent = 'Salvando...';
+        try {
+          const d = await (await fetch('api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ caminhoRelatorio: val }),
+          })).json();
+          showPathStatus(d.message || (d.success ? 'Caminho salvo.' : 'Erro.'), !!d.success);
+        } catch { showPathStatus('Erro de comunicação.', false); }
+        finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+      });
+    }
+
+    const btnSalvarMonitor = document.getElementById('btnSalvarMonitor');
+    if (btnSalvarMonitor) {
+      btnSalvarMonitor.addEventListener('click', async () => {
+        const val = document.getElementById('inputMonitorPath').value.trim();
+        if (!val) { showToast('Digite o caminho da pasta.', true); return; }
+        const btn = document.getElementById('btnSalvarMonitor');
+        const status = document.getElementById('monitorStatus');
+        btn.disabled = true; btn.textContent = 'Salvando...';
+        try {
+          const d = await apiMonitorConfig('POST', { monitorPath: val });
+          if (d.success) {
+            showToast(d.message, false);
+            status.textContent = '✓ Monitoramento ativo: ' + d.monitorPath;
+            status.style.color = '#a0d87a';
+          } else {
+            showToast(d.message, true);
+            status.textContent = '✗ ' + d.message;
+            status.style.color = '#fca5a5';
+          }
+        } catch { showToast('Erro de comunicação.', true); }
+        finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+      });
+    }
+
+    // Botões de leitura: "Forçar Leitura" (parsers locais) e "Forçar Leitura via IA".
+    // Ambos disparam a mesma varredura (com/sem forceAI) e compartilham status/progresso.
+    const SCAN_BTN_HTML = {
+      normal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Forçar Leitura',
+      ai: '<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M12 1.5l1.9 5.6 5.6 1.9-5.6 1.9L12 16.5l-1.9-5.6L4.5 9l5.6-1.9z"/><path d="M5 15l.7 2.1 2.1.7-2.1.7L5 20.7l-.7-2.2L2 17.8l2.1-.7z"/></svg> Forçar Leitura via IA',
+    };
+    function restoreScanButtons() {
+      const b1 = document.getElementById('btnForceScan');
+      const b2 = document.getElementById('btnForceScanAi');
+      if (b1) { b1.disabled = false; b1.innerHTML = SCAN_BTN_HTML.normal; }
+      if (b2) { b2.disabled = false; b2.innerHTML = SCAN_BTN_HTML.ai; }
+    }
+    function setScanButtonsBusy(which) {
+      const b1 = document.getElementById('btnForceScan');
+      const b2 = document.getElementById('btnForceScanAi');
+      if (b1) b1.disabled = true;
+      if (b2) b2.disabled = true;
+      const target = which === 'ai' ? b2 : b1;
+      if (target) target.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> ' + (which === 'ai' ? 'Lendo via IA...' : 'Processando...');
+    }
+    function wireForceScan(btnId, endpoint, which) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      btn.addEventListener('click', async () => {
+        const statusEl = document.getElementById('forceScanStatus');
+        setScanButtonsBusy(which);
+        if (statusEl) statusEl.textContent = '';
+        try {
+          const d = await (await fetch(endpoint, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+          })).json();
+          if (d.success) {
+            if (statusEl) { statusEl.textContent = which === 'ai' ? 'Leitura via IA em andamento...' : 'Leitura em andamento...'; statusEl.style.color = '#60b8f0'; }
+            startScanPolling();
+          } else {
+            if (statusEl) { statusEl.textContent = '✗ ' + d.message; statusEl.style.color = '#fca5a5'; }
+            showToast(d.message, true);
+            restoreScanButtons();
+          }
+        } catch {
+          showToast('Erro de comunicação.', true);
+          if (statusEl) statusEl.textContent = '';
+          restoreScanButtons();
+        }
+      });
+    }
+    wireForceScan('btnForceScan', 'api/force-scan', 'normal');
+    wireForceScan('btnForceScanAi', 'api/force-scan-ai', 'ai');
+
+    const btnSalvarPlanilha = document.getElementById('btnSalvarPlanilha');
+    if (btnSalvarPlanilha) {
+      btnSalvarPlanilha.addEventListener('click', async () => {
+        const val = document.getElementById('inputPlanilhaPath').value.trim();
+        if (!val) { showToast('Digite o caminho da planilha.', true); return; }
+        const btn = document.getElementById('btnSalvarPlanilha');
+        const status = document.getElementById('planilhaStatus');
+        btn.disabled = true; btn.textContent = 'Salvando...';
+        try {
+          const d = await (await fetch('api/planilha-central', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ planilhaPath: val }),
+          })).json();
+          if (d.success) {
+            showToast(d.message, false);
+            status.textContent = '✓ Planilha configurada: ' + d.planilhaPath;
+            status.style.color = '#a0d87a';
+          } else {
+            showToast(d.message, true);
+            status.textContent = '✗ ' + d.message;
+            status.style.color = '#fca5a5';
+          }
+        } catch { showToast('Erro de comunicação.', true); }
+        finally { btn.disabled = false; btn.textContent = 'Salvar'; }
+      });
+    }
+
+    // Máscara CNPJ: 00.000.000/0001-00
+    const inputCnpj = document.getElementById('inputEmpCnpj');
+    if (inputCnpj) {
+      inputCnpj.addEventListener('input', () => {
+        let v = inputCnpj.value.replace(/\D/g, '').slice(0, 14);
+        if (v.length > 12) v = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, '$1.$2.$3/$4-$5');
+        else if (v.length > 8) v = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4})/, '$1.$2.$3/$4');
+        else if (v.length > 5) v = v.replace(/^(\d{2})(\d{3})(\d{0,3})/, '$1.$2.$3');
+        else if (v.length > 2) v = v.replace(/^(\d{2})(\d{0,3})/, '$1.$2');
+        inputCnpj.value = v;
+      });
+    }
+
+    const btnAdicionarEmpresa = document.getElementById('btnAdicionarEmpresa');
+    if (btnAdicionarEmpresa) {
+      btnAdicionarEmpresa.addEventListener('click', async () => {
+        const nome   = document.getElementById('inputEmpNome').value.trim();
+        const cnpj   = document.getElementById('inputEmpCnpj').value.trim();
+        const tipo   = document.getElementById('inputEmpTipo').value.trim();
+        const estado = document.getElementById('inputEmpEstado').value.trim().toUpperCase();
+        if (!nome) { showToast('Informe o nome da empresa.', true); return; }
+        btnAdicionarEmpresa.disabled = true; btnAdicionarEmpresa.textContent = 'Adicionando...';
+        try {
+          const d = await (await fetch('api/empresas-contas', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin', body: JSON.stringify({ nome, cnpj, tipo, estado }),
+          })).json();
+          showToast(d.message, !d.success);
+          if (d.success) {
+            document.getElementById('inputEmpNome').value = '';
+            document.getElementById('inputEmpCnpj').value = '';
+            document.getElementById('inputEmpTipo').value = '';
+            document.getElementById('inputEmpEstado').value = '';
+            carregarEmpresas();
+          }
+        } catch { showToast('Erro de comunicação.', true); }
+        finally { btnAdicionarEmpresa.disabled = false; btnAdicionarEmpresa.textContent = 'Adicionar'; }
+      });
+    }
+
+    const btnScanEmpresas = document.getElementById('btnScanEmpresas');
+    if (btnScanEmpresas) {
+      const labelOriginal = btnScanEmpresas.innerHTML;
+      btnScanEmpresas.addEventListener('click', async () => {
+        btnScanEmpresas.disabled = true;
+        btnScanEmpresas.innerHTML = 'Escaneando...';
+        showToast('Escaneando notas das empresas...', false, true);
+        try {
+          const d = await (await fetch('api/scan-empresas', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+          })).json();
+          hideToast();
+          showToast(d.message, !d.success);
+        } catch { hideToast(); showToast('Erro de comunicação.', true); }
+        finally { btnScanEmpresas.disabled = false; btnScanEmpresas.innerHTML = labelOriginal; }
+      });
+    }
+
+    const btnAdicionarHorario = document.getElementById('btnAdicionarHorario');
+    if (btnAdicionarHorario) {
+      btnAdicionarHorario.addEventListener('click', async () => {
+        const input = document.getElementById('inputHorario');
+        const val = input.value;
+        if (!val) { showToast('Selecione um horário.', true); return; }
+        const horario = val.slice(0, 5);
+        const btn = document.getElementById('btnAdicionarHorario');
+        btn.disabled = true; btn.textContent = 'Adicionando...';
+        try {
+          const data = await apiHorarios('POST', { horario });
+          showToast(data.message, !data.success);
+          if (data.success) {
+            input.value = '';
+            carregarHorarios();
+          }
+        } catch { showToast('Erro de comunicação.', true); }
+        finally { btn.disabled = false; btn.textContent = 'Adicionar'; }
+      });
+    }
+
+    const btnPauseScan = document.getElementById('btnPauseScan');
+    if (btnPauseScan) {
+      btnPauseScan.addEventListener('click', async () => {
+        const isPaused = btnPauseScan.dataset.state === 'paused';
+        const action = isPaused ? 'resume' : 'pause';
+        await fetch('api/scan-status', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin', body: JSON.stringify({ action }),
+        }).catch(() => {});
+      });
+    }
+
+    const btnStopScan = document.getElementById('btnStopScan');
+    if (btnStopScan) {
+      btnStopScan.addEventListener('click', async () => {
+        await fetch('api/scan-status', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin', body: JSON.stringify({ action: 'stop' }),
+        }).catch(() => {});
+        showToast('Parando leitura...', false, true);
+      });
+    }
+
+    const btnLogout = document.getElementById('btnLogout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', async () => {
+        try {
+          await fetch('api/logout.php', { method: 'POST', credentials: 'same-origin' });
+          window.location.replace('index.html');
+        } catch { showToast('Erro ao sair.', true); }
+      });
+    }
+
+    // Carregar dados
+    carregarCaminho();
+    carregarHorarios();
+    carregarMonitorPath();
+    carregarPlanilhaPath();
+    carregarAiProvider();
+    carregarEmpresas();
+
+    // Toggle de provider de IA
+    document.getElementById('aiProviderToggle').addEventListener('click', async (e) => {
+      const btn = e.target.closest('.ai-toggle-btn');
+      if (!btn) return;
+      const provider = btn.dataset.provider;
+      setAiToggleActive(provider);
+      const status = document.getElementById('aiProviderStatus');
+      status.textContent = 'Salvando...';
+      try {
+        const d = await (await fetch('api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ aiProvider: provider }),
+        })).json();
+        if (d.success) {
+          status.textContent = '✓ Salvo';
+          status.style.color = '#a0d87a';
+          showToast('Provedor de IA alterado para ' + (provider === 'anthropic' ? 'Claude (Anthropic)' : 'GPT-4o-mini (OpenAI)') + '.');
+          setTimeout(() => { status.textContent = ''; }, 3000);
+        } else {
+          status.textContent = '✗ ' + (d.message || 'Erro');
+          status.style.color = '#fca5a5';
+        }
+      } catch {
+        status.textContent = '✗ Erro de comunicação';
+        status.style.color = '#fca5a5';
+      }
+    });
+  }
+
   /* ── Carregar ─────────────────────────────────────────────────────── */
   async function carregarHorarios() {
     const container = document.getElementById('horariosContainer');
@@ -494,28 +1147,7 @@
     }
   }
 
-  /* ── Adicionar ─────────────────────────────────────────────────────── */
-  document.getElementById('btnAdicionarHorario').addEventListener('click', async () => {
-    const input = document.getElementById('inputHorario');
-    const val = input.value; // "HH:MM" or "HH:MM:SS"
-    if (!val) { showToast('Selecione um horário.', true); return; }
-
-    const horario = val.slice(0, 5); // garante "HH:MM"
-    const btn = document.getElementById('btnAdicionarHorario');
-    btn.disabled = true; btn.textContent = 'Adicionando...';
-
-    try {
-      const data = await apiHorarios('POST', { horario });
-      showToast(data.message, !data.success);
-      if (data.success) {
-        input.value = '';
-        carregarHorarios();
-      }
-    } catch { showToast('Erro de comunicação.', true); }
-    finally { btn.disabled = false; btn.textContent = 'Adicionar'; }
-  });
-
-  /* ── Remover ──────────────────────────────────────────────────────── */
+  /* ── Remover horário ──────────────────────────────────────────────── */
   async function removerHorario(id, btn) {
     btn.disabled = true;
     try {
@@ -535,38 +1167,197 @@
   async function carregarCaminho() {
     try {
       const d = await (await fetch('api/config', { credentials: 'same-origin' })).json();
-      if (d.config?.caminhoRelatorio)
-        document.getElementById('inputCaminho').value = d.config.caminhoRelatorio;
+      if (d.config?.caminhoRelatorio) {
+        const el = document.getElementById('inputCaminho');
+        if (el) el.value = d.config.caminhoRelatorio;
+      }
     } catch (_) {}
   }
 
   function showPathStatus(msg, ok) {
     const el = document.getElementById('pathStatus');
+    if (!el) return;
     el.textContent = msg;
     el.className = 'path-status ' + (ok ? 'ok' : 'err');
     el.style.display = 'block';
     setTimeout(() => { el.style.display = 'none'; }, 5000);
   }
 
-  document.getElementById('btnSalvarCaminho').addEventListener('click', async () => {
-    const val = document.getElementById('inputCaminho').value.trim();
-    const btn = document.getElementById('btnSalvarCaminho');
-    btn.disabled = true; btn.textContent = 'Salvando...';
-    try {
-      const d = await (await fetch('api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ caminhoRelatorio: val }),
-      })).json();
-      showPathStatus(d.message || (d.success ? 'Caminho salvo.' : 'Erro.'), !!d.success);
-    } catch { showPathStatus('Erro de comunicação.', false); }
-    finally { btn.disabled = false; btn.textContent = 'Salvar'; }
-  });
+  /* ── API Monitor Config ───────────────────────────────────────────── */
+  async function apiMonitorConfig(method, body = null) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch('api/monitor-config', opts);
+    return res.json();
+  }
 
-  /* ── Init ─────────────────────────────────────────────────────────── */
-  carregarCaminho();
-  carregarHorarios();
+  async function carregarMonitorPath() {
+    try {
+      const data = await apiMonitorConfig('GET');
+      if (data.success && data.monitorPath) {
+        const el = document.getElementById('inputMonitorPath');
+        if (el) el.value = data.monitorPath;
+      }
+    } catch (e) {
+      console.error('Erro ao carregar caminho de monitoramento:', e);
+    }
+  }
+
+  /* ── Provider de IA ───────────────────────────────────────────────── */
+
+  function setAiToggleActive(provider) {
+    document.querySelectorAll('.ai-toggle-btn').forEach(b => b.classList.remove('active'));
+    const active = document.querySelector(`.ai-toggle-btn[data-provider="${provider}"]`);
+    if (active) active.classList.add('active');
+    const hint = document.getElementById('aiProviderHint');
+  }
+
+  async function carregarAiProvider() {
+    try {
+      const d = await (await fetch('api/config', { credentials: 'same-origin' })).json();
+      const provider = d.config?.aiProvider || 'anthropic';
+      setAiToggleActive(provider);
+    } catch (_) {
+      setAiToggleActive('anthropic');
+    }
+  }
+
+  /* ── Empresas Contas ──────────────────────────────────────────────── */
+  function renderEmpresas(empresas) {
+    const container = document.getElementById('empresasContainer');
+    if (!empresas.length) {
+      container.innerHTML = '<p class="horarios-empty">Nenhuma empresa cadastrada.</p>';
+      return;
+    }
+    const detalhes = e => [e.TIPO, e.ESTADO, e.CNPJ].filter(Boolean).join(' · ');
+    container.innerHTML = '<div class="horarios-grid">' + empresas.map(e => `
+      <div class="empresa-chip" data-id="${e.ID}">
+        <div style="flex:1;min-width:0">
+          <div class="emp-nome">${esc(e.NOME)}</div>
+          ${detalhes(e) ? `<div class="emp-detalhe">${esc(detalhes(e))}</div>` : ''}
+        </div>
+        <button class="chip-del" title="Remover" onclick="removerEmpresa(${e.ID}, this)">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>`).join('') + '</div>';
+  }
+
+  async function carregarEmpresas() {
+    try {
+      const d = await (await fetch('api/empresas-contas', { credentials: 'same-origin' })).json();
+      if (d.success) renderEmpresas(d.empresas);
+      else document.getElementById('empresasContainer').innerHTML = `<p class="horarios-empty" style="color:#fca5a5">${esc(d.message)}</p>`;
+    } catch {
+      document.getElementById('empresasContainer').innerHTML = '<p class="horarios-empty" style="color:#fca5a5">Erro ao carregar.</p>';
+    }
+  }
+
+  async function removerEmpresa(id, btn) {
+    btn.disabled = true;
+    try {
+      const d = await (await fetch('api/empresas-contas', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin', body: JSON.stringify({ id }),
+      })).json();
+      showToast(d.message, !d.success);
+      if (d.success) carregarEmpresas();
+    } catch { showToast('Erro de comunicação.', true); }
+    finally { btn.disabled = false; }
+  }
+
+  /* ── Progresso de scan ────────────────────────────────────────────── */
+  let _scanPollTimer = null;
+
+  function updateProgressBar(p) {
+    const wrap = document.getElementById('scanProgressWrap');
+    const fill = document.getElementById('scanProgressFill');
+    const pct  = document.getElementById('scanProgressPct');
+    const text = document.getElementById('scanProgressText');
+    const file = document.getElementById('scanProgressFile');
+    const btnPause = document.getElementById('btnPauseScan');
+    const btnStop  = document.getElementById('btnStopScan');
+    if (!wrap) return;
+    if (!p) {
+      wrap.classList.remove('visible');
+      return;
+    }
+    wrap.classList.add('visible');
+    const pctVal = p.percent || 0;
+    fill.style.width = pctVal + '%';
+    pct.textContent  = pctVal + '%';
+
+    if (p.paused) {
+      text.textContent = 'Pausado';
+      fill.style.background = 'linear-gradient(90deg,#6b5e2b,#fcd34d)';
+      if (btnPause) { btnPause.textContent = '▶ Retomar'; btnPause.dataset.state = 'paused'; }
+    } else {
+      text.textContent = p.total > 0 ? `${p.current} de ${p.total} arquivo(s)` : 'Preparando...';
+      fill.style.background = 'linear-gradient(90deg,#2e6b8b,#60b8f0)';
+      if (btnPause) { btnPause.textContent = '⏸ Pausar'; btnPause.dataset.state = 'running'; }
+    }
+    file.textContent = p.message || '';
+  }
+
+  function startScanPolling() {
+    clearInterval(_scanPollTimer);
+    // Sinaliza para outras páginas que há scan rodando
+    localStorage.setItem('cf_scan_running', '1');
+    _scanPollTimer = setInterval(async () => {
+      try {
+        const r = await (await fetch('api/scan-status', { credentials: 'same-origin' })).json();
+        if (r.progress && r.progress.running) {
+          updateProgressBar(r.progress);
+        } else {
+          // Scan terminou
+          clearInterval(_scanPollTimer);
+          _scanPollTimer = null;
+          localStorage.removeItem('cf_scan_running');
+          updateProgressBar(null);
+          const statusEl = document.getElementById('forceScanStatus');
+          if (r.result) {
+            const ok = r.result.success;
+            const msg = r.result.message || '';
+            if (statusEl) { statusEl.textContent = (ok ? '✓ ' : '✗ ') + msg; statusEl.style.color = ok ? '#a0d87a' : '#fca5a5'; }
+            showToast(msg, !ok);
+          }
+          restoreScanButtons();
+        }
+      } catch (_) {}
+    }, 2000);
+  }
+
+  // Ao carregar a página, verifica se havia scan rodando (ex: usuário voltou da conferência)
+  (async () => {
+    try {
+      const r = await (await fetch('api/scan-status', { credentials: 'same-origin' })).json();
+      if (r.progress && r.progress.running) {
+        const statusEl = document.getElementById('forceScanStatus');
+        setScanButtonsBusy('normal');
+        if (statusEl) { statusEl.textContent = 'Leitura em andamento...'; statusEl.style.color = '#60b8f0'; }
+        updateProgressBar(r.progress);
+        startScanPolling();
+      }
+    } catch (_) {}
+  })();
+
+  /* ── Planilha Central ─────────────────────────────────────────────── */
+  async function carregarPlanilhaPath() {
+    try {
+      const d = await (await fetch('api/planilha-central', { credentials: 'same-origin' })).json();
+      if (d.planilhaPath) {
+        const el1 = document.getElementById('inputPlanilhaPath');
+        const el2 = document.getElementById('planilhaStatus');
+        if (el1) el1.value = d.planilhaPath;
+        if (el2) {
+          el2.textContent = '✓ Planilha configurada: ' + d.planilhaPath;
+          el2.style.color = '#a0d87a';
+        }
+      }
+    } catch (_) {}
+  }
 </script>
 </body>
 </html>

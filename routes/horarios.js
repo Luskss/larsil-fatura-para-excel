@@ -7,6 +7,7 @@
 
 const { getConnection, sql } = require('../config');
 const { setFullSecurityHeaders, requireAuth, trimStr } = require('./_helpers');
+const { reloadSchedules } = require('../scheduler');
 
 module.exports = async function horariosRoute(req, res) {
   setFullSecurityHeaders(res);
@@ -50,6 +51,9 @@ module.exports = async function horariosRoute(req, res) {
         .input('h', sql.VarChar(5), horario)
         .query('INSERT INTO nfs.HORARIOS (HORARIO) VALUES (@h)');
 
+      // Recarrega o scheduler
+      await reloadSchedules();
+
       return res.json({ success: true, message: 'Horário adicionado.' });
     }
 
@@ -69,6 +73,10 @@ module.exports = async function horariosRoute(req, res) {
       if (del.rowsAffected[0] === 0) {
         return res.status(404).json({ success: false, message: 'Horário não encontrado.' });
       }
+
+      // Recarrega o scheduler
+      await reloadSchedules();
+
       return res.json({ success: true, message: 'Horário removido.' });
     }
 

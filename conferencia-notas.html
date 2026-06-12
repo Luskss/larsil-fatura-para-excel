@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <script src="dist/theme.js"></script>
+    <script src="transitions.js" defer></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Larsil — Conferência de Notas</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,6 +13,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * { font-family: 'Inter', sans-serif; }
+        .section-title { font-family: 'Montserrat', sans-serif !important; }
+        .section-subtitle { font-family: 'Montserrat', sans-serif !important; }
         /* Body bg: same gradient as the rest of the site, overriding CDN Tailwind preflight */
         body {
             background: linear-gradient(145deg, #071a07 0%, #0d2e0d 35%, #122e12 65%, #0a1f0a 100%) !important;
@@ -46,13 +49,19 @@
         }
         .btn-cn {
             display:inline-flex; align-items:center; gap:8px;
-            padding:10px 20px; border:none; border-radius:12px; cursor:pointer;
-            background:linear-gradient(135deg,#2e6b2b,#4db55e);
-            color:#fff; font-size:.875rem; font-weight:700; font-family:'Montserrat',sans-serif;
-            transition:all .2s;
+            padding:12px 20px; border:1px solid rgba(160,216,122,.4); border-radius:8px; cursor:pointer;
+            background:linear-gradient(135deg,#2d5e1a,#6cd47e);
+            color:#fff; font-size:.85rem; font-weight:800; font-family:'Montserrat',sans-serif;
+            letter-spacing:.5px; text-transform:uppercase;
+            box-shadow:0 4px 16px rgba(108,212,126,.2), inset 0 1px 0 rgba(255,255,255,.1);
+            transition:all .25s cubic-bezier(.34,.1,.68,.55);
+            position:relative; overflow:hidden;
         }
-        .btn-cn:hover:not(:disabled) { opacity:.9; box-shadow:0 8px 20px rgba(77,181,94,.35); transform:translateY(-1px); }
-        .btn-cn:disabled { opacity:.5; cursor:not-allowed; }
+        .btn-cn::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(255,255,255,.15),rgba(255,255,255,0)); opacity:0; transition:opacity .25s; }
+        .btn-cn:hover:not(:disabled)::before { opacity:1; }
+        .btn-cn:hover:not(:disabled) { background:linear-gradient(135deg,#2d5e1a,#7ee699); box-shadow:0 6px 24px rgba(108,212,126,.35), inset 0 1px 0 rgba(255,255,255,.15); transform:translateY(-2px); }
+        .btn-cn:active:not(:disabled) { transform:translateY(0); }
+        .btn-cn:disabled { opacity:.5; cursor:not-allowed; box-shadow:0 2px 8px rgba(0,0,0,.2); }
         tbody tr:hover { background:rgba(255,255,255,.04); }
         .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
         .btn-view { transition:opacity .15s; }
@@ -105,6 +114,98 @@
         html.light #modalBody dd { color: #1a2e1a !important; }
 /* Estado vazio */
         html.light #empty { background: #fff !important; border-color: rgba(0,0,0,.09) !important; color: rgba(0,0,0,.40) !important; }
+
+        /* ── Calendário ─────────────────────────────────────────── */
+        #calModal { background: rgba(0,0,0,.65); backdrop-filter: blur(6px); }
+        #calBox {
+            background: rgba(10,28,10,.97);
+            border: 1px solid rgba(255,255,255,.13);
+            box-shadow: 0 24px 64px rgba(0,0,0,.6);
+        }
+        html.light #calBox { background: #fff !important; border-color: rgba(0,0,0,.10) !important; }
+        html.light #calBox * { color: #1a2e1a !important; }
+        html.light .cal-day:not(.cal-empty):hover { background: rgba(0,0,0,.06) !important; }
+        html.light .cal-day.has-data { background: rgba(22,163,74,.13) !important; }
+        html.light .cal-day.has-data:hover { background: rgba(22,163,74,.22) !important; }
+        html.light .cal-day.selected { background: #16a34a !important; color: #fff !important; }
+
+        .cal-day {
+            aspect-ratio: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            border-radius: 10px; font-size: .85rem; cursor: default;
+            transition: background .15s, transform .1s;
+            position: relative; user-select: none;
+        }
+        .cal-day:not(.cal-empty) { cursor: pointer; }
+        .cal-day:not(.cal-empty):hover { background: rgba(255,255,255,.08); }
+        .cal-day.has-data {
+            background: rgba(77,181,94,.15);
+            color: #a0d063;
+            font-weight: 600;
+        }
+        .cal-day.has-data:hover { background: rgba(77,181,94,.28); transform: scale(1.06); }
+        .cal-day.selected { background: #16a34a !important; color: #fff !important; transform: scale(1.1); box-shadow: 0 4px 12px rgba(22,163,74,.4); }
+        .cal-day.in-range { background: rgba(22,163,74,.25) !important; color: #a0d063 !important; }
+        html.light .cal-day.in-range { background: rgba(22,163,74,.12) !important; color: #16a34a !important; }
+        .cal-day .cal-dot {
+            width: 5px; height: 5px; border-radius: 50%;
+            background: #4db55e; position: absolute; bottom: 4px;
+        }
+        .cal-day.cal-empty { cursor: default; opacity: 0; }
+        .cal-hdr { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; opacity: .45; text-align: center; }
+        #calNavBtn { transition: opacity .15s; }
+        #calNavBtn:hover { opacity: .75; }
+
+        /* ── Picker de mês/ano no modal de comparação ───────────────── */
+        .comp-mes-btn, .comp-ano-btn {
+            padding: 8px 16px; border-radius: 10px; font-size: .82rem; font-weight: 700;
+            letter-spacing: .04em; text-transform: uppercase; cursor: pointer;
+            background: rgba(45,94,26,.55); border: 1px solid rgba(108,212,126,.2);
+            color: rgba(255,255,255,.75); transition: all .15s; white-space: nowrap;
+            width: 100%;
+        }
+        .comp-mes-btn:hover, .comp-ano-btn:hover {
+            background: rgba(45,94,26,.9); color: #fff; border-color: rgba(108,212,126,.5);
+        }
+        .comp-mes-btn.active, .comp-ano-btn.active {
+            background: #fff; color: #0a1c0a; border-color: #fff;
+        }
+
+        /* ── Spinner de carregamento ────────────────────────────────── */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* ── Comparação com planilha ─────────────────────────────────── */
+        .comp-tab {
+            padding: 5px 14px; border-radius: 20px; font-size: .75rem;
+            font-weight: 600; cursor: pointer; transition: all .15s;
+            border: 1px solid rgba(255,255,255,.15); color: rgba(255,255,255,.5);
+            background: transparent;
+        }
+        .comp-tab.active { background: rgba(139,45,181,.35); border-color: rgba(139,45,181,.6); color: #d8b4fe; }
+        .comp-tab:hover:not(.active) { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.75); }
+        html.light .comp-tab { color: rgba(0,0,0,.5); border-color: rgba(0,0,0,.15); }
+        html.light .comp-tab.active { background: rgba(109,40,217,.15); border-color: rgba(109,40,217,.4); color: #6d28d9; }
+        /* Botão "Ver" da tabela de comparação — hover via CSS (sem handlers inline) */
+        .comp-ver { color: rgba(255,255,255,.55); border: 1px solid rgba(255,255,255,.18); transition: color .15s, border-color .15s; }
+        .comp-ver:not(:disabled):hover { color: #d8b4fe; border-color: rgba(139,45,181,.5); }
+        .comp-ver:disabled { opacity: .3; cursor: not-allowed; }
+        #comparacaoPager button { transition: all .15s; }
+
+        /* ── Toast de Cachê ──────────────────────────────────────────── */
+        @keyframes slideInUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes slideOutDown {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(20px); opacity: 0; }
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="min-h-screen px-4 sm:px-8 pb-8">
@@ -153,38 +254,36 @@
   });
 </script>
 
-<div class="max-w-6xl mx-auto">
+<div class="max-w-6xl mx-auto mt-8 px-4">
 
     <!-- Cabeçalho -->
-    <div class="flex items-center gap-4 mb-6">
-        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-             style="background:linear-gradient(135deg,#16a34a,#059669);box-shadow:0 8px 24px rgba(22,163,74,.3)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" class="w-6 h-6">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/>
-            </svg>
-        </div>
-        <div>
-            <h1 class="text-2xl font-bold text-white tracking-tight">Classificador de Documentos Fiscais</h1>
-            <p class="text-white/60 text-sm">Lê PDFs de uma pasta, detecta texto vs. imagem e identifica o tipo via REGEX</p>
-        </div>
-    </div>
+    <h2 class="section-title">Classificador de Documentos Fiscais</h2>
+    <p class="section-subtitle">Lê PDFs de uma pasta, detecta texto vs. imagem e identifica o tipo via REGEX</p>
 
     <!-- Painel de controle -->
     <div class="card-glass rounded-2xl shadow-2xl p-6 mb-6">
         <div class="flex flex-wrap items-center gap-3">
-            <button id="btnFolder" class="btn-cn text-sm py-2.5 px-5 rounded-xl">
+            <button id="btnClassifyUnidentified" class="btn-cn text-sm py-2.5 px-5 rounded-xl" style="background:linear-gradient(135deg,#2d5e1a,#6cd47e);display:none">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
-                    <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
+                    <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/>
                 </svg>
-                Selecionar pasta
+                Classificar não identificados
             </button>
-            <input id="dirInput" type="file" webkitdirectory directory multiple accept="application/pdf" class="hidden">
 
-            <label class="flex items-center gap-2 text-sm text-white/65 cursor-pointer select-none">
-                <input id="chkOcr" type="checkbox" class="h-4 w-4 rounded" style="accent-color:#4db55e">
-                OCR em imagens <span class="text-white/40">(mais lento)</span>
-            </label>
+            <button id="btnCalendar" class="btn-cn text-sm py-2.5 px-5 rounded-xl" style="background:linear-gradient(135deg,#2d5e1a,#6cd47e)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                Consultar por data
+            </button>
+
+            <button id="btnCompararPlanilha" class="btn-cn text-sm py-2.5 px-5 rounded-xl" style="background:linear-gradient(135deg,#2d5e1a,#6cd47e)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+                    <path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+                Comparar com planilha
+            </button>
 
             <div id="status" class="ml-auto text-sm text-white/50"></div>
         </div>
@@ -205,7 +304,7 @@
             </div>
 
             <!-- Aviso de OCR em andamento -->
-            <div id="ocrBanner" class="hidden mt-3 flex items-center gap-2.5 rounded-xl px-4 py-2.5" style="background:rgba(194,112,53,.15);border:1px solid rgba(194,112,53,.30)">
+            <div id="ocrBanner" class="mt-3 items-center gap-2.5 rounded-xl px-4 py-2.5" style="display:none;background:rgba(194,112,53,.15);border:1px solid rgba(194,112,53,.30)">
                 <svg class="animate-spin w-4 h-4 flex-shrink-0" style="color:#f59e0b" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/>
                     <path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
@@ -248,6 +347,63 @@
         </div>
     </div>
 
+    <!-- Spinner de carregamento para comparação -->
+    <div id="comparacaoSpinner" class="fixed inset-0 items-center justify-center z-40" style="display:none;background:rgba(0,0,0,.4);backdrop-filter:blur(3px);flex-direction:column">
+        <div class="text-center">
+            <div style="width:60px;height:60px;margin:0 auto 16px;border:4px solid rgba(255,255,255,.2);border-top:4px solid #8b2db5;border-radius:50%;animation:spin .8s linear infinite"></div>
+            <p style="color:rgba(255,255,255,.85);font-size:.95rem;font-weight:600">Comparando notas...</p>
+            <p style="color:rgba(255,255,255,.4);font-size:.8rem;margin-top:8px">Por favor aguarde</p>
+        </div>
+    </div>
+
+    <!-- Painel de comparação com planilha -->
+    <div id="comparacaoWrap" class="hidden card-glass rounded-2xl shadow-2xl overflow-hidden mt-6">
+        <div class="px-6 py-4 flex items-center justify-between" style="border-bottom:1px solid rgba(255,255,255,.10)">
+            <div>
+                <h2 class="font-semibold text-white/90">Comparação com Planilha Delsoft</h2>
+                <p id="comparacaoSubtitle" class="text-xs text-white/40 mt-0.5"></p>
+            </div>
+            <button id="btnFecharComparacao" class="text-white/40 hover:text-white text-xl leading-none">&times;</button>
+        </div>
+        <!-- Resumo cards -->
+        <div id="comparacaoResumo" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 p-4"></div>
+        <!-- Tabs -->
+        <div class="flex flex-wrap gap-1 px-4 pb-3">
+            <button class="comp-tab active" data-tab="faltando">Faltando no banco</button>
+            <button class="comp-tab" data-tab="faltando-planilha">Faltando na planilha</button>
+            <button class="comp-tab" data-tab="data-divergente">Data divergente</button>
+            <button class="comp-tab" data-tab="tributos">Tributos/DAM</button>
+            <button class="comp-tab" data-tab="divergente">Divergentes</button>
+            <button class="comp-tab" data-tab="ok">Encontradas</button>
+            <button class="comp-tab" data-tab="outro-mes">No banco, outro mês</button>
+        </div>
+        <!-- Tabela -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="text-xs uppercase tracking-wider" style="background:rgba(44,20,60,.85);color:rgba(255,255,255,.6)">
+                    <tr>
+                        <th class="text-left font-medium px-4 py-3">Nº NF</th>
+                        <th class="text-left font-medium px-4 py-3">Emitente</th>
+                        <th class="text-right font-medium px-4 py-3">Valor planilha</th>
+                        <th class="text-right font-medium px-4 py-3">Σ Itens</th>
+                        <th class="text-left font-medium px-4 py-3">Vencimento</th>
+                        <th class="text-left font-medium px-4 py-3">Emissão</th>
+                        <th class="text-left font-medium px-4 py-3">Filial</th>
+                        <th class="text-left font-medium px-4 py-3">Observação</th>
+                        <th class="text-center font-medium px-4 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody id="comparacaoBody"></tbody>
+            </table>
+        </div>
+        <div id="comparacaoPager" class="hidden items-center justify-center gap-3 py-4 text-sm" style="border-top:1px solid rgba(255,255,255,.06)">
+            <button id="compPagPrev" class="px-3 py-1.5 rounded-lg" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.12)">‹ Anterior</button>
+            <span id="compPagInfo" style="color:rgba(255,255,255,.55)"></span>
+            <button id="compPagNext" class="px-3 py-1.5 rounded-lg" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.12)">Próxima ›</button>
+        </div>
+        <p id="comparacaoEmpty" class="hidden text-center text-white/30 text-sm py-8"></p>
+    </div>
+
     <!-- Estado vazio -->
     <div id="empty" class="card-glass rounded-2xl shadow-2xl p-12 text-center" style="color:rgba(255,255,255,.40)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-12 h-12 mx-auto mb-3 opacity-50">
@@ -260,6 +416,117 @@
     <p class="text-center mt-6 text-white/40 text-xs">Processamento 100% local no navegador · pdf.js + REGEX</p>
 </div>
 
+<!-- Modal: calendário de consulta -->
+<div id="calModal" class="fixed inset-0 items-center justify-center p-4 z-50" style="display:none">
+    <div id="calBox" class="rounded-2xl w-full max-w-sm" style="padding:24px">
+        <!-- cabeçalho: mês/ano + navegação -->
+        <div class="flex items-center justify-between mb-5">
+            <button id="calPrev" class="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-4 h-4"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div class="text-center">
+                <p id="calMonthLabel" class="font-bold text-white text-base tracking-wide"></p>
+                <p id="calYearLabel" class="text-xs text-white/40 -mt-0.5"></p>
+            </div>
+            <button id="calNext" class="w-8 h-8 rounded-lg flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-4 h-4"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+        </div>
+        <!-- dias da semana -->
+        <div class="grid grid-cols-7 gap-1 mb-1">
+            <div class="cal-hdr">Dom</div><div class="cal-hdr">Seg</div><div class="cal-hdr">Ter</div>
+            <div class="cal-hdr">Qua</div><div class="cal-hdr">Qui</div><div class="cal-hdr">Sex</div>
+            <div class="cal-hdr">Sáb</div>
+        </div>
+        <!-- grade de dias (gerada via JS) -->
+        <div id="calGrid" class="grid grid-cols-7 gap-1"></div>
+        <!-- rodapé -->
+        <div class="mt-5 flex items-center gap-2">
+            <button id="calViewMonth" class="flex-1 btn-cn text-xs py-2 rounded-xl" style="background:linear-gradient(135deg,#2d5e1a,#6cd47e)">
+                Ver mês completo
+            </button>
+            <button id="calClose" class="w-9 h-9 rounded-xl flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all text-lg">&times;</button>
+        </div>
+        <p id="calStatus" class="text-center text-xs text-white/35 mt-3 min-h-[1.2em]"></p>
+    </div>
+</div>
+
+<!-- Modal: seleção de mês/ano + dias para comparação -->
+<div id="modalCompMes" class="fixed inset-0 items-center justify-center p-4 z-50" style="display:none;background:rgba(0,0,0,.65);backdrop-filter:blur(6px)">
+    <div class="rounded-2xl w-full" style="max-width:680px;background:rgba(10,28,10,.97);border:1px solid rgba(255,255,255,.13);box-shadow:0 24px 64px rgba(0,0,0,.6);padding:24px">
+
+        <!-- topo: título + fechar -->
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-white" style="font-size:.95rem">Selecionar período</h3>
+            <button id="btnCancelarComp" class="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all text-xl">&times;</button>
+        </div>
+
+        <!-- linha principal: calendário | meses | anos -->
+        <div class="flex gap-4">
+
+            <!-- coluna 1: calendário de dias -->
+            <div class="flex-shrink-0" style="min-width:220px">
+                <div class="flex items-center justify-between mb-3">
+                    <p id="compCalLabel" class="text-sm font-semibold text-white"></p>
+                    <button id="compLimparDias" class="text-[11px] text-white/40 hover:text-white transition-all">limpar</button>
+                </div>
+                <div class="grid grid-cols-7 gap-1 mb-1">
+                    <div class="cal-hdr">Dom</div><div class="cal-hdr">Seg</div><div class="cal-hdr">Ter</div>
+                    <div class="cal-hdr">Qua</div><div class="cal-hdr">Qui</div><div class="cal-hdr">Sex</div>
+                    <div class="cal-hdr">Sáb</div>
+                </div>
+                <div id="compGrid" class="grid grid-cols-7 gap-1 mb-2"></div>
+                <p id="compDiasStatus" class="text-center text-xs text-white/35 mb-3 min-h-[1.1em]">Mês todo</p>
+                <button id="btnConfirmarComp" class="w-full btn-cn text-sm py-2.5 rounded-xl" style="background:linear-gradient(135deg,#2d5e1a,#6cd47e)">
+                    Comparar
+                </button>
+                <p class="text-center text-[10px] text-white/25 mt-1.5">Duplo clique no mês/ano gera direto</p>
+            </div>
+
+            <!-- divisor -->
+            <div style="width:1px;background:rgba(255,255,255,.09);flex-shrink:0"></div>
+
+            <!-- coluna 2: meses (1º e 2º semestre) -->
+            <div class="flex gap-2 flex-shrink-0">
+                <div class="flex flex-col gap-2">
+                    <p class="text-[11px] text-white/40 text-center mb-0.5">1° Semestre</p>
+                    <button class="comp-mes-btn" data-m="1">Janeiro</button>
+                    <button class="comp-mes-btn" data-m="2">Fevereiro</button>
+                    <button class="comp-mes-btn" data-m="3">Março</button>
+                    <button class="comp-mes-btn" data-m="4">Abril</button>
+                    <button class="comp-mes-btn" data-m="5">Maio</button>
+                    <button class="comp-mes-btn" data-m="6">Junho</button>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <p class="text-[11px] text-white/40 text-center mb-0.5">2° Semestre</p>
+                    <button class="comp-mes-btn" data-m="7">Julho</button>
+                    <button class="comp-mes-btn" data-m="8">Agosto</button>
+                    <button class="comp-mes-btn" data-m="9">Setembro</button>
+                    <button class="comp-mes-btn" data-m="10">Outubro</button>
+                    <button class="comp-mes-btn" data-m="11">Novembro</button>
+                    <button class="comp-mes-btn" data-m="12">Dezembro</button>
+                </div>
+            </div>
+
+            <!-- divisor -->
+            <div style="width:1px;background:rgba(255,255,255,.09);flex-shrink:0"></div>
+
+            <!-- coluna 3: anos -->
+            <div class="flex flex-col gap-2 flex-shrink-0">
+                <p class="text-[11px] text-white/40 text-center mb-0.5">Ano</p>
+                <button class="comp-ano-btn" data-a="2024">2024</button>
+                <button class="comp-ano-btn" data-a="2025">2025</button>
+                <button class="comp-ano-btn" data-a="2026">2026</button>
+                <button class="comp-ano-btn" data-a="2027">2027</button>
+                <button class="comp-ano-btn" data-a="2028">2028</button>
+            </div>
+        </div>
+
+        <!-- hidden inputs para compatibilidade com o JS existente -->
+        <input type="hidden" id="compMes" value="6">
+        <input type="hidden" id="compAno" value="2026">
+    </div>
+</div>
 
 <!-- Modal: detalhes (DARF parser, etc.) -->
 <div id="modal" class="hidden fixed inset-0 flex items-center justify-center p-4 z-50" style="background:rgba(0,0,0,.60);backdrop-filter:blur(4px)">
@@ -301,46 +568,47 @@ const norm = s => (s || '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toUpperCase().replace(/\s+/g, ' ').trim();
 
-// ── classificação em 6 categorias: CTE · FATURA · IMPOSTO · NF · NFS · RECIBO ─
-// Calibrado com a pasta TESTES (54 PDFs). Estratégia em 3 camadas:
-//   1) marcador FORTE de conteúdo (alta confiança — sobrepõe o nome do arquivo)
-//   2) dica do NOME do arquivo (os PDFs vêm rotulados: NFS/NF/FT/RCB/GUIA)
-//   3) marcador FRACO de conteúdo (último recurso)
-// No conjunto de teste: 45/54 batem com o rótulo do nome (e várias divergências
-// são o conteúdo acertando mais que o nome — ex: transportadora = CTE).
+// Extração genérica de CNPJ (qualquer tipo de documento, mesmo sem parser dedicado).
+// Prioriza CNPJ rotulado; senão pega o primeiro CNPJ formatado válido do texto.
+function extrairCnpjGenerico(text) {
+    const t = norm(text);
+    const m = t.match(/\bCNPJ[:\s/]*?(\d{2}[.\s]?\d{3}[.\s]?\d{3}[/\s]?\d{4}[-\s]?\d{2})/)
+           || t.match(/(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/);
+    return m ? m[1].trim() : '';
+}
+
+// ── classificação em 7 categorias: CONSORCIO · CTE · FATURA · IMPOSTO · NF · NFS · RECIBO ─
+// Classificação 100% por CONTEÚDO (o nome do arquivo não é mais consultado).
+// Estratégia em 2 camadas:
+//   1) marcador FORTE de conteúdo (alta confiança)
+//   2) marcador FRACO de conteúdo (último recurso)
+// Quando nada bate, cai no fallback de IA automático (ver analyzeFile).
 
 const CATS = {
-    CTE:     { color:'bg-purple-900/50 text-purple-300', parser: parseCte },
-    NF:      { color:'bg-blue-900/50 text-blue-300',     parser: parseDanfe },
-    NFS:     { color:'bg-cyan-900/50 text-cyan-300',     parser: null },
-    IMPOSTO: { color:'bg-amber-900/50 text-amber-300',   parser: parseImposto },
-    FATURA:  { color:'bg-indigo-900/50 text-indigo-300', parser: null },
-    RECIBO:  { color:'bg-pink-900/50 text-pink-300',     parser: null },
+    CONSORCIO: { color:'bg-teal-900/50 text-teal-300',   parser: null },
+    CTE:       { color:'bg-purple-900/50 text-purple-300', parser: parseCte },
+    NF:        { color:'bg-blue-900/50 text-blue-300',     parser: parseDanfe },
+    NFS:       { color:'bg-cyan-900/50 text-cyan-300',     parser: null },
+    IMPOSTO:   { color:'bg-amber-900/50 text-amber-300',   parser: parseImposto },
+    FATURA:    { color:'bg-indigo-900/50 text-indigo-300', parser: null },
+    RECIBO:    { color:'bg-pink-900/50 text-pink-300',     parser: null },
 };
 
 // 1) Conteúdo FORTE — termos canônicos e exclusivos de cada documento
 const STRONG = [
-    ['CTE',     /\bDACTE\b|CONHECIMENTO DE TRANSPORTE|DOCUMENTO AUXILIAR DO CONHECIMENTO|\bCT-?E\b|\bMDF-?E\b|TRANSPORTE RODOVIARIO DE CARGAS/],
-    ['IMPOSTO', /\bDARF\b|ARRECADACAO DE RECEITAS FEDERAIS|GUIA DA PREVIDENCIA SOCIAL|\bDCTFWEB\b|FGTS DIGITAL|GUIA DO FGTS|\bGFD\b|DARF-?SIMPLES/],
-    ['NF',      /\bDANFE\b|DOCUMENTO AUXILIAR DA NOTA FISCAL ELETRONI|NATUREZA DA OPERACAO/],
-    ['NFS',     /\bNFS-?E\b|NOTA FISCAL DE SERVICOS? ELETRONICA|NOTA FISCAL ELETRONICA DE SERVICOS?/],
+    ['CONSORCIO', /\bCONSORCIO\b|COTA DE CONSORCIO|PARCELA DE CONSORCIO|\bADMINISTRADORA DE CONSORCIOS?\b|\bGRUPO DE CONSORCIO\b/],
+    ['CTE',       /\bDACTE\b|CONHECIMENTO DE TRANSPORTE|DOCUMENTO AUXILIAR DO CONHECIMENTO|\bCT-?E\b|\bMDF-?E\b|TRANSPORTE RODOVIARIO DE CARGAS/],
+    ['IMPOSTO',   /\bDARF\b|ARRECADACAO DE RECEITAS FEDERAIS|GUIA DA PREVIDENCIA SOCIAL|\bDCTFWEB\b|FGTS DIGITAL|GUIA DO FGTS|\bGFD\b|DARF-?SIMPLES/],
+    ['NF',        /\bDANFE\b|DOCUMENTO AUXILIAR DA NOTA FISCAL ELETRONI|NATUREZA DA OPERACAO/],
+    ['NFS',       /\bNFS-?E\b|NOTA FISCAL DE SERVICOS? ELETRONICA|NOTA FISCAL ELETRONICA DE SERVICOS?/],
 ];
 
 // Marcador FORTE de CT-e usado também na verificação por OCR (DACTE escaneado)
-const CTE_STRONG_RE = STRONG[0][1];
+const CTE_STRONG_RE = STRONG[1][1];
 // Indício de transportadora no texto legível — gatilho do OCR de verificação de CTE
 const TRANSPORT_HINT_RE = /\bEXPRESSO\b|\bTRANSPORTES?\b|TRANSPORTADORA|RODOVIARIO|\bLOGISTICA\b|TRANSPORTE DE CARGA/;
 
-// 2) Dica do NOME do arquivo (rótulo do usuário)
-const NAME_HINTS = [
-    ['IMPOSTO', /\bGUIA\b|DCTFWEB|\bINSS\b|\bFGTS\b|\bDARF\b|\bGPS\b/],
-    ['NFS',     /\bNFS\b/],
-    ['FATURA',  /\bFT\b|\bFAT\b|\bFATURA\b/],
-    ['NF',      /\bNF\b|\bNFE\b/],
-    ['RECIBO',  /\bRCB?\b|\bRECIBO\b/],
-];
-
-// 3) Conteúdo FRACO — quando nada acima resolveu
+// 2) Conteúdo FRACO — quando nada acima resolveu
 const WEAK = [
     ['NFS',     /NOTA FISCAL DE SERVICOS?/],
     ['FATURA',  /\bFATURA\b/],
@@ -353,12 +621,44 @@ function mk(cat, evidencia, origem) {
     return { tipo: cat, color: c.color, evidencia, origem, parser: c.parser };
 }
 
+// Extração do NOME do emitente a partir do NOME DO ARQUIVO (espelha o backend).
+// O nome do arquivo é usado APENAS para o emitente — nunca p/ classificar o tipo.
+const TIPO_DOC_RE = /\b(RCB|RC|RECIBO|FAT|FT|FATURA|NFS|NFE|NF|BOL|BOLETO|GUIA|DARF|GPS|INSS|FGTS|CTE|DACTE|IMOVEL|OCP|OC)\b/;
+const GOVERNO_RE  = /\bGOVERNO\b|\bPREFEITURA\b|\bMUNICIPIO\b|\bSECRETARIA\b|\bMINISTERIO\b|\bRECEITA FEDERAL\b|\bFAZENDA (?:NACIONAL|ESTADUAL|MUNICIPAL|PUBLICA)\b|\bSEFAZ\b|\bESTADO DE\b|\bUNIAO\b|\bTRIBUNAL\b|\bAUTARQUIA\b/;
+function limpaBordas(s) { return s.replace(/^[\s.,\-]+|[\s.,\-]+$/g, '').trim(); }
+function extrairEmitente(filename = '') {
+    const t = norm(String(filename).replace(/\.pdf$/i, ''));
+    let resto = t;
+    const data = t.match(/(?:20\d{2}\.\d{2}\.\d{2}|\d{2}\.\d{2}\.20\d{2}|\b20\d{2})\.?/);
+    if (data) resto = t.slice(data.index + data[0].length);
+    else {
+        const pref = t.match(/^\d{1,4}\.?DOC[-\s]*[\d.,]*\s*-?\s*/);
+        if (pref) resto = t.slice(pref[0].length);
+    }
+    const tipo = resto.match(TIPO_DOC_RE);
+    let nome = limpaBordas(tipo ? resto.slice(0, tipo.index) : resto);
+    if (nome.length < 2) nome = limpaBordas(resto);
+    nome = limpaBordas(nome.replace(/\s+[A-Z]?\d[\w]*(\s+[A-Z]?\d[\w]*)*$/, ''));
+    if (nome.length < 2 || /^[\d.,\s]+$/.test(nome)) return '';
+    return nome;
+}
+function emitenteEhGoverno(text, emitente = '') {
+    return GOVERNO_RE.test(norm(emitente)) || GOVERNO_RE.test(norm(text));
+}
+
+// Classificação do TIPO é 100% por CONTEÚDO. O nome do arquivo entra SÓ para
+// identificar o emitente (e detectar emitente público → IMPOSTO).
 function classify(text, filename = '') {
     const t = norm(text);
-    const fn = norm(filename);
+    const emitente = extrairEmitente(filename);
 
     for (const [cat, re] of STRONG) { const m = t.match(re); if (m) return mk(cat, m[0], 'conteúdo'); }
-    for (const [cat, re] of NAME_HINTS) { const m = fn.match(re); if (m) return mk(cat, m[0], 'nome do arquivo'); }
+
+    if (emitenteEhGoverno(text, emitente)) {
+        const ev = emitente && GOVERNO_RE.test(norm(emitente)) ? `emitente: ${emitente}` : 'emitente público';
+        return mk('IMPOSTO', ev, 'conteúdo (emitente)');
+    }
+
     for (const [cat, re] of WEAK) { const m = t.match(re); if (m) return mk(cat, m[0], 'conteúdo (fraco)'); }
 
     return { tipo: 'Não identificado', color: 'bg-gray-100 text-gray-500', evidencia: '—', origem: '—', parser: null };
@@ -370,15 +670,33 @@ function parseDanfe(text) {
     const grab = re => { const m = t.match(re); return m ? m[1].trim() : '—'; };
     // chave de acesso: 44 dígitos (com ou sem espaços a cada 4)
     const chave = (t.match(/\b(\d[\d ]{42,52}\d)\b/) || [])[1];
+    // Ordem de compra: "OCP 900699", "ORDEM DE COMPRA.*N[º°] 900699", "OC: 900699"
+    const ocpM = t.match(/(?:ORDEM\s+DE\s+COMPRA[-–\s]*OCP|OCP|ORDEM\s+DE\s+COMPRA)[:\s#Nº°.]*(\d{4,})/i)
+              || t.match(/\bOC[:\s#]*(\d{4,})\b/i);
     return {
         'Chave de acesso':    chave ? chave.replace(/\s+/g, '') : '—',
         'Nº da NF-e':         grab(/(?:NR\.?DOCUMENTO|N[º°]?\.?\s*(?:DA )?NF-?E|NUMERO)\D{0,8}(\d{3,9})/),
         'Série':              grab(/SERIE\D{0,4}(\d{1,3})/),
         'Natureza da operação': grab(/NATUREZA DA OPERACAO[:\s]*([A-Z0-9 .,/-]{4,40})/),
         'Data de emissão':    grab(/(?:DATA (?:DE |DA )?EMISSAO|EMISSAO)[:\s]*([\d/]{8,10})/),
-        'CNPJ emitente':      grab(/\bCNPJ[:\s]*([\d./-]{14,18})/),
+        'Data de vencimento': extrairVencimento(t),
+        'CNPJ emitente':      grab(/\bCNPJ[:\s]*(\d{2}[.\s]?\d{3}[.\s]?\d{3}[/\s]?\d{4}[-\s]?\d{2})/),
         'Valor total da nota':grab(/VALOR TOTAL DA NOTA[:\s]*R?\$?\s*([\d.,]{3,})/),
+        'Ordem de Compra':    ocpM ? ocpM[1] : '—',
     };
+}
+
+// ── extração da Data de Vencimento do boleto/duplicata ───────────────────────
+// Cobre DANFE (bloco FATURA/DUPLICATA), boletos bancários e impostos.
+// Recebe o texto JÁ normalizado (norm()). Retorna DD/MM/AAAA ou '—'.
+function extrairVencimento(t) {
+    // 1) rótulo explícito "VENCIMENTO" / "VENCTO" / "DT VENCIMENTO" / "DATA DE VENCIMENTO"
+    let m = t.match(/(?:DATA\s+(?:DE\s+|DO\s+)?)?VEN(?:CIMENTO|CTO)\.?\s*[:\-]?\s*([0-3]?\d[\/.-][01]?\d[\/.-]\d{2,4})/);
+    if (m) return m[1].replace(/[-.]/g, '/');
+    // 2) bloco de duplicata "NUM ... VENC ... VALOR": pega a 1ª data após VENC
+    m = t.match(/VENC\.?\s*[A-Z ]{0,12}?([0-3]?\d[\/.-][01]?\d[\/.-]\d{2,4})/);
+    if (m) return m[1].replace(/[-.]/g, '/');
+    return '—';
 }
 
 // ── parser: CTE / DACTE (conhecimento de transporte) ────────────────────────
@@ -390,7 +708,8 @@ function parseCte(text) {
         'Chave de acesso':      chave ? chave.replace(/\s+/g, '') : '—',
         'Nº do CT-e':           grab(/(?:NR\.?DOCUMENTO|N[º°]?\.?\s*(?:DO )?CT-?E)\D{0,8}(\d{3,9})/),
         'Data de emissão':      grab(/(?:DATA (?:DE |DA )?EMISSAO|EMISSAO)[:\s]*([\d/]{8,10})/),
-        'CNPJ emitente':        grab(/\bCNPJ[:\s]*([\d./-]{14,18})/),
+        'Data de vencimento':   extrairVencimento(t),
+        'CNPJ emitente':        grab(/\bCNPJ[:\s]*(\d{2}[.\s]?\d{3}[.\s]?\d{3}[/\s]?\d{4}[-\s]?\d{2})/),
         'Valor da prestação':   grab(/VALOR TOTAL DA PRESTACAO[:\s]*R?\$?\s*([\d.,]{3,})/),
     };
 }
@@ -401,7 +720,7 @@ function parseImposto(text) {
     const grab = re => { const m = t.match(re); return m ? m[1].trim() : '—'; };
     const base = {
         'Tipo de guia':         grab(/\b(DARF-?SIMPLES|DARF|GPS|DCTFWEB|GFD|FGTS DIGITAL|GNRE)\b/),
-        'CNPJ / CPF':           grab(/\b(?:CNPJ|CPF)[:\s]*([\d./-]{11,})/),
+        'CNPJ / CPF':           grab(/\b(?:CNPJ|CPF)[:\s]*(\d{2}[.\s]?\d{3}[.\s]?\d{3}[/\s]?\d{4}[-\s]?\d{2}|\d{3}[.\s]?\d{3}[.\s]?\d{3}[-\s]?\d{2})/),
         'Data de vencimento':   grab(/(?:DATA DE )?VENCIMENTO[:\s]*([\d/]{8,10})/),
         'Valor total':          grab(/VALOR TOTAL[:\s]*R?\$?\s*([\d.,]{3,})/),
     };
@@ -471,6 +790,21 @@ async function ocrViaBackend(pdfData) {
     return text || '';
 }
 
+// ── Fallback de classificação via IA (rota dedicada /api/classify-fallback) ──
+// Chamado por documento quando nem texto nem OCR resolveram a classificação.
+async function classifyViaIA(text, name) {
+    if (!text || text.replace(/\s/g, '').length < 15) return null;
+    const res = await fetch('/api/classify-fallback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name, text: text.slice(0, 6000) }),
+    });
+    if (!res.ok) throw new Error(`IA ${res.status}`);
+    const json = await res.json();
+    return json && json.success ? json.result : null;
+}
+
 // ── renderizador: todas as páginas empilhadas ───────────────────────────────
 let viewerPdf = null;
 
@@ -535,7 +869,30 @@ async function openViewer(rec) {
         const buf = await rec.fileRef.arrayBuffer();
         pdfBytes = new Uint8Array(buf);
     }
-    if (!pdfBytes) { $('pdfSpinner').classList.add('hidden'); return; }
+
+    // Se não tem arquivo local, tenta buscar do servidor (com cache)
+    if (!pdfBytes) {
+        try {
+            const params = new URLSearchParams({
+                arquivo: rec.name,
+                pasta: rec.folder || '',
+            });
+            const r = await fetch(`/api/pdf-viewer?${params}`, { credentials: 'include' });
+            if (r.ok) {
+                pdfBytes = new Uint8Array(await r.arrayBuffer());
+                const cacheStatus = r.headers.get('X-Cache');
+                console.log(`[viewer] PDF carregado do servidor (${cacheStatus})`);
+            }
+        } catch (e) {
+            console.error('[viewer] erro ao buscar PDF do servidor:', e);
+        }
+    }
+
+    if (!pdfBytes) {
+        $('pdfSpinner').classList.add('hidden');
+        $('pdfCanvas').innerHTML = '<p style="color:rgba(255,255,255,.5);text-align:center;margin-top:20px">Arquivo não disponível</p>';
+        return;
+    }
 
     viewerPdf = await pdfjsLib.getDocument({ data: pdfBytes.slice() }).promise;
     await renderAllPages();
@@ -593,7 +950,7 @@ let ocrActive = 0;
 function setOcr(active, detail) {
     ocrActive = Math.max(0, ocrActive + (active ? 1 : -1));
     const on = ocrActive > 0;
-    $('ocrBanner').classList.toggle('hidden', !on);
+    $('ocrBanner').style.display = on ? 'flex' : 'none';
     if (on) {
         $('ocrBannerText').textContent = ocrActive > 1
             ? `Lendo ${ocrActive} documentos via OCR ao mesmo tempo…`
@@ -686,10 +1043,7 @@ function fillRow(tr, r) {
         </td>
         <td class="px-4 py-3 text-center" style="color:rgba(255,255,255,.55)">${r.pages}</td>
         <td class="px-4 py-3 text-center">
-            <button data-view="${r.idx}" class="btn-view inline-flex items-center gap-1 text-xs rounded-lg px-2.5 py-1" style="color:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.18)" onmouseover="this.style.color='#6cd47e';this.style.borderColor='rgba(77,181,94,.4)'" onmouseout="this.style.color='rgba(255,255,255,.55)';this.style.borderColor='rgba(255,255,255,.18)'">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                Ver
-            </button>
+            <button data-view="${r.idx}" class="btn-view inline-flex items-center gap-1 text-xs rounded-lg px-2.5 py-1" style="color:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.18)" onmouseover="this.style.color='#6cd47e';this.style.borderColor='rgba(77,181,94,.4)'" onmouseout="this.style.color='rgba(255,255,255,.55)';this.style.borderColor='rgba(255,255,255,.18)'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Ver</button>
         </td>`;
 }
 
@@ -711,38 +1065,58 @@ async function analyzeFile(file, idx, forceOcr) {
 
         let c = classify(text, file.name);
 
-        // OCR automático para não identificados
+        // OCR automático para não identificados (classifica só pelo conteúdo extraído)
         if (c.tipo === 'Não identificado' && !ocrUsed) {
             try {
                 setOcr(true, `Tipo não reconhecido — lendo ${file.name}`);
                 const ocrText = await ocrViaBackend(pdfData);
                 const c2 = classify(ocrText, file.name);
-                if (c2.tipo !== 'Não identificado') { text = ocrText; ocrUsed = true; c = c2; }
+                // Mantém o texto do OCR mesmo se ainda não classificar — serve ao fallback de IA
+                text = ocrText; ocrUsed = true;
+                if (c2.tipo !== 'Não identificado') { c = c2; }
             } catch (_) { /* OCR falhou */ }
             finally { setOcr(false); }
         }
 
-        // Verificação RIGOROSA de DACTE escaneado (transportadora + páginas-imagem)
-        // Checa texto extraído OU nome do arquivo — DACTEs escaneados podem ter rawText vazio,
-        // mas o nome do arquivo frequentemente contém o nome da transportadora (ex: "EXPRESSO ...").
+        // Verificação RIGOROSA de DACTE escaneado (transportadora + páginas-imagem).
+        // Baseada só no CONTEÚDO legível (o nome do arquivo não é mais consultado).
         if (c.tipo !== 'CTE' && c.origem !== 'conteúdo' && hasImagePages
             && !ocrUsed
-            && (TRANSPORT_HINT_RE.test(norm(rawText)) || TRANSPORT_HINT_RE.test(norm(file.name)))) {
+            && TRANSPORT_HINT_RE.test(norm(rawText))) {
             try {
                 setOcr(true, `Verificando se é DACTE — ${file.name}`);
                 const ocrText = await ocrViaBackend(pdfData);
+                text = rawText + '\n' + ocrText; ocrUsed = true;
                 if (CTE_STRONG_RE.test(norm(ocrText))) {
-                    text = rawText + '\n' + ocrText; ocrUsed = true;
                     c = mk('CTE', 'DACTE confirmado', 'OCR');
                 }
             } catch (_) { /* OCR falhou */ }
             finally { setOcr(false); }
         }
 
+        // Fallback de IA automático: já passou OCR (ou era texto) e ainda não há
+        // certeza — pede classificação ao modelo via rota dedicada.
+        if (c.tipo === 'Não identificado') {
+            try {
+                setOcr(true, `Classificando via IA — ${file.name}`);
+                const clf = await classifyViaIA(text || rawText, file.name);
+                if (clf && clf.category && clf.category !== 'Não identificado' && CATS[clf.category]) {
+                    c = mk(clf.category, clf.reason || 'classificado por IA', `IA (${clf.confidence || '—'})`);
+                }
+            } catch (_) { /* IA indisponível */ }
+            finally { setOcr(false); }
+        }
+
+        let parsed = c.parser ? c.parser(text) : null;
+        let cnpj = parsed ? (parsed['CNPJ emitente'] || parsed['CNPJ / CPF'] || '') : '';
+        if (!cnpj || cnpj === '—') cnpj = extrairCnpjGenerico(text);
+        // Emitente (nome): extraído do nome do arquivo — vale p/ todos os tipos.
+        const emitenteNome = extrairEmitente(file.name);
+        if (emitenteNome) { parsed = parsed || {}; parsed['Emitente'] = emitenteNome; }
         return {
             idx, name: file.name, folder: fileFolder(file), pages, isImage, ocrUsed,
             tipo: c.tipo, color: c.color, evidencia: c.evidencia, origem: c.origem,
-            parser: c.parser ? c.parser(text) : null, pdfData,
+            parser: parsed, cnpj, pdfData,
         };
     } catch (err) {
         return {
@@ -759,6 +1133,16 @@ const PARALLEL_THRESHOLD = 50;
 function pad(n)     { return String(n).padStart(2, '0'); }
 function todayStr() { const d = new Date(); return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()}`; }
 function monthStr() { const d = new Date(); return `${pad(d.getMonth()+1)}.${d.getFullYear()}`; }
+// Extrai DD.MM.YYYY da data embutida no nome do arquivo (YYYY.MM.DD ou DD.MM.YYYY,
+// ano 2000-2099). Retorna null se não houver data no nome.
+function filenameToDay(name) {
+    const n = String(name || '');
+    let m = n.match(/(?<!\d)(20\d{2})\.(\d{2})\.(\d{2})(?!\d)/);
+    if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+    m = n.match(/(?<!\d)(\d{2})\.(\d{2})\.(20\d{2})(?!\d)/);
+    if (m) return `${m[1]}.${m[2]}.${m[3]}`;
+    return null;
+}
 function cacheKey(name, folder) { return `${name}|${folder ?? ''}`; }
 
 // Identificador único do documento a partir dos dados extraídos (Remetente/Nº nota)
@@ -772,49 +1156,78 @@ function docKey(parser) {
     return null;
 }
 
-// Detecta a data (DD.MM.AAAA) a partir do caminho das subpastas dos arquivos.
-// Estrutura esperada: pasta-de-mês / DD.MM.AAAA / arquivo.pdf
-function detectDateFromFiles(pdfs) {
-    const re = /\b(\d{2}\.\d{2}\.\d{4})\b/;
-    for (const f of pdfs) {
-        const path = f.relPath || f.webkitRelativePath || '';
-        const m = path.match(re);
-        if (m) return m[1]; // ex: "04.06.2026"
-    }
-    return null;
-}
-
 async function processFiles(files) {
     const pdfs = files.filter(f => /\.pdf$/i.test(f.name));
     if (!pdfs.length) { $('status').textContent = 'Nenhum PDF encontrado na pasta.'; return; }
 
     const subfolders = new Set(pdfs.map(fileFolder).filter(Boolean));
     const folderInfo = subfolders.size ? ` em ${subfolders.size} subpasta(s)` : '';
-    const forceOcr   = $('chkOcr').checked;
+    const forceOcr   = false;
 
-    // ── 1) Determina datas automaticamente ───────────────────────────────────
-    const detectedDay  = detectDateFromFiles(pdfs) || todayStr();          // DD.MM.AAAA
-    const detectedMonth = detectedDay.slice(3);                             // MM.AAAA
+    // ── 1) Data do documento ───────────────────────────────────────────────────
+    // Cada arquivo é arquivado sob a DATA do documento, extraída do nome do arquivo
+    // (padrão "... YYYY.MM.DD ..." ou "DD.MM.YYYY"). Arquivos SEM data no nome caem
+    // no mês predominante do lote (dia 01); se o lote inteiro for sem data, em hoje.
+    const today         = todayStr();                                       // DD.MM.AAAA
     const hasRelatorio  = true; // relatórios sempre salvos no banco
 
-    // ── 2) Carrega CSV mensal para cache (se caminho configurado) ────────────
+    // 1ª passada: datas dos arquivos que têm data no nome
+    const dayForFile = new Map(); // file → DD.MM.YYYY
+    const semData    = [];        // arquivos sem data no nome
+    for (const f of pdfs) {
+        const d = filenameToDay(f.name);
+        if (d) dayForFile.set(f, d);
+        else   semData.push(f);
+    }
+
+    // Mês predominante (MM.YYYY mais frequente entre os arquivos datados)
+    const monthCount = new Map();
+    for (const d of dayForFile.values()) {
+        const mon = d.slice(3);
+        monthCount.set(mon, (monthCount.get(mon) || 0) + 1);
+    }
+    let mesPredominante = today.slice(3);
+    if (monthCount.size) {
+        mesPredominante = [...monthCount.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    }
+    const fallbackDay = monthCount.size ? `01.${mesPredominante}` : today;
+
+    // 2ª passada: arquivos sem data → mês predominante (dia 01) e avisa
+    for (const f of semData) dayForFile.set(f, fallbackDay);
+    if (semData.length) {
+        const nomes = semData.map(f => f.name).join(', ');
+        showToast(
+            `⚠ ${semData.length} arquivo(s) sem data no nome — arquivado(s) em ${fallbackDay}: ${nomes}`,
+            'warning', 8000
+        );
+        console.warn('[processFiles] sem data no nome → ' + fallbackDay + ':', semData.map(f => f.name));
+    }
+
+    // Conjuntos de dias e meses distintos presentes no lote
+    const allDays   = new Set(dayForFile.values());                         // {DD.MM.YYYY}
+    const allMonths = new Set([...allDays].map(d => d.slice(3)));           // {MM.YYYY}
+
+    // ── 2) Carrega CSV mensal para cache de todos os meses distintos ─────────
     const cacheByName   = new Map(); // "arquivo|pasta" → row
     const cacheByDocKey = new Map(); // docKey           → row
     if (hasRelatorio) {
         $('cacheBanner').style.display = 'flex';
-        setProgress(0, pdfs.length, `Carregando M-${detectedMonth}.csv…`);
+        const monthList = [...allMonths].join(', ');
+        setProgress(0, pdfs.length, `Carregando cache (${monthList})…`);
         try {
-            const r = await fetch(`/api/relatorio?tipo=M&data=${encodeURIComponent(detectedMonth)}`, { credentials: 'include' });
-            if (r.ok) {
-                const { rows: cached } = await r.json();
-                (cached || []).forEach(row => {
-                    cacheByName.set(cacheKey(row.arquivo, row.pasta), row);
-                    let cp = null;
-                    try { cp = JSON.parse(row.dados_parser || 'null'); } catch {}
-                    const dk = docKey(cp);
-                    if (dk) cacheByDocKey.set(dk, row);
-                });
-            }
+            await Promise.all([...allMonths].map(async mon => {
+                const r = await fetch(`/api/relatorio?tipo=M&data=${encodeURIComponent(mon)}`, { credentials: 'include' });
+                if (r.ok) {
+                    const { rows: cached } = await r.json();
+                    (cached || []).forEach(row => {
+                        cacheByName.set(cacheKey(row.arquivo, row.pasta), row);
+                        let cp = null;
+                        try { cp = JSON.parse(row.dados_parser || 'null'); } catch {}
+                        const dk = docKey(cp);
+                        if (dk) cacheByDocKey.set(dk, row);
+                    });
+                }
+            }));
         } catch (_) {}
         $('cacheBanner').style.display = 'none';
     }
@@ -852,6 +1265,7 @@ async function processFiles(files) {
         activeTypeFilter = '';
         renderSummary();
         renderTypeFilters();
+        updateClassifyButton();
         $('status').textContent = '';
         return;
     }
@@ -892,38 +1306,103 @@ async function processFiles(files) {
     }
     await Promise.all(Array.from({ length: parallel }, worker));
 
-    // ── 6) Salva D- e M- automaticamente (se caminho configurado) ───────────
+    // ── 6) Salva D- e M- por subpasta (uma entrada por dia/mês distinto) ────
     let finalMsg = `Concluído: ${pdfs.length} PDF(s)${folderInfo}.`;
     if (hasRelatorio) {
         setProgress(pdfs.length, pdfs.length, 'Salvando relatórios…');
-        const [okD, okM] = await Promise.all([
-            autoSaveRelatorio({ tipo: 'D', data: detectedDay   }, renames),
-            autoSaveRelatorio({ tipo: 'M', data: detectedMonth }, renames),
-        ]);
-        finalMsg = (okD && okM)
-            ? `Concluído · D-${detectedDay}.csv e M-${detectedMonth}.csv salvos`
-            : `Concluído (erro ao salvar um dos relatórios)`;
+        // Toast de cachê
+        const toast = document.createElement('div');
+        toast.id = 'toastCache';
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 28px;
+            right: 28px;
+            background: rgba(30,80,120,.95);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(96,184,240,.3);
+            color: #fff;
+            padding: 13px 22px;
+            border-radius: 10px;
+            font-size: .85rem;
+            font-weight: 600;
+            box-shadow: 0 8px 32px rgba(0,0,0,.4);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideInUp .3s ease-out;
+        `;
+        toast.innerHTML = `
+            <svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/>
+                <path d="M4 12a8 8 0 018-8" stroke="currentColor" stroke-width="3" stroke-linecap="round" style="animation: spin .8s linear infinite"/>
+            </svg>
+            <span>Fazendo cachê das notas para conferência. Aguarde alguns minutos…</span>
+        `;
+        document.body.appendChild(toast);
+
+        // Agrupa resultados pelo dia da subpasta onde cada arquivo está
+        const rowsByDay = new Map(); // DD.MM.YYYY → [rec, ...]
+        results.forEach((rec, idx) => {
+            if (!rec) return;
+            const day = dayForFile.get(pdfs[idx]) || today;
+            if (!rowsByDay.has(day)) rowsByDay.set(day, []);
+            rowsByDay.get(day).push(rec);
+        });
+
+        // Para cada dia distinto salva D- e contribui para M- acumulado
+        const rowsByMonth = new Map(); // MM.YYYY → [rec, ...]
+        for (const [day, recs] of rowsByDay) {
+            const mon = day.slice(3);
+            if (!rowsByMonth.has(mon)) rowsByMonth.set(mon, []);
+            rowsByMonth.get(mon).push(...recs);
+        }
+
+        const saves = [];
+        for (const [day, recs] of rowsByDay)   saves.push(autoSaveRelatorio({ tipo: 'D', data: day }, renames, recs));
+        for (const [mon, recs] of rowsByMonth) saves.push(autoSaveRelatorio({ tipo: 'M', data: mon }, renames, recs));
+
+        const oks = await Promise.all(saves);
+        const allOk = oks.every(Boolean);
+        const dias  = [...rowsByDay.keys()].join(', ');
+        finalMsg = allOk
+            ? `Concluído · relatórios salvos para: ${dias}`
+            : `Concluído (erro ao salvar um ou mais relatórios)`;
+
+        // Remove toast de cachê
+        const toastEl = document.getElementById('toastCache');
+        if (toastEl) {
+            toastEl.style.animation = 'slideOutDown .3s ease-in';
+            setTimeout(() => toastEl.remove(), 300);
+        }
     }
 
     setProgress(pdfs.length, pdfs.length, finalMsg);
     activeTypeFilter = '';
     renderSummary();
     renderTypeFilters();
+    updateClassifyButton();
     $('status').textContent = '';
 }
 
-async function autoSaveRelatorio({ tipo, data }, renames = []) {
-    const rows = results.filter(Boolean).map(rec => ({
-        arquivo:      rec.name,
-        pasta:        rec.folder || '',
-        paginas:      String(rec.pages),
-        conteudo:     rec.isImage ? `Imagem${rec.ocrUsed ? ' (OCR)' : ''}` : 'Texto',
-        tipo:         rec.tipo,
-        evidencia:    rec.evidencia,
-        origem:       rec.origem,
-        ocr_usado:    String(rec.ocrUsed),
-        dados_parser: JSON.stringify(rec.parser || null),
-    }));
+async function autoSaveRelatorio({ tipo, data }, renames = [], subset = null) {
+    const source = subset ?? results.filter(Boolean);
+    const rows = source.map(rec => {
+        const p = rec.parser || {};
+        const cnpj = rec.cnpj || p['CNPJ emitente'] || p['CNPJ / CPF'] || p?.emitente?.cnpj || '';
+        return {
+            arquivo:      rec.name,
+            pasta:        rec.folder || '',
+            paginas:      String(rec.pages),
+            conteudo:     rec.isImage ? `Imagem${rec.ocrUsed ? ' (OCR)' : ''}` : 'Texto',
+            tipo:         rec.tipo,
+            evidencia:    rec.evidencia,
+            origem:       rec.origem,
+            ocr_usado:    String(rec.ocrUsed),
+            dados_parser: JSON.stringify(rec.parser || null),
+            cnpj:         cnpj !== '—' ? cnpj : '',
+        };
+    });
     try {
         const r = await fetch('/api/relatorio', {
             method:      'POST',
@@ -936,24 +1415,6 @@ async function autoSaveRelatorio({ tipo, data }, renames = []) {
     } catch (e) { console.error('[relatorio] erro ao salvar:', e); return false; }
 }
 
-// ── seleção de pasta (recursiva: pasta + subpastas) ─────────────────────────
-// Percorre a árvore de diretórios coletando todos os PDFs. O caminho relativo
-// (subpasta/arquivo.pdf) é anexado ao File para exibição.
-async function collectPdfs(dirHandle, prefix = '') {
-    const files = [];
-    for await (const entry of dirHandle.values()) {
-        const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-        if (entry.kind === 'file' && /\.pdf$/i.test(entry.name)) {
-            const file = await entry.getFile();
-            file.relPath = rel;          // caminho relativo p/ exibição
-            files.push(file);
-        } else if (entry.kind === 'directory') {
-            files.push(...await collectPdfs(entry, rel));  // desce na subpasta
-        }
-    }
-    return files;
-}
-
 // Caminho da subpasta de um arquivo (vazio se estiver na raiz)
 function fileFolder(file) {
     const rel = file.relPath || file.webkitRelativePath || '';
@@ -963,24 +1424,445 @@ function fileFolder(file) {
     return parts.join('/');
 }
 
-async function pickFolder() {
-    if (window.showDirectoryPicker) {
-        try {
-            const handle = await window.showDirectoryPicker();
-            $('status').textContent = 'Varrendo pastas e subpastas…';
-            // prefixo inicial = nome da pasta raiz, p/ casar com webkitRelativePath
-            const files = await collectPdfs(handle, handle.name);
-            await processFiles(files);
-            return;
-        } catch (e) {
-            if (e.name === 'AbortError') return;
-        }
+
+// ── toast de notificação ──────────────────────────────────────────────────────
+function showToast(message, type = 'info', duration = 3000) {
+    // Cria estilo de animação se não existir
+    if (!document.getElementById('toast-style')) {
+        const style = document.createElement('style');
+        style.id = 'toast-style';
+        style.textContent = `
+            @keyframes slideInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes slideOutDown { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(20px); } }
+            .toast-notification { animation: slideInUp .3s ease-out; }
+            .toast-notification.removing { animation: slideOutDown .3s ease-in; }
+        `;
+        document.head.appendChild(style);
     }
-    $('dirInput').click();
+
+    const colors = {
+        info: { bg: 'rgba(45,94,26,.95)', border: 'rgba(108,212,126,.3)' },
+        warning: { bg: 'rgba(255,152,0,.95)', border: 'rgba(255,193,7,.3)' },
+        error: { bg: 'rgba(220,38,38,.95)', border: 'rgba(248,113,113,.3)' }
+    };
+    const colorScheme = colors[type] || colors.info;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        background: ${colorScheme.bg};
+        backdrop-filter: blur(16px);
+        border: 1px solid ${colorScheme.border};
+        color: #fff;
+        padding: 13px 22px;
+        border-radius: 10px;
+        font-size: .85rem;
+        font-weight: 600;
+        box-shadow: 0 8px 32px rgba(0,0,0,.4);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 400px;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add('removing');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
 }
 
-$('btnFolder').addEventListener('click', pickFolder);
-$('dirInput').addEventListener('change', e => processFiles(Array.from(e.target.files)));
+// ── calendário de consulta ────────────────────────────────────────────────────
+{
+    const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                       'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+    let calYear  = new Date().getFullYear();
+    let calMonth = new Date().getMonth(); // 0-based
+    let calDaysWithData = new Set();     // dias com registros no banco: Set de DD (inteiros)
+    let calStartDay = null;              // primeiro dia clicado
+    let calEndDay = null;                // segundo dia clicado
+
+    function calOpen() {
+        $('calModal').style.display = 'flex';
+        calStartDay = null;
+        calEndDay = null;
+        calRender();
+        calLoadMonth();
+    }
+    function calClose() { $('calModal').style.display = 'none'; }
+
+    // Busca os períodos D- existentes no mês atual para destacar no calendário
+    async function calLoadMonth() {
+        calDaysWithData.clear();
+        $('calStatus').textContent = 'Carregando…';
+        const mon = `${String(calMonth+1).padStart(2,'0')}.${calYear}`; // MM.YYYY
+        try {
+            const r = await fetch(`/api/relatorio?tipo=dias&data=${encodeURIComponent(mon)}`, { credentials: 'include' });
+            if (r.ok) {
+                const { dias } = await r.json();
+                (dias || []).forEach(d => calDaysWithData.add(d));
+                $('calStatus').textContent = calDaysWithData.size
+                    ? `${calDaysWithData.size} dia(s) com registros`
+                    : 'Nenhum registro neste mês';
+            } else {
+                $('calStatus').textContent = 'Nenhum registro neste mês';
+            }
+        } catch (_) {
+            $('calStatus').textContent = 'Erro ao consultar banco';
+        }
+        calRender(); // re-renderiza com os pontos
+        calUpdateStatus();
+    }
+
+    function calRender() {
+        $('calMonthLabel').textContent = MONTHS_PT[calMonth];
+        $('calYearLabel').textContent  = calYear;
+
+        const grid = $('calGrid');
+        grid.innerHTML = '';
+
+        const firstWeekday = new Date(calYear, calMonth, 1).getDay(); // 0=Dom
+        const daysInMonth  = new Date(calYear, calMonth + 1, 0).getDate();
+        const today = new Date();
+
+        // células vazias antes do dia 1
+        for (let i = 0; i < firstWeekday; i++) {
+            const empty = document.createElement('div');
+            empty.className = 'cal-day cal-empty';
+            grid.appendChild(empty);
+        }
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const cell = document.createElement('div');
+            const hasData = calDaysWithData.has(d);
+            const isStart = d === calStartDay;
+            const isEnd = d === calEndDay;
+            const isInRange = calStartDay && calEndDay && d > Math.min(calStartDay, calEndDay) && d < Math.max(calStartDay, calEndDay);
+            const isToday = d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+
+            let classes = 'cal-day';
+            if (hasData) classes += ' has-data';
+            if (isStart || isEnd) classes += ' selected';
+            if (isInRange) classes += ' in-range';
+            cell.className = classes;
+
+            cell.title = hasData ? `Notas de ${String(d).padStart(2,'0')}/${String(calMonth+1).padStart(2,'0')}/${calYear}` : '';
+            cell.innerHTML = `<span>${d}</span>${hasData ? '<span class="cal-dot"></span>' : ''}`;
+
+            if (isToday && !hasData && !isStart && !isEnd) {
+                cell.style.border = '1px solid rgba(255,255,255,.25)';
+            }
+
+            cell.addEventListener('click', () => calSelectDay(d));
+
+            grid.appendChild(cell);
+        }
+    }
+
+    function calSelectDay(d) {
+        if (!calStartDay || calEndDay !== null) {
+            // Sem seleção ativa ou intervalo já fechado: começa nova seleção
+            calStartDay = d;
+            calEndDay = null;
+            calRender();
+            calUpdateStatus();
+        } else {
+            // Segundo clique: fecha intervalo (mesmo dia = dia único) e carrega
+            calEndDay = d;
+            calRender();
+            calUpdateStatus();
+            calLoadSelected();
+        }
+    }
+
+    function calUpdateStatus() {
+        if (!calStartDay) {
+            $('calStatus').textContent = 'Clique em uma data para consultar';
+            $('calViewMonth').textContent = 'Ver mês completo';
+            $('calViewMonth').disabled = false;
+        } else {
+            const dMin = Math.min(calStartDay, calEndDay ?? calStartDay);
+            const dMax = Math.max(calStartDay, calEndDay ?? calStartDay);
+            const count = dMax - dMin + 1;
+            const dias = [];
+            for (let i = dMin; i <= dMax; i++) dias.push(i);
+            $('calStatus').textContent = `${count} dia(s) selecionado(s): ${dias.join(', ')}`;
+            $('calViewMonth').textContent = count === 1 ? 'Ver dia' : `Ver ${count} dias`;
+            $('calViewMonth').disabled = false;
+        }
+    }
+
+    async function calLoadSelected() {
+        if (!calStartDay) return;
+        if (!calEndDay) calEndDay = calStartDay;
+
+        const dMin = Math.min(calStartDay, calEndDay);
+        const dMax = Math.max(calStartDay, calEndDay);
+        const dias = [];
+        for (let i = dMin; i <= dMax; i++) dias.push(i);
+
+        calClose();
+
+        if (dias.length === 1) {
+            // Um dia: carrega como D-
+            const dd = String(dias[0]).padStart(2,'0');
+            const mm = String(calMonth+1).padStart(2,'0');
+            const day = `${dd}.${mm}.${calYear}`;
+            await loadRelatorioIntoTable('D', day, `Dia ${day}`);
+        } else {
+            // Múltiplos dias: carrega e mescla
+            const label = `${dias.length} dias (${dias.join(', ')})`;
+            await loadMultipleDays(dias, calMonth, calYear, label);
+        }
+    }
+
+    $('calViewMonth').addEventListener('click', calLoadSelected);
+
+    $('calPrev').addEventListener('click', () => {
+        calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; }
+        $('calStatus').textContent = '';
+        calRender(); calLoadMonth();
+    });
+    $('calNext').addEventListener('click', () => {
+        calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; }
+        $('calStatus').textContent = '';
+        calRender(); calLoadMonth();
+    });
+
+    $('btnCalendar').addEventListener('click', calOpen);
+    $('calClose').addEventListener('click', calClose);
+    $('calModal').addEventListener('click', e => { if (e.target === $('calModal')) calClose(); });
+}
+
+// Carrega múltiplos dias e mescla os resultados
+async function loadMultipleDays(dias, month, year, label) {
+    $('status').textContent = `Carregando ${label}…`;
+    $('progressWrap').classList.remove('hidden');
+    setProgress(0, dias.length, `Consultando ${label}…`);
+
+    let allRows = [];
+    const mm = String(month + 1).padStart(2, '0');
+    const yyyy = year;
+
+    for (let i = 0; i < dias.length; i++) {
+        const d = dias[i];
+        const dd = String(d).padStart(2, '0');
+        const day = `${dd}.${mm}.${yyyy}`;
+
+        try {
+            const r = await fetch(`/api/relatorio?tipo=D&data=${encodeURIComponent(day)}`, { credentials: 'include' });
+            if (r.ok) {
+                const json = await r.json();
+                allRows.push(...(json.rows || []));
+            }
+        } catch (_) {}
+        setProgress(i + 1, dias.length, `Carregado dia ${dd}`);
+    }
+
+    if (!allRows.length) {
+        showToast('Nenhum Registro encontrado no Dia!', 'info', 4000);
+        $('status').textContent = '';
+        setProgress(dias.length, dias.length, 'Nenhum dado encontrado');
+        $('empty').classList.remove('hidden');
+        $('resultsWrap').classList.add('hidden');
+        $('summary').classList.add('hidden');
+        return;
+    }
+
+    results.length = 0;
+    allRows.forEach((row, idx) => {
+        results.push(cacheRowToResult(row, idx, null));
+    });
+
+    $('resultsBody').innerHTML = '';
+    $('empty').classList.add('hidden');
+    $('resultsWrap').classList.remove('hidden');
+    results.forEach(rec => {
+        const tr = document.createElement('tr');
+        tr.id = `row-${rec.idx}`;
+        $('resultsBody').appendChild(tr);
+        fillRow(tr, rec);
+    });
+
+    setProgress(dias.length, dias.length, `${label} · ${allRows.length} documento(s)`);
+    activeTypeFilter = '';
+    renderSummary();
+    renderTypeFilters();
+    updateClassifyButton();
+    $('status').textContent = '';
+}
+
+// Carrega um relatório D- ou M- do banco e renderiza na tabela (sem arquivos físicos)
+async function loadRelatorioIntoTable(tipo, data, label) {
+    $('status').textContent = `Carregando ${label}…`;
+    $('progressWrap').classList.remove('hidden');
+    setProgress(0, 1, `Consultando ${label}…`);
+
+    let rows = [];
+    try {
+        const r = await fetch(`/api/relatorio?tipo=${tipo}&data=${encodeURIComponent(data)}`, { credentials: 'include' });
+        if (r.ok) {
+            const json = await r.json();
+            rows = json.rows || [];
+        }
+    } catch (e) {
+        $('status').textContent = 'Erro ao consultar banco';
+        setProgress(1, 1, 'Erro');
+        return;
+    }
+
+    if (!rows.length) {
+        showToast('Nenhum Registro encontrado no Dia!', 'info', 4000);
+        $('status').textContent = '';
+        setProgress(1, 1, `Nenhum dado encontrado`);
+        $('empty').classList.remove('hidden');
+        $('resultsWrap').classList.add('hidden');
+        $('summary').classList.add('hidden');
+        return;
+    }
+
+    // Converte rows do banco para o formato de results[]
+    results.length = 0;
+    rows.forEach((row, idx) => {
+        results.push(cacheRowToResult(row, idx, null));
+    });
+
+    // Renderiza tabela
+    $('resultsBody').innerHTML = '';
+    $('empty').classList.add('hidden');
+    $('resultsWrap').classList.remove('hidden');
+    results.forEach(rec => {
+        const tr = document.createElement('tr');
+        tr.id = `row-${rec.idx}`;
+        $('resultsBody').appendChild(tr);
+        fillRow(tr, rec);
+    });
+
+    setProgress(rows.length, rows.length, `${label} · ${rows.length} documento(s)`);
+    activeTypeFilter = '';
+    renderSummary();
+    renderTypeFilters();
+    $('status').textContent = '';
+    updateClassifyButton();
+}
+
+// ── Classificação com Claude Haiku ──────────────────────────────────────────────
+function updateClassifyButton() {
+    const unidentified = results.filter(r => r && r.tipo === 'Não identificado');
+    const btn = $('btnClassifyUnidentified');
+    if (unidentified.length > 0) {
+        btn.style.display = 'inline-flex';
+        btn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/>
+            </svg>
+            <span>Classificar ${unidentified.length} não identificado${unidentified.length > 1 ? 's' : ''}</span>
+        `;
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+$('btnClassifyUnidentified').addEventListener('click', async () => {
+    const unidentified = results.filter(r => r && r.tipo === 'Não identificado');
+    if (unidentified.length === 0) return;
+
+    const btn = $('btnClassifyUnidentified');
+    btn.disabled = true;
+    btn.textContent = 'Enviando para Claude Haiku…';
+
+    $('status').textContent = `Analisando ${unidentified.length} documento(s) não identificado(s)…`;
+    $('progressWrap').classList.remove('hidden');
+    setProgress(0, unidentified.length, 'Processando com Claude Haiku…');
+
+    try {
+        // Coleta o texto dos documentos não identificados (precisa re-extrair dos PDFs)
+        const documents = [];
+        for (let i = 0; i < unidentified.length; i++) {
+            const rec = unidentified[i];
+            let text = '';
+
+            // Se o PDF já foi carregado para o viewer, usa o cache
+            if (rec.pdfData) {
+                const { text: extractedText } = await extractText(rec.pdfData.slice());
+                text = extractedText;
+            }
+
+            documents.push({
+                name: rec.name,
+                text: text,
+            });
+            setProgress(i + 1, unidentified.length, `Preparando: ${rec.name}`);
+        }
+
+        const r = await fetch('/api/classify-unidentified', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ documents }),
+        });
+
+        const json = await r.json();
+        if (!json.success) {
+            $('status').textContent = `Erro: ${json.message}`;
+            setProgress(unidentified.length, unidentified.length, 'Erro');
+            return;
+        }
+
+        // Atualiza os resultados com as novas classificações
+        const classifications = json.results || [];
+        classifications.forEach((clf, idx) => {
+            const rec = unidentified[idx];
+            if (rec && clf.category !== 'Não identificado') {
+                // Atualiza tipo
+                rec.tipo = clf.category;
+                // Atualiza cor
+                const cat = CATS[clf.category];
+                if (cat) {
+                    rec.color = cat.color;
+                }
+                // Marca como classificado por IA
+                rec.origem = `Claude Haiku (${clf.confidence})`;
+                rec.evidencia = clf.reason || '—';
+                setProgress(idx + 1, unidentified.length, `Classificado: ${clf.category}`);
+            }
+        });
+
+        // Re-renderiza tabela
+        $('resultsBody').innerHTML = '';
+        results.forEach(rec => {
+            if (!rec) return;
+            const tr = document.createElement('tr');
+            tr.id = `row-${rec.idx}`;
+            $('resultsBody').appendChild(tr);
+            fillRow(tr, rec);
+        });
+
+        activeTypeFilter = '';
+        renderSummary();
+        renderTypeFilters();
+        updateClassifyButton();
+
+        const classified = classifications.filter(c => c.category !== 'Não identificado').length;
+        $('status').textContent = `Concluído: ${classified}/${unidentified.length} documentos classificados`;
+        setProgress(unidentified.length, unidentified.length, `${classified} documento(s) classificado(s) com sucesso`);
+        updateClassifyButton();
+
+    } catch (e) {
+        console.error('[classify] erro:', e);
+        $('status').textContent = 'Erro ao conectar com Claude Haiku';
+        setProgress(unidentified.length, unidentified.length, 'Erro');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Classificar não identificados';
+    }
+});
 
 // ── filtro ────────────────────────────────────────────────────────────────────
 $('filterInput').addEventListener('input', filterRows);
@@ -1014,7 +1896,7 @@ $('resultsBody').addEventListener('click', e => {
     const btnView = e.target.closest('[data-view]');
     if (btnView) {
         const rec = results[+btnView.dataset.view];
-        if (rec.pdfData || rec.fileRef) openViewer(rec);
+        openViewer(rec);
     }
 });
 
@@ -1036,6 +1918,333 @@ document.addEventListener('keydown', e => {
         viewerPdf = null;
     }
 });
+
+// ── Comparação com Planilha Delsoft ──────────────────────────────────────────
+{
+    const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    let compData = null; // último resultado de comparação
+    let compTabAtiva = 'faltando';
+    const compDiasSel = new Set(); // dias (DD) selecionados; vazio = mês todo
+
+    // Estado do picker (mês 1-12, ano)
+    let compPickMes = new Date().getMonth() + 1;
+    let compPickAno = new Date().getFullYear();
+
+    // Sincroniza hidden inputs (usados por executarComparacao)
+    function syncHiddenInputs() {
+        $('compMes').value = compPickMes;
+        $('compAno').value = compPickAno;
+    }
+
+    // Destaca botão ativo nos pickers
+    function atualizarPickerUI() {
+        document.querySelectorAll('.comp-mes-btn').forEach(b => {
+            b.classList.toggle('active', parseInt(b.dataset.m) === compPickMes);
+        });
+        document.querySelectorAll('.comp-ano-btn').forEach(b => {
+            b.classList.toggle('active', parseInt(b.dataset.a) === compPickAno);
+        });
+        const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                       'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+        $('compCalLabel').textContent = `${MESES[compPickMes]} ${compPickAno}`;
+        syncHiddenInputs();
+        renderCompDias();
+    }
+
+    // Renderiza a grade de dias do mês/ano escolhido, preservando a seleção válida
+    function renderCompDias() {
+        const mes = compPickMes;
+        const ano = compPickAno;
+        const grid = $('compGrid');
+        grid.innerHTML = '';
+        if (!mes || !ano) return;
+
+        const firstWeekday = new Date(ano, mes - 1, 1).getDay();
+        const daysInMonth  = new Date(ano, mes, 0).getDate();
+        for (const d of [...compDiasSel]) if (d > daysInMonth) compDiasSel.delete(d);
+
+        for (let i = 0; i < firstWeekday; i++) grid.appendChild(document.createElement('div'));
+        for (let d = 1; d <= daysInMonth; d++) {
+            const cell = document.createElement('div');
+            cell.className = 'cal-day' + (compDiasSel.has(d) ? ' selected' : '');
+            cell.textContent = d;
+            cell.addEventListener('click', () => {
+                if (compDiasSel.has(d)) compDiasSel.delete(d); else compDiasSel.add(d);
+                cell.classList.toggle('selected');
+                updateCompDiasStatus();
+            });
+            grid.appendChild(cell);
+        }
+        updateCompDiasStatus();
+    }
+
+    function updateCompDiasStatus() {
+        const n = compDiasSel.size;
+        const el = $('compDiasStatus');
+        if (n === 0) { el.textContent = 'Mês todo'; return; }
+        const dias = [...compDiasSel].sort((a, b) => a - b);
+        el.textContent = n === 1 ? `Dia ${dias[0]}` : `${n} dias: ${dias.join(', ')}`;
+    }
+
+    // Clique nos botões de mês — simples: seleciona; duplo: gera direto
+    let _compMesClickTimer = null;
+    document.querySelectorAll('.comp-mes-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            compPickMes = parseInt(b.dataset.m);
+            atualizarPickerUI();
+            // duplo clique: se mesmo mês clicado duas vezes rápido → gera
+            if (_compMesClickTimer) {
+                clearTimeout(_compMesClickTimer);
+                _compMesClickTimer = null;
+                fecharCompModal();
+                executarComparacao(compPickMes, compPickAno, [...compDiasSel].sort((a,b)=>a-b));
+            } else {
+                _compMesClickTimer = setTimeout(() => { _compMesClickTimer = null; }, 350);
+            }
+        });
+    });
+
+    // Clique nos botões de ano — simples: seleciona; duplo: gera direto
+    let _compAnoClickTimer = null;
+    document.querySelectorAll('.comp-ano-btn').forEach(b => {
+        b.addEventListener('click', () => {
+            compPickAno = parseInt(b.dataset.a);
+            atualizarPickerUI();
+            if (_compAnoClickTimer) {
+                clearTimeout(_compAnoClickTimer);
+                _compAnoClickTimer = null;
+                fecharCompModal();
+                executarComparacao(compPickMes, compPickAno, [...compDiasSel].sort((a,b)=>a-b));
+            } else {
+                _compAnoClickTimer = setTimeout(() => { _compAnoClickTimer = null; }, 350);
+            }
+        });
+    });
+
+    function fecharCompModal() { $('modalCompMes').style.display = 'none'; }
+
+    $('btnCompararPlanilha').addEventListener('click', () => {
+        atualizarPickerUI();
+        $('modalCompMes').style.display = 'flex';
+    });
+    $('btnCancelarComp').addEventListener('click', fecharCompModal);
+    $('modalCompMes').addEventListener('click', e => {
+        if (e.target === $('modalCompMes')) fecharCompModal();
+    });
+    $('compLimparDias').addEventListener('click', () => {
+        compDiasSel.clear();
+        renderCompDias();
+    });
+
+    $('btnConfirmarComp').addEventListener('click', async () => {
+        const mes = compPickMes;
+        const ano = compPickAno;
+        const dias = [...compDiasSel].sort((a, b) => a - b);
+        fecharCompModal();
+        await executarComparacao(mes, ano, dias);
+    });
+
+    $('btnFecharComparacao').addEventListener('click', () => {
+        $('comparacaoWrap').classList.add('hidden');
+        compData = null;
+    });
+
+    // Tabs
+    document.querySelectorAll('.comp-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.comp-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            compTabAtiva = btn.dataset.tab;
+            renderComparacao();
+        });
+    });
+
+    async function executarComparacao(mes, ano, dias = []) {
+        const btn = $('btnCompararPlanilha');
+        const spinner = $('comparacaoSpinner');
+
+        btn.disabled = true;
+        spinner.style.display = 'flex';
+
+        try {
+            const r = await fetch('/api/comparar-notas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ mes, ano, dias }),
+            });
+            const json = await r.json();
+
+            if (!json.success) {
+                $('status').textContent = `Erro: ${json.message}`;
+                return;
+            }
+
+            compData = json;
+            compTabAtiva = json.naoEncontradas.length > 0 ? 'faltando' : 'ok';
+
+            // Atualiza tab ativa
+            document.querySelectorAll('.comp-tab').forEach(b => {
+                b.classList.toggle('active', b.dataset.tab === compTabAtiva);
+            });
+
+            $('comparacaoWrap').classList.remove('hidden');
+            const escopo = dias.length
+                ? `${MESES[mes]} ${ano} · ${dias.length === 1 ? `dia ${dias[0]}` : `dias ${dias.join(', ')}`}`
+                : `${MESES[mes]} ${ano}`;
+            $('comparacaoSubtitle').textContent = `${escopo} — planilha (apenas ORIG=CP) vs banco`;
+
+            renderResumoComparacao();
+            renderComparacao();
+            $('status').textContent = '';
+
+            // Scroll para o painel
+            $('comparacaoWrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        } catch (e) {
+            $('status').textContent = 'Erro ao comparar: ' + e.message;
+        } finally {
+            spinner.style.display = 'none';
+            btn.disabled = false;
+            btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Comparar com planilha`;
+        }
+    }
+
+    function renderResumoComparacao() {
+        if (!compData) return;
+        const { resumo } = compData;
+        const cards = [
+            { label: 'Na planilha',          val: resumo.totalPlanilha,        color: '#a0d87a' },
+            { label: 'Encontradas',          val: resumo.encontradas,          color: '#4ade80' },
+            { label: 'Faltando no banco',    val: resumo.naoEncontradas,       color: '#f87171' },
+            { label: 'Faltando na planilha', val: resumo.faltandoPlanilha || 0, color: '#60a5fa' },
+            { label: 'Data divergente',      val: resumo.dataDivergente || 0,   color: '#fbbf24' },
+            { label: 'Tributos/DAM',         val: resumo.tributos || 0,         color: '#94a3b8' },
+            { label: 'Divergentes',          val: resumo.divergentes,          color: '#fb923c' },
+            { label: 'No banco, outro mês',  val: resumo.outroMesBanco || 0,    color: '#c084fc' },
+        ];
+        $('comparacaoResumo').innerHTML = cards.map(c => `
+            <div class="rounded-xl p-4 text-center" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)">
+                <p class="text-2xl font-bold" style="color:${c.color}">${c.val}</p>
+                <p class="text-xs mt-1" style="color:rgba(255,255,255,.45)">${c.label}</p>
+            </div>`).join('');
+    }
+
+    function fmtVal(v) {
+        return v != null ? `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—';
+    }
+
+    // Paginação: renderizar milhares de linhas de uma vez trava o navegador
+    // (DOM com dezenas de milhares de nós). Mostramos PAGE_SIZE por vez.
+    const COMP_PAGE_SIZE = 100;
+    let comparacaoNotasAtuais = [];  // lista filtrada da aba atual (todas as notas)
+    let comparacaoPagina = 0;        // página atual (0-based)
+
+    function renderComparacao(resetarPagina = true) {
+        if (!compData) return;
+        const tbody = $('comparacaoBody');
+        const empty = $('comparacaoEmpty');
+        const pager = $('comparacaoPager');
+
+        let notas = [];
+        if (compTabAtiva === 'faltando')          notas = compData.naoEncontradas;
+        if (compTabAtiva === 'faltando-planilha') notas = compData.faltandoPlanilha || [];
+        if (compTabAtiva === 'data-divergente')   notas = compData.encontradas.filter(n => n.status === 'data-divergente');
+        if (compTabAtiva === 'divergente')        notas = compData.encontradas.filter(n => n.status === 'divergente');
+        if (compTabAtiva === 'ok')                notas = compData.encontradas.filter(n => n.status === 'ok');
+        if (compTabAtiva === 'tributos')          notas = compData.tributos || [];
+        if (compTabAtiva === 'outro-mes')         notas = compData.encontradas.filter(n => n.periodoPlanilha && n.periodoPlanilha !== compData.periodo);
+
+        comparacaoNotasAtuais = notas;
+        if (resetarPagina) comparacaoPagina = 0;
+
+        if (notas.length === 0) {
+            tbody.innerHTML = '';
+            pager.classList.add('hidden');
+            empty.textContent = compTabAtiva === 'faltando'          ? 'Nenhuma nota faltando no banco! ✓'
+                              : compTabAtiva === 'faltando-planilha' ? 'Nenhuma nota faltando na planilha! ✓'
+                              : compTabAtiva === 'data-divergente'   ? 'Nenhuma nota com data divergente ✓'
+                              : compTabAtiva === 'divergente'        ? 'Nenhuma divergência ✓'
+                              : compTabAtiva === 'tributos'          ? 'Nenhum tributo/DAM identificado ✓'
+                              : compTabAtiva === 'outro-mes'         ? 'Nenhuma nota de outro mês neste período ✓'
+                              : 'Nenhuma nota encontrada ainda';
+            empty.classList.remove('hidden');
+            return;
+        }
+        empty.classList.add('hidden');
+
+        const statusColor = s => s === 'ok' ? '#4ade80' : s === 'divergente' ? '#fb923c' : s === 'data-divergente' ? '#fbbf24' : s === 'faltando-planilha' ? '#60a5fa' : s === 'tributo' ? '#94a3b8' : '#f87171';
+        const statusLabel = s => s === 'ok' ? 'OK' : s === 'divergente' ? '⚠ Divergente' : s === 'data-divergente' ? '⚠ Data divergente' : s === 'faltando-planilha' ? 'Não consta na planilha' : s === 'tributo' ? 'Tributo/DAM' : 'Não encontrada';
+
+        // Fatia só a página atual
+        const totalPag = Math.ceil(notas.length / COMP_PAGE_SIZE);
+        if (comparacaoPagina >= totalPag) comparacaoPagina = totalPag - 1;
+        if (comparacaoPagina < 0) comparacaoPagina = 0;
+        const ini = comparacaoPagina * COMP_PAGE_SIZE;
+        const fim = Math.min(ini + COMP_PAGE_SIZE, notas.length);
+        const pagina = notas.slice(ini, fim);
+
+        const svgVer = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+        tbody.innerHTML = pagina.map((n, i) => {
+            const idx = ini + i; // índice global p/ o handler de clique
+            const arquivoReal = (n.arquivo || '').replace(/#p\d+$/i, ''); // strip sufixo parcela
+            const parcelaM = (n.arquivo || '').match(/#p(\d+)$/i);
+            const parcelaBadge = parcelaM ? ` <span style="color:#60a5fa;font-size:.7rem">#p${parcelaM[1]}</span>` : '';
+            const temPdf = !!arquivoReal;
+            const btnVer = `<button data-comp-view="${idx}" class="comp-ver inline-flex items-center gap-1 text-xs rounded-lg px-2.5 py-1"${temPdf ? '' : ' disabled'}>${svgVer}Ver</button>`;
+            const itemCor = n.valorItemAlerta ? '#fb923c' : 'rgba(255,255,255,.55)';
+            const itemTxt = (n.valorItem != null && n.valorItem > 0) ? fmtVal(n.valorItem) : '—';
+            const vencCor = n.dataAlerta ? '#fbbf24' : 'rgba(255,255,255,.5)';
+            const vencTxt = n.vencimento && n.vencimento !== '—' ? n.vencimento
+                          : (n.vencimentoBanco && n.vencimentoBanco !== '—' ? n.vencimentoBanco : '—');
+            const arquivoTd = compTabAtiva === 'faltando-planilha'
+                ? `<td class="px-4 py-3 text-xs max-w-[220px] truncate" style="color:rgba(255,255,255,.45)" title="${arquivoReal}">${arquivoReal || '—'}${parcelaBadge}</td>`
+                : '';
+            return `
+            <tr style="border-bottom:1px solid rgba(255,255,255,.06)">
+                <td class="px-4 py-3 font-mono text-sm" style="color:rgba(255,255,255,.85)">${n.nf || '—'}</td>
+                <td class="px-4 py-3 text-xs max-w-[200px] truncate" style="color:rgba(255,255,255,.7)" title="${n.entidade}">${n.entidade}</td>
+                ${arquivoTd}
+                <td class="px-4 py-3 text-right font-mono text-sm" style="color:#a0d87a">${fmtVal(n.valor)}</td>
+                <td class="px-4 py-3 text-right font-mono text-xs" style="color:${itemCor}">${itemTxt}</td>
+                <td class="px-4 py-3 text-xs" style="color:${vencCor}">${vencTxt}</td>
+                <td class="px-4 py-3 text-xs" style="color:rgba(255,255,255,.5)">${n.emissao || '—'}</td>
+                <td class="px-4 py-3 text-xs" style="color:rgba(255,255,255,.5)">${n.filial || '—'}</td>
+                <td class="px-4 py-3 text-xs" style="color:${statusColor(n.status)}">
+                    ${n.divergencia || statusLabel(n.status)}
+                </td>
+                <td class="px-4 py-3 text-center">${btnVer}</td>
+            </tr>`;
+        }).join('');
+
+        // Rodapé de paginação
+        if (totalPag > 1) {
+            pager.classList.remove('hidden');
+            pager.classList.add('flex');
+            $('compPagInfo').textContent = `${ini + 1}–${fim} de ${notas.length} · pág. ${comparacaoPagina + 1}/${totalPag}`;
+            $('compPagPrev').disabled = comparacaoPagina === 0;
+            $('compPagNext').disabled = comparacaoPagina >= totalPag - 1;
+            $('compPagPrev').style.opacity = comparacaoPagina === 0 ? '.4' : '1';
+            $('compPagNext').style.opacity = comparacaoPagina >= totalPag - 1 ? '.4' : '1';
+        } else {
+            pager.classList.add('hidden');
+            pager.classList.remove('flex');
+        }
+    }
+
+    $('compPagPrev').addEventListener('click', () => { if (comparacaoPagina > 0) { comparacaoPagina--; renderComparacao(false); $('comparacaoBody').scrollIntoView({ block: 'nearest' }); } });
+    $('compPagNext').addEventListener('click', () => { comparacaoPagina++; renderComparacao(false); $('comparacaoBody').scrollIntoView({ block: 'nearest' }); });
+
+    $('comparacaoBody').addEventListener('click', e => {
+        const btn = e.target.closest('[data-comp-view]');
+        if (!btn || btn.disabled) return;
+        const nota = comparacaoNotasAtuais[+btn.dataset.compView];
+        if (nota && nota.arquivo) {
+            openViewer({ name: nota.arquivo.replace(/#p\d+$/i, ''), folder: nota.pasta || '' });
+        }
+    });
+}
 
 </script>
 </body>

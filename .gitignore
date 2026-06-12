@@ -42,3 +42,6 @@ ehthumbs.db
 # Uploads (se houver)
 uploads/
 temp-files/
+
+# PDFs de teste/depuração local
+teste/
