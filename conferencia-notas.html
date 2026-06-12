@@ -1905,19 +1905,29 @@ $('modalClose').addEventListener('click', () => $('modal').classList.add('hidden
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').classList.add('hidden'); });
 
 // ── viewer controls ───────────────────────────────────────────────────────────
-$('pdfModalClose').addEventListener('click', () => {
+function closePdfModal() {
     $('pdfModal').classList.add('hidden');
     viewerPdf = null;
-});
+}
+$('pdfModalClose').addEventListener('click', closePdfModal);
+// Fechar ao clicar fora do canvas (no overlay ou na área de padding do viewport)
 $('pdfModal').addEventListener('click', e => {
-    if (e.target === $('pdfModal')) { $('pdfModal').classList.add('hidden'); viewerPdf = null; }
+    if (e.target === $('pdfModal') || e.target === $('pdfViewport')) closePdfModal();
 });
 document.addEventListener('keydown', e => {
-    if (!$('pdfModal').classList.contains('hidden') && e.key === 'Escape') {
-        $('pdfModal').classList.add('hidden');
-        viewerPdf = null;
-    }
+    if (!$('pdfModal').classList.contains('hidden') && e.key === 'Escape') closePdfModal();
 });
+// Enquanto o PDF estiver aberto: captura o scroll do mouse na página e redireciona
+// para o viewport do PDF, impedindo que a página de fundo role.
+document.addEventListener('wheel', e => {
+    if ($('pdfModal').classList.contains('hidden')) return;
+    const vp = $('pdfViewport');
+    // Só intercepta se o evento não está já dentro do viewport (evita double-scroll)
+    if (!vp.contains(e.target)) {
+        e.preventDefault();
+        vp.scrollTop += e.deltaY;
+    }
+}, { passive: false });
 
 // ── Comparação com Planilha Delsoft ──────────────────────────────────────────
 {
@@ -2187,8 +2197,8 @@ document.addEventListener('keydown', e => {
 
         const svgVer = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
         tbody.innerHTML = pagina.map((n, i) => {
-            const idx = ini + i; // índice global p/ o handler de clique
-            const arquivoReal = (n.arquivo || '').replace(/#p\d+$/i, ''); // strip sufixo parcela
+            const idx = ini + i;
+            const arquivoReal = (n.arquivo || '').replace(/#p\d+$/i, '');
             const parcelaM = (n.arquivo || '').match(/#p(\d+)$/i);
             const parcelaBadge = parcelaM ? ` <span style="color:#60a5fa;font-size:.7rem">#p${parcelaM[1]}</span>` : '';
             const temPdf = !!arquivoReal;
@@ -2198,22 +2208,22 @@ document.addEventListener('keydown', e => {
             const vencCor = n.dataAlerta ? '#fbbf24' : 'rgba(255,255,255,.5)';
             const vencTxt = n.vencimento && n.vencimento !== '—' ? n.vencimento
                           : (n.vencimentoBanco && n.vencimentoBanco !== '—' ? n.vencimentoBanco : '—');
-            const arquivoTd = compTabAtiva === 'faltando-planilha'
-                ? `<td class="px-4 py-3 text-xs max-w-[220px] truncate" style="color:rgba(255,255,255,.45)" title="${arquivoReal}">${arquivoReal || '—'}${parcelaBadge}</td>`
-                : '';
+            // Observação: divergência ou label de status; para notas sem match na planilha
+            // acrescenta o tipo do banco como contexto extra (ex.: "Não consta na planilha · NF")
+            const obsBase = n.divergencia || statusLabel(n.status);
+            const obsTipo = !n.divergencia && n.tipo && n.tipo !== n.status ? ` · ${n.tipo}` : '';
+            // Emitente: para notas sem match inclui nome do arquivo no tooltip
+            const emitTitle = arquivoReal ? `${n.entidade} — ${arquivoReal}${parcelaM ? ' #p'+parcelaM[1] : ''}` : n.entidade;
             return `
             <tr style="border-bottom:1px solid rgba(255,255,255,.06)">
                 <td class="px-4 py-3 font-mono text-sm" style="color:rgba(255,255,255,.85)">${n.nf || '—'}</td>
-                <td class="px-4 py-3 text-xs max-w-[200px] truncate" style="color:rgba(255,255,255,.7)" title="${n.entidade}">${n.entidade}</td>
-                ${arquivoTd}
+                <td class="px-4 py-3 text-xs max-w-[200px] truncate" style="color:rgba(255,255,255,.7)" title="${emitTitle}">${n.entidade || '—'}</td>
                 <td class="px-4 py-3 text-right font-mono text-sm" style="color:#a0d87a">${fmtVal(n.valor)}</td>
                 <td class="px-4 py-3 text-right font-mono text-xs" style="color:${itemCor}">${itemTxt}</td>
                 <td class="px-4 py-3 text-xs" style="color:${vencCor}">${vencTxt}</td>
                 <td class="px-4 py-3 text-xs" style="color:rgba(255,255,255,.5)">${n.emissao || '—'}</td>
                 <td class="px-4 py-3 text-xs" style="color:rgba(255,255,255,.5)">${n.filial || '—'}</td>
-                <td class="px-4 py-3 text-xs" style="color:${statusColor(n.status)}">
-                    ${n.divergencia || statusLabel(n.status)}
-                </td>
+                <td class="px-4 py-3 text-xs" style="color:${statusColor(n.status)}">${obsBase}${obsTipo}</td>
                 <td class="px-4 py-3 text-center">${btnVer}</td>
             </tr>`;
         }).join('');
