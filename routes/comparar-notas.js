@@ -67,14 +67,23 @@ function nomeMesPeriodo(periodo) {
 
 // Remove sufixos societários e ruído para comparar o "miolo" do nome da empresa.
 // Ex.: "ELEKTRO REDES S.A. 02.328.280/0001-97" → "ELEKTRO REDES"
+// Memoizado: é função pura chamada milhares de vezes (entidadeMatch nas seções 5/6 e
+// na recuperação) sobre um conjunto pequeno de entidades repetidas — o cache evita
+// reprocessar as regex toda vez. Sem o cache, era o principal custo por request.
+const _nucleoCache = new Map();
 function nucleoEntidade(s) {
-    return norm(s)
+    const key = String(s || '');
+    const hit = _nucleoCache.get(key);
+    if (hit !== undefined) return hit;
+    const out = norm(key)
         .replace(/\b\d{2}[.\s]?\d{3}[.\s]?\d{3}[\/\s]?\d{4}[-\s]?\d{2}\b/g, ' ') // CNPJ
         .replace(/\b\d{3}[.\s]?\d{3}[.\s]?\d{3}[-\s]?\d{2}\b/g, ' ')             // CPF
         .replace(/\b(S\/?A|S\.?A\.?|LTDA|ME|EPP|EIRELI|CIA|COMPANHIA|REDES?|DISTRIBUIDORA|COMERCIO|COM|IND(USTRIA)?|SERVICOS?|S\.A|EI)\b/g, ' ')
         .replace(/[.,\/\-]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+    _nucleoCache.set(key, out);
+    return out;
 }
 
 function entidadeMatch(a, b) {
