@@ -122,6 +122,17 @@ function valorBate(valorBanco, nota) {
             if (Math.abs(valorBanco * n - nota.valor) <= n * 0.015 + TOL_VAL)
                 return { ok: true, base: `parcela ${n}x` };
         }
+        // Parcelas DESIGUAIS: o boleto é UMA parcela e as parcelas não são idênticas
+        // (ex.: NF 4.000,00 em 3x = 1.333,60 + 1.333,20 + 1.333,20). A soma exata acima
+        // falha (1.333,60×3 = 4.000,80 ≠ 4.000), mas a RAZÃO total/parcela fica coladíssima
+        // a um inteiro (4000/1333,60 = 2,9994 ≈ 3). Tolerância apertada (0,01) p/ NÃO
+        // mascarar erro de valor real — só confirma quando bate quase exato um nº de parcelas.
+        if (nota.valor > valorBanco * 1.5) {
+            const ratio = nota.valor / valorBanco;
+            const n = Math.round(ratio);
+            if (n >= 2 && n <= MAX_PARCELAS && Math.abs(ratio - n) <= 0.01)
+                return { ok: true, base: `parcela ${n}x` };
+        }
     }
     return { ok: false, base: null };
 }
@@ -797,8 +808,14 @@ module.exports = async function compararNotasRoute(req, res) {
             // ROBSON DOBBINS (R$ 82,50) com JOHN LENON (R$ 1.500). Se nenhum bater por
             // entidade, deixa todos os candidatos passarem e o resultado vira divergente.
             if (candidatos.length > 0 && nota.entidade) {
-                const compativeisEntidade = candidatos.filter(c => 
-                    !c.rowB.emitente || entidadeMatch(c.rowB.emitente, nota.entidade)
+                const compativeisEntidade = candidatos.filter(c =>
+                    c.rowB.emitente
+                        ? entidadeMatch(c.rowB.emitente, nota.entidade)
+                        // SEM emitente extraído: aceita por número, MAS se o doc tem valor e ele
+                        // NÃO bate, rejeita — evita um comprovante avulso (ex.: pgto EVA CARD,
+                        // sem emitente e sem NF própria) sequestrar uma NF homônima por colisão
+                        // de número. Sem valor (0), não dá p/ refutar → mantém o comportamento antigo.
+                        : (!(c.rowB.valor > 0) || valorBate(c.rowB.valor, nota).ok)
                 );
 
                 if (compativeisEntidade.length > 0) {
@@ -871,6 +888,11 @@ module.exports = async function compararNotasRoute(req, res) {
                         const compat = cands.filter(p => !p.entidade || entidadeMatch(rowB.emitente, p.entidade));
                         if (compat.length > 0) cands = compat;
                         else cands = cands.filter(p => valorBate(rowB.valor, p).ok);
+                    } else if (rowB.valor > 0) {
+                        // Sem emitente no banco: só casa por número se o VALOR também confirmar,
+                        // p/ não deixar um comprovante avulso (sem emitente) sequestrar uma NF
+                        // homônima. Sem valor (0), mantém o comportamento antigo (não há como refutar).
+                        cands = cands.filter(p => valorBate(rowB.valor, p).ok);
                     }
                     if (cands.length) { naPlanilha = cands[0]; break; }
                 }
