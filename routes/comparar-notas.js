@@ -480,6 +480,17 @@ function extrairVencimentoDeParsed(parser) {
     return v && v !== '—' ? String(v).trim() : '';
 }
 
+// Valor codificado no NOME do arquivo (padrão "NNN.DOC- 18.767,74 - ..." ou "DOC- 4885,69").
+// É o valor que o arquivista conferiu ao arquivar → âncora confiável quando o parser erra.
+function extrairValorDoArquivo(arquivo) {
+    const m = arquivoBase(arquivo).match(/DOC[-\s]*(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/i);
+    if (m) {
+        const num = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+        if (!isNaN(num) && num > 0) return normVal(num);
+    }
+    return 0;
+}
+
 function extrairValorDeParsed(parser, arquivo) {
     if (parser) {
         const rawVal = parser['Valor total'] || parser['Total da NF-e'] || parser['Valor'] || '';
@@ -488,12 +499,7 @@ function extrairValorDeParsed(parser, arquivo) {
             if (!isNaN(num) && num > 0) return normVal(num);
         }
     }
-    const m = arquivoBase(arquivo).match(/DOC[-\s]*(?:R\$\s*)?(\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2})/i);
-    if (m) {
-        const num = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
-        if (!isNaN(num)) return normVal(num);
-    }
-    return 0;
+    return extrairValorDoArquivo(arquivo);
 }
 
 // ── Parse CSV do banco uma vez por linha ─────────────────────────────────────
@@ -547,6 +553,22 @@ function parseCsvLine(line, idxArquivo, idxPasta, idxTipo, idxDadosParser) {
     const nfArq = extrairNFDoArquivo(arquivo);
     const nfAlt = (nfArq && nfArq !== nf) ? nfArq : '';
 
+    const emitente = norm(extrairEmitenteDeParsed(parser, arquivo));
+    let valor = extrairValorDeParsed(parser, arquivo);
+
+    // ── REGRA LOCALIZA ──────────────────────────────────────────────────────────
+    // As faturas da Localiza são pacotes multi-documento (fatura central + vários
+    // contratos/carros + boleto + NF complementar). O parser frequentemente captura um
+    // SUBTOTAL errado — ex.: "VALOR TOTAL FAT. CENTRAL R$41.690,89" (de outra fatura
+    // complementar) em vez do valor efetivamente cobrado R$18.767,74; ou o total da
+    // fatura (3 carros = 5.259,95) quando a planilha lançou só parte (4.885,69). O NOME
+    // do arquivo ("DOC- 18.767,74") traz o valor real conferido pelo arquivista e é o que
+    // bate com a planilha. Para a Localiza, ele tem prioridade sobre o valor do parser.
+    if (/LOCALIZA/i.test(emitente) || /LOCALIZA/i.test(arquivo)) {
+        const vArq = extrairValorDoArquivo(arquivo);
+        if (vArq > 0) valor = vArq;
+    }
+
     return {
         arquivo,
         pasta:       fields[idxPasta] ?? '',
@@ -554,8 +576,8 @@ function parseCsvLine(line, idxArquivo, idxPasta, idxTipo, idxDadosParser) {
         nf,
         nfAlt,
         ocp:         extrairOCPDeParsed(parser, arquivo),
-        emitente:    norm(extrairEmitenteDeParsed(parser, arquivo)),
-        valor:       extrairValorDeParsed(parser, arquivo),
+        emitente,
+        valor,
         vencimento:  venc,
         dataMs,
     };
