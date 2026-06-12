@@ -199,6 +199,19 @@ function isLancamentoIgnoravel(nf, ent) {
     return nfCartao || entCartao;
 }
 
+// Categorias de TIPO da planilha que são lançamentos contábeis/financeiros — NÃO
+// documentos fiscais — e portanto NUNCA têm PDF correspondente no banco. Como o cartão
+// de crédito, são ignoradas para não poluírem "faltando no banco":
+//   • PREVISAO / FINANC GIRO / ADIANTAMENTO → movimentos financeiros, sem documento
+//   • DUPLICATA → a NF é um código de período (ex.: "2026.05LA"), não um nº fiscal
+//   • IMPOSTO → retenção atrelada a outra NF, com sufixo (ex.: "190PC", "190RE", "1713IE");
+//     os tributos com PDF próprio (DARF/GPS) já são tratados pela aba Tributos no lado do banco.
+// (DESPESAS BANCARIAS fica de fora — mantida na conferência por opção do usuário.)
+const TIPOS_NAO_FISCAIS = new Set(['PREVISAO', 'FINANC GIRO', 'ADIANTAMENTO', 'DUPLICATA', 'IMPOSTO']);
+function isCategoriaIgnoravel(tipoPlanilha) {
+    return TIPOS_NAO_FISCAIS.has(norm(tipoPlanilha));
+}
+
 // Lê a planilha e devolve { porPeriodo, porNF, porVal }:
 //   porPeriodo → Map "mes.ano" → [nota, ...]   (por DT_LANCAMENTO)
 //   porNF      → Map nfClean   → [nota, ...]   (todos os meses, p/ fallback por NF)
@@ -259,6 +272,10 @@ function lerPlanilhaIndexada(planilhaPath) {
         // são lançamentos contábeis da planilha que NUNCA têm nota fiscal no banco.
         // Ignoramos de vez para não poluírem o "faltando no banco".
         if (isLancamentoIgnoravel(nf, ent)) continue;
+
+        // Categorias não-fiscais (PREVISAO, FINANC GIRO, ADIANTAMENTO, DUPLICATA, IMPOSTO):
+        // entradas contábeis sem documento fiscal no banco — ignoradas pelo mesmo motivo.
+        if (isCategoriaIgnoravel(row[idxTipo])) continue;
 
         const valItem = idxValItem >= 0 ? normVal(row[idxValItem]) : 0;
         const chave = `${periodo}|${nf}|${ent}`;
