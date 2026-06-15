@@ -60,6 +60,8 @@ const forceScanRoute = require('./routes/force-scan');
 const forceScanAiRoute = require('./routes/force-scan-ai');
 const empresasContasRoute = require('./routes/empresas-contas');
 const scanEmpresasRoute = require('./routes/scan-empresas');
+const alertasFalsosRoute = require('./routes/alertas-falsos');
+const vinculosNotasRoute = require('./routes/vinculos-notas');
 
 // Captura rejeições de rotas async para não travar a requisição no Express 4.
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -75,6 +77,8 @@ app.all('/api/horarios.php', wrap(horariosRoute));
 app.all('/api/monitor-config', wrap(monitorConfigRoute));
 app.all('/api/planilha-central', wrap(planilhaCentralRoute));
 app.all('/api/comparar-notas', wrap(compararNotasRoute));
+app.all('/api/alertas-falsos', wrap(alertasFalsosRoute));
+app.all('/api/vinculos-notas', wrap(vinculosNotasRoute));
 app.all('/api/scan-status', wrap(scanStatusRoute));
 app.all('/api/classify-unidentified', wrap(classifyUnidentifiedRoute));
 app.all('/api/classify-fallback', wrap(classifyFallbackRoute));

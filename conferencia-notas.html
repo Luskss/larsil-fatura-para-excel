@@ -157,18 +157,57 @@
         #calNavBtn:hover { opacity: .75; }
 
         /* ── Picker de mês/ano no modal de comparação ───────────────── */
-        .comp-mes-btn, .comp-ano-btn {
+        .comp-mes-btn {
             padding: 8px 16px; border-radius: 10px; font-size: .82rem; font-weight: 700;
             letter-spacing: .04em; text-transform: uppercase; cursor: pointer;
             background: rgba(45,94,26,.55); border: 1px solid rgba(108,212,126,.2);
             color: rgba(255,255,255,.75); transition: all .15s; white-space: nowrap;
             width: 100%;
         }
-        .comp-mes-btn:hover, .comp-ano-btn:hover {
+        .comp-mes-btn:hover {
             background: rgba(45,94,26,.9); color: #fff; border-color: rgba(108,212,126,.5);
         }
-        .comp-mes-btn.active, .comp-ano-btn.active {
+        .comp-mes-btn.active {
             background: #fff; color: #0a1c0a; border-color: #fff;
+        }
+
+        /* ── Wheel picker de ano (infinite-scroll / drum-roll) ────── */
+        #anoWheel {
+            height: 100%; overflow-y: scroll;
+            scroll-snap-type: y mandatory; scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        #anoWheel::-webkit-scrollbar { display: none; }
+        .ano-wheel-sel-bar {
+            position: absolute; left: 6px; right: 6px;
+            top: calc(50% - 22px); height: 44px;
+            background: rgba(255,255,255,.1); border-radius: 10px;
+            pointer-events: none; z-index: 1;
+        }
+        .ano-wheel-grad-top {
+            position: absolute; left: 0; right: 0; top: 0; height: 88px;
+            background: linear-gradient(to bottom, rgba(10,28,10,.97) 10%, transparent 100%);
+            z-index: 2; pointer-events: none;
+        }
+        .ano-wheel-grad-bot {
+            position: absolute; left: 0; right: 0; bottom: 0; height: 88px;
+            background: linear-gradient(to top, rgba(10,28,10,.97) 10%, transparent 100%);
+            z-index: 2; pointer-events: none;
+        }
+        .ano-wheel-item {
+            height: 44px; scroll-snap-align: center;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; position: relative;
+            font-size: .92rem; font-weight: 800; letter-spacing: .07em;
+            font-family: 'Montserrat', sans-serif;
+            transition: opacity .1s, transform .1s;
+            user-select: none; color: rgba(255,255,255,.65);
+        }
+        .ano-dot {
+            position: absolute; right: 10px; top: 50%;
+            transform: translateY(-50%);
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #4db55e; opacity: .9;
         }
 
         /* ── Spinner de carregamento ────────────────────────────────── */
@@ -184,7 +223,7 @@
             border: 1px solid rgba(255,255,255,.15); color: rgba(255,255,255,.5);
             background: transparent;
         }
-        .comp-tab.active { background: rgba(139,45,181,.35); border-color: rgba(139,45,181,.6); color: #d8b4fe; }
+        .comp-tab.active { background: rgba(255, 255, 255, 0.433); border-color: rgb(255, 255, 255); color: #ffffff; }
         .comp-tab:hover:not(.active) { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.75); }
         html.light .comp-tab { color: rgba(0,0,0,.5); border-color: rgba(0,0,0,.15); }
         html.light .comp-tab.active { background: rgba(109,40,217,.15); border-color: rgba(109,40,217,.4); color: #6d28d9; }
@@ -214,26 +253,37 @@
   <div class="flex items-center gap-3">
     <img src="img/logo-branca.png" alt="Larsil" class="h-9 w-auto" onerror="this.src='img/logo-cores.png'">
   </div>
-  <div class="flex items-center gap-2">
+  <div class="flex items-center gap-3">
     <div class="nav-dropdown-wrap">
       <button class="nav-dropdown-btn">Extratores <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <div class="nav-dropdown-menu">
-        <a href="extrato.html" class="nav-dropdown-item">Extrato Bancário</a>
-        <a href="conversor.html" class="nav-dropdown-item">Fatura</a>
-        <a href="nota-fiscal.html" class="nav-dropdown-item">Nota Fiscal</a>
+        <a href="extrato.html" class="nav-dropdown-item">Extrato Bancário   </a>
+        <a href="conversor.html" class="nav-dropdown-item">Fatura           </a>
+        <a href="nota-fiscal.html" class="nav-dropdown-item">Nota Fiscal    </a>
       </div>
     </div>
     <div class="nav-dropdown-wrap">
       <button class="nav-dropdown-btn">Gestão <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <div class="nav-dropdown-menu">
-        <a href="gestao-usuarios.html" class="nav-dropdown-item">Usuários</a>
+        <a href="gestao-usuarios.html" class="nav-dropdown-item">Usuários   </a>
         <a href="configuracoes.html" class="nav-dropdown-item">Configurações</a>
-        <a href="#" class="nav-dropdown-item">Feedback</a>
+        <a href="#" class="nav-dropdown-item">Feedback                      </a>
       </div>
     </div>
-    <a href="conferencia-notas.html" class="nav-btn-conferencia active">Conferência</a>
+    <div class="nav-dropdown-wrap">
+      <button class="nav-dropdown-btn active">Conferência <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="nav-dropdown-menu">
+        <a href="conferencia-notas.html" class="nav-dropdown-item active">Documentos Fiscais</a>
+        <a href="#" class="nav-dropdown-item">Frotas</a>
+      </div>
+    </div>
     <span id="navUser" class="text-[.82rem] opacity-65 ml-2"></span>
-    <button id="btnThemeToggle" class="btn-theme-toggle" onclick="window.__themeToggle()" title="Modo claro"><svg id="iconThemeSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="iconThemeMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    <button id="btnThemeToggle" class="btn-theme-toggle" onclick="window.__themeToggle()" title="Modo claro"><svg id="iconThemeSun" 
+    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" style="display:none"><circle cx="12" cy="12" r="5"/>
+    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/>
+    <line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><svg id="iconThemeMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
     <button id="btnLogout" class="btn-logout">Sair</button>
   </div>
 </nav>
@@ -254,7 +304,7 @@
   });
 </script>
 
-<div class="max-w-6xl mx-auto mt-8 px-4">
+<div class="max-w-8xl mx-auto mt-8 px-4">
 
     <!-- Cabeçalho -->
     <h2 class="section-title">Classificador de Documentos Fiscais</h2>
@@ -350,8 +400,8 @@
     <!-- Spinner de carregamento para comparação -->
     <div id="comparacaoSpinner" class="fixed inset-0 items-center justify-center z-40" style="display:none;background:rgba(0,0,0,.4);backdrop-filter:blur(3px);flex-direction:column">
         <div class="text-center">
-            <div style="width:60px;height:60px;margin:0 auto 16px;border:4px solid rgba(255,255,255,.2);border-top:4px solid #8b2db5;border-radius:50%;animation:spin .8s linear infinite"></div>
-            <p style="color:rgba(255,255,255,.85);font-size:.95rem;font-weight:600">Comparando notas...</p>
+            <div style="width:60px;height:60px;margin:0 auto 16px;border:10px solid rgba(255,255,255,.2);border-top:10px solid rgba(255, 255, 255, 0.9);border-radius:100%;animation:spin .8s linear infinite"></div>
+            <p style="color:rgba(255,255,255,.85);font-size:1.5rem;margin-top:2rem;;font-weight:600">Comparando notas...</p>
             <p style="color:rgba(255,255,255,.4);font-size:.8rem;margin-top:8px">Por favor aguarde</p>
         </div>
     </div>
@@ -366,21 +416,22 @@
             <button id="btnFecharComparacao" class="text-white/40 hover:text-white text-xl leading-none">&times;</button>
         </div>
         <!-- Resumo cards -->
-        <div id="comparacaoResumo" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 p-4"></div>
+        <div id="comparacaoResumo" class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-8 gap-3 p-4"></div>
         <!-- Tabs -->
         <div class="flex flex-wrap gap-1 px-4 pb-3">
-            <button class="comp-tab active" data-tab="faltando">Faltando no banco</button>
-            <button class="comp-tab" data-tab="faltando-planilha">Faltando na planilha</button>
-            <button class="comp-tab" data-tab="data-divergente">Data divergente</button>
-            <button class="comp-tab" data-tab="tributos">Tributos/DAM</button>
+            <button class="comp-tab active" data-tab="ok">Encontradas</button>
             <button class="comp-tab" data-tab="divergente">Divergentes</button>
-            <button class="comp-tab" data-tab="ok">Encontradas</button>
-            <button class="comp-tab" data-tab="outro-mes">No banco, outro mês</button>
+            <button class="comp-tab" data-tab="data-divergente">Data divergente</button>
+            <button class="comp-tab" data-tab="tributos">Impostos</button>
+            <button class="comp-tab" data-tab="faltando">Faltando na pasta</button>
+            <button class="comp-tab" data-tab="faltando-planilha">Faltando na planilha</button>
+            <button class="comp-tab" data-tab="alertas-corrigidos">Alertas Corrigidos</button>
+
         </div>
         <!-- Tabela -->
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
-                <thead class="text-xs uppercase tracking-wider" style="background:rgba(44,20,60,.85);color:rgba(255,255,255,.6)">
+                <thead class="text-xs uppercase tracking-wider" style="background:rgba(255, 255, 255, 0.414);color:rgb(255, 255, 255)">
                     <tr>
                         <th class="text-left font-medium px-4 py-3">Nº NF</th>
                         <th class="text-left font-medium px-4 py-3">Emitente</th>
@@ -403,16 +454,6 @@
         </div>
         <p id="comparacaoEmpty" class="hidden text-center text-white/30 text-sm py-8"></p>
     </div>
-
-    <!-- Estado vazio -->
-    <div id="empty" class="card-glass rounded-2xl shadow-2xl p-12 text-center" style="color:rgba(255,255,255,.40)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-12 h-12 mx-auto mb-3 opacity-50">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <path d="M14 2v6h6"/>
-        </svg>
-        <p>Selecione uma pasta para começar a análise dos PDFs.</p>
-    </div>
-
     <p class="text-center mt-6 text-white/40 text-xs">Processamento 100% local no navegador · pdf.js + REGEX</p>
 </div>
 
@@ -511,14 +552,19 @@
             <!-- divisor -->
             <div style="width:1px;background:rgba(255,255,255,.09);flex-shrink:0"></div>
 
-            <!-- coluna 3: anos -->
-            <div class="flex flex-col gap-2 flex-shrink-0">
-                <p class="text-[11px] text-white/40 text-center mb-0.5">Ano</p>
-                <button class="comp-ano-btn" data-a="2024">2024</button>
-                <button class="comp-ano-btn" data-a="2025">2025</button>
-                <button class="comp-ano-btn" data-a="2026">2026</button>
-                <button class="comp-ano-btn" data-a="2027">2027</button>
-                <button class="comp-ano-btn" data-a="2028">2028</button>
+            <!-- coluna 3: anos — wheel picker -->
+            <div class="flex flex-col flex-shrink-0" style="min-width:88px">
+                <p class="text-[11px] text-white/40 text-center mb-1.5">Ano</p>
+                <div id="anoWheelWrap" style="position:relative;height:220px;overflow:hidden">
+                    <div class="ano-wheel-sel-bar"></div>
+                    <div class="ano-wheel-grad-top"></div>
+                    <div class="ano-wheel-grad-bot"></div>
+                    <div id="anoWheel">
+                        <div style="height:88px"></div>
+                        <div id="anoWheelItems"></div>
+                        <div style="height:88px"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -585,7 +631,7 @@ function extrairCnpjGenerico(text) {
 // Quando nada bate, cai no fallback de IA automático (ver analyzeFile).
 
 const CATS = {
-    CONSORCIO: { color:'bg-teal-900/50 text-teal-300',   parser: null },
+    CONSORCIO: { color:'bg-teal-900/50 text-teal-300',     parser: null },
     CTE:       { color:'bg-purple-900/50 text-purple-300', parser: parseCte },
     NF:        { color:'bg-blue-900/50 text-blue-300',     parser: parseDanfe },
     NFS:       { color:'bg-cyan-900/50 text-cyan-300',     parser: null },
@@ -1934,8 +1980,68 @@ document.addEventListener('wheel', e => {
     const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     let compData = null; // último resultado de comparação
-    let compTabAtiva = 'faltando';
+    let compTabAtiva = 'divergente' //Define a aba ativa na comparação (divergente, ausente, nova)
     const compDiasSel = new Set(); // dias (DD) selecionados; vazio = mês todo
+    const alertasFalsos = new Map(); // chave → {motivo, obs}
+    const alertasAbertos = new Set(); // chaves com dropdown aberto
+    const _chaveAlerta = n => `${n.nf||''}|${n.arquivo||''}|${n.entidade||''}`;
+
+    const vinculosNotas  = new Map(); // chave → {entrada, obs}
+    const vinculosAbertos = new Set();
+    const _chaveVinculo  = n => `${n.nf||''}|${n.entidade||''}|${n.periodo||''}`;
+    const _syncVinculo = async (method, chave, dados = null) => {
+        if (!compData) return;
+        const obj = {};
+        vinculosNotas.forEach((v, k) => { obj[k] = v; });
+        localStorage.setItem('vinculosNotas:' + compData.periodo, JSON.stringify(obj));
+        try {
+            const r = await fetch('/api/vinculos-notas', {
+                method,
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(method === 'DELETE'
+                    ? { periodo: compData.periodo, chave }
+                    : { periodo: compData.periodo, chave, ...dados }),
+            });
+            if (!r.ok) {
+                const txt = await r.text().catch(() => r.status);
+                console.error('[vinculos-notas] erro do servidor:', r.status, txt);
+                showToast(`Erro ao salvar vínculo (${r.status}). Salvo apenas localmente.`, 'warning', 5000);
+            }
+        } catch(e) {
+            console.error('[vinculos-notas] falha de rede:', e);
+            showToast('Sem conexão — vínculo salvo apenas localmente.', 'warning', 4000);
+        }
+    };
+    // Sincroniza um alerta com o servidor. Retorna true se ok, false se falhou.
+    const _syncAlertaFalso = async (method, chave, dados = null) => {
+        if (!compData) return false;
+        // Atualiza cache localStorage imediatamente (independente do servidor)
+        const obj = {};
+        alertasFalsos.forEach((v, k) => { obj[k] = v; });
+        localStorage.setItem('alertasFalsos:' + compData.periodo, JSON.stringify(obj));
+        try {
+            const r = await fetch('/api/alertas-falsos', {
+                method,
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(method === 'DELETE'
+                    ? { periodo: compData.periodo, chave }
+                    : { periodo: compData.periodo, chave, ...dados }),
+            });
+            if (!r.ok) {
+                const txt = await r.text().catch(() => r.status);
+                console.error('[alertas-falsos] erro do servidor:', r.status, txt);
+                showToast(`Erro ao salvar alerta falso no servidor (${r.status}). Salvo apenas localmente.`, 'warning', 5000);
+                return false;
+            }
+            return true;
+        } catch(e) {
+            console.error('[alertas-falsos] falha de rede:', e);
+            showToast('Sem conexão — alerta salvo apenas localmente.', 'warning', 4000);
+            return false;
+        }
+    };
 
     // Estado do picker (mês 1-12, ano)
     let compPickMes = new Date().getMonth() + 1;
@@ -1952,9 +2058,7 @@ document.addEventListener('wheel', e => {
         document.querySelectorAll('.comp-mes-btn').forEach(b => {
             b.classList.toggle('active', parseInt(b.dataset.m) === compPickMes);
         });
-        document.querySelectorAll('.comp-ano-btn').forEach(b => {
-            b.classList.toggle('active', parseInt(b.dataset.a) === compPickAno);
-        });
+        anoWheelScrollTo(compPickAno);
         const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                        'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
         $('compCalLabel').textContent = `${MESES[compPickMes]} ${compPickAno}`;
@@ -2015,28 +2119,113 @@ document.addEventListener('wheel', e => {
         });
     });
 
-    // Clique nos botões de ano — simples: seleciona; duplo: gera direto
-    let _compAnoClickTimer = null;
-    document.querySelectorAll('.comp-ano-btn').forEach(b => {
-        b.addEventListener('click', () => {
-            compPickAno = parseInt(b.dataset.a);
-            atualizarPickerUI();
-            if (_compAnoClickTimer) {
-                clearTimeout(_compAnoClickTimer);
-                _compAnoClickTimer = null;
-                fecharCompModal();
-                executarComparacao(compPickMes, compPickAno, [...compDiasSel].sort((a,b)=>a-b));
-            } else {
-                _compAnoClickTimer = setTimeout(() => { _compAnoClickTimer = null; }, 350);
+    // ── Wheel picker de ano ─────────────────────────────────────────────────
+    const ANOS_WHEEL = (() => {
+        const a = [], y = new Date().getFullYear();
+        for (let i = 2020; i <= y + 2; i++) a.push(i);
+        return a;
+    })();
+    const ITEM_H = 44;
+    const anosComDados = new Set();
+    const anoWheelEl   = $('anoWheel');
+    const anoWheelItemsEl = $('anoWheelItems');
+
+    function buildAnoWheelItems() {
+        anoWheelItemsEl.innerHTML = '';
+        ANOS_WHEEL.forEach(ano => {
+            const div = document.createElement('div');
+            div.className = 'ano-wheel-item';
+            div.dataset.a = ano;
+            div.textContent = ano;
+            if (anosComDados.has(ano)) {
+                const dot = document.createElement('span');
+                dot.className = 'ano-dot';
+                div.appendChild(dot);
             }
+            anoWheelItemsEl.appendChild(div);
         });
+        updateAnoWheelVisuals();
+    }
+
+    function updateAnoWheelVisuals() {
+        const idx = Math.round(anoWheelEl.scrollTop / ITEM_H);
+        anoWheelItemsEl.querySelectorAll('.ano-wheel-item').forEach((item, i) => {
+            const d = Math.abs(i - idx);
+            if (d === 0)      { item.style.opacity = '1';    item.style.color = '#fff'; item.style.transform = 'scale(1.06)'; }
+            else if (d === 1) { item.style.opacity = '0.42'; item.style.color = '';     item.style.transform = 'scale(0.96)'; }
+            else if (d === 2) { item.style.opacity = '0.18'; item.style.color = '';     item.style.transform = 'scale(0.90)'; }
+            else              { item.style.opacity = '0.06'; item.style.color = '';     item.style.transform = 'scale(0.84)'; }
+        });
+    }
+
+    function anoWheelScrollTo(ano, smooth = false) {
+        const idx = ANOS_WHEEL.indexOf(ano);
+        if (idx < 0) return;
+        anoWheelEl.scrollTo({ top: idx * ITEM_H, behavior: smooth ? 'smooth' : 'instant' });
+        updateAnoWheelVisuals();
+    }
+
+    let _anoScrollTimer = null;
+    anoWheelEl.addEventListener('scroll', () => {
+        updateAnoWheelVisuals();
+        clearTimeout(_anoScrollTimer);
+        _anoScrollTimer = setTimeout(() => {
+            const idx = Math.round(anoWheelEl.scrollTop / ITEM_H);
+            if (idx >= 0 && idx < ANOS_WHEEL.length) {
+                compPickAno = ANOS_WHEEL[idx];
+                syncHiddenInputs();
+                $('compCalLabel').textContent = `${MESES[compPickMes]} ${compPickAno}`;
+                renderCompDias();
+            }
+        }, 120);
+    }, { passive: true });
+
+    let _anoWheelClickTimer = null;
+    anoWheelItemsEl.addEventListener('click', e => {
+        const item = e.target.closest('.ano-wheel-item');
+        if (!item) return;
+        const ano = parseInt(item.dataset.a);
+        if (isNaN(ano)) return;
+        compPickAno = ano;
+        anoWheelScrollTo(ano, true);
+        syncHiddenInputs();
+        $('compCalLabel').textContent = `${MESES[compPickMes]} ${compPickAno}`;
+        renderCompDias();
+        if (_anoWheelClickTimer) {
+            clearTimeout(_anoWheelClickTimer);
+            _anoWheelClickTimer = null;
+            fecharCompModal();
+            executarComparacao(compPickMes, compPickAno, [...compDiasSel].sort((a,b)=>a-b));
+        } else {
+            _anoWheelClickTimer = setTimeout(() => { _anoWheelClickTimer = null; }, 350);
+        }
     });
+
+    // Probe silencioso: descobre anos com dados (verifica jan + jul de cada ano)
+    (async () => {
+        await Promise.allSettled(ANOS_WHEEL.flatMap(ano =>
+            ['01','07'].map(async mm => {
+                try {
+                    const r = await fetch(`/api/relatorio?tipo=M&data=${mm}.${ano}`, { credentials: 'include' });
+                    if (r.ok) {
+                        const j = await r.json();
+                        if ((j.rows || []).length > 0 && !anosComDados.has(ano)) {
+                            anosComDados.add(ano);
+                            buildAnoWheelItems();
+                        }
+                    }
+                } catch (_) {}
+            })
+        ));
+    })();
+
+    buildAnoWheelItems();
 
     function fecharCompModal() { $('modalCompMes').style.display = 'none'; }
 
     $('btnCompararPlanilha').addEventListener('click', () => {
-        atualizarPickerUI();
         $('modalCompMes').style.display = 'flex';
+        requestAnimationFrame(() => atualizarPickerUI());
     });
     $('btnCancelarComp').addEventListener('click', fecharCompModal);
     $('modalCompMes').addEventListener('click', e => {
@@ -2092,7 +2281,46 @@ document.addEventListener('wheel', e => {
             }
 
             compData = json;
-            compTabAtiva = json.naoEncontradas.length > 0 ? 'faltando' : 'ok';
+            alertasFalsos.clear();
+            alertasAbertos.clear();
+            // Inicializa a partir do servidor (notas marcadas no banco chegam com alertaFalso:true)
+            let carregouDoServidor = false;
+            [...(json.encontradas || []), ...(json.naoEncontradas || []), ...(json.faltandoPlanilha || [])].forEach(n => {
+                if (n.alertaFalso) {
+                    carregouDoServidor = true;
+                    alertasFalsos.set(_chaveAlerta(n), {
+                        motivo: n.alertaFalsoMotivo || '',
+                        obs:    n.alertaFalsoObs    || '',
+                        por:    n.alertaFalsoPor    || '',
+                    });
+                }
+            });
+            // Fallback: se o servidor não anotou nenhum, usa cache localStorage.
+            if (!carregouDoServidor) {
+                try {
+                    const saved = localStorage.getItem('alertasFalsos:' + json.periodo);
+                    if (saved) Object.entries(JSON.parse(saved)).forEach(([k, v]) => alertasFalsos.set(k, v));
+                } catch(e) {}
+            }
+
+            // Vínculos manuais (naoEncontradas com vinculo:true)
+            vinculosNotas.clear();
+            vinculosAbertos.clear();
+            let carregouVinculos = false;
+            (json.naoEncontradas || []).forEach(n => {
+                if (n.vinculo) {
+                    carregouVinculos = true;
+                    vinculosNotas.set(_chaveVinculo(n), { entrada: n.vinculoEntrada || '', obs: n.vinculoObs || '' });
+                }
+            });
+            if (!carregouVinculos) {
+                try {
+                    const saved = localStorage.getItem('vinculosNotas:' + json.periodo);
+                    if (saved) Object.entries(JSON.parse(saved)).forEach(([k, v]) => vinculosNotas.set(k, v));
+                } catch(e) {}
+            }
+
+            compTabAtiva = json.naoEncontradas.length > 0 ? 'divergente' : 'ok';
 
             // Atualiza tab ativa
             document.querySelectorAll('.comp-tab').forEach(b => {
@@ -2103,7 +2331,7 @@ document.addEventListener('wheel', e => {
             const escopo = dias.length
                 ? `${MESES[mes]} ${ano} · ${dias.length === 1 ? `dia ${dias[0]}` : `dias ${dias.join(', ')}`}`
                 : `${MESES[mes]} ${ano}`;
-            $('comparacaoSubtitle').textContent = `${escopo} — planilha (apenas ORIG=CP) vs banco`;
+            $('comparacaoSubtitle').textContent = `${escopo} — planilha (apenas ORIG=CP) vs pasta`;
 
             renderResumoComparacao();
             renderComparacao();
@@ -2125,15 +2353,15 @@ document.addEventListener('wheel', e => {
         if (!compData) return;
         const { resumo } = compData;
         const cards = [
-            { label: 'Na planilha',          val: resumo.totalPlanilha,        color: '#a0d87a' },
-            { label: 'Encontradas',          val: resumo.encontradas,          color: '#4ade80' },
-            { label: 'Faltando no banco',    val: resumo.naoEncontradas,       color: '#f87171' },
-            { label: 'Faltando na planilha', val: resumo.faltandoPlanilha || 0, color: '#60a5fa' },
-            { label: 'Data divergente',      val: resumo.dataDivergente || 0,   color: '#fbbf24' },
-            { label: 'Tributos/DAM',         val: resumo.tributos || 0,         color: '#94a3b8' },
-            { label: 'Divergentes',          val: resumo.divergentes,          color: '#fb923c' },
-            { label: 'No banco, outro mês',  val: resumo.outroMesBanco || 0,    color: '#c084fc' },
-        ];
+            { label: 'Na planilha',          val: resumo.totalPlanilha,                                         color: '#4ade80' },
+            { label: 'Encontradas',          val: resumo.encontradas,                                           color: '#4ade80' },
+            { label: 'Impostos',             val: resumo.tributos || 0,                                         color: '#38bdf8' },
+            { label: 'Divergentes',          val: resumo.divergentes - alertasFalsos.size,                      color: '#fbbf24' },
+            { label: 'Datas divergentes',    val: resumo.dataDivergente || 0,                                   color: '#fbbf24' },
+            { label: 'Faltando na pasta',    val: resumo.naoEncontradas,                                        color: '#f87171' },
+            { label: 'Faltando na planilha', val: resumo.faltandoPlanilha || 0,                                 color: '#f87171' },
+            { label: 'Alertas Corrigidos',   val: alertasFalsos.size,                                           color: '#4ade80' },
+                ];
         $('comparacaoResumo').innerHTML = cards.map(c => `
             <div class="rounded-xl p-4 text-center" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)">
                 <p class="text-2xl font-bold" style="color:${c.color}">${c.val}</p>
@@ -2160,11 +2388,15 @@ document.addEventListener('wheel', e => {
         let notas = [];
         if (compTabAtiva === 'faltando')          notas = compData.naoEncontradas;
         if (compTabAtiva === 'faltando-planilha') notas = compData.faltandoPlanilha || [];
-        if (compTabAtiva === 'data-divergente')   notas = compData.encontradas.filter(n => n.status === 'data-divergente');
-        if (compTabAtiva === 'divergente')        notas = compData.encontradas.filter(n => n.status === 'divergente');
-        if (compTabAtiva === 'ok')                notas = compData.encontradas.filter(n => n.status === 'ok');
-        if (compTabAtiva === 'tributos')          notas = compData.tributos || [];
-        if (compTabAtiva === 'outro-mes')         notas = compData.encontradas.filter(n => n.periodoPlanilha && n.periodoPlanilha !== compData.periodo);
+        if (compTabAtiva === 'data-divergente')     notas = compData.encontradas.filter(n => n.status === 'data-divergente' && !alertasFalsos.has(_chaveAlerta(n)));
+        if (compTabAtiva === 'divergente')          notas = compData.encontradas.filter(n => n.status === 'divergente'      && !alertasFalsos.has(_chaveAlerta(n)));
+        if (compTabAtiva === 'ok')                  notas = compData.encontradas.filter(n => n.status === 'ok');
+        if (compTabAtiva === 'tributos')            notas = compData.tributos || [];
+        if (compTabAtiva === 'alertas-corrigidos')  notas = [
+            ...compData.encontradas,
+            ...(compData.naoEncontradas    || []),
+            ...(compData.faltandoPlanilha  || []),
+        ].filter(n => alertasFalsos.has(_chaveAlerta(n)));
 
         comparacaoNotasAtuais = notas;
         if (resetarPagina) comparacaoPagina = 0;
@@ -2172,12 +2404,12 @@ document.addEventListener('wheel', e => {
         if (notas.length === 0) {
             tbody.innerHTML = '';
             pager.classList.add('hidden');
-            empty.textContent = compTabAtiva === 'faltando'          ? 'Nenhuma nota faltando no banco! ✓'
-                              : compTabAtiva === 'faltando-planilha' ? 'Nenhuma nota faltando na planilha! ✓'
-                              : compTabAtiva === 'data-divergente'   ? 'Nenhuma nota com data divergente ✓'
-                              : compTabAtiva === 'divergente'        ? 'Nenhuma divergência ✓'
-                              : compTabAtiva === 'tributos'          ? 'Nenhum tributo/DAM identificado ✓'
-                              : compTabAtiva === 'outro-mes'         ? 'Nenhuma nota de outro mês neste período ✓'
+            empty.textContent = compTabAtiva === 'faltando'             ? 'Nenhuma nota faltando na pasta! ✓'
+                              : compTabAtiva === 'faltando-planilha'  ? 'Nenhuma nota faltando na planilha! ✓'
+                              : compTabAtiva === 'data-divergente'    ? 'Nenhuma nota com data divergente ✓'
+                              : compTabAtiva === 'divergente'         ? 'Nenhuma divergência ✓'
+                              : compTabAtiva === 'tributos'           ? 'Nenhum tributo/DAM identificado ✓'
+                              : compTabAtiva === 'alertas-corrigidos' ? 'Nenhum alerta corrigido neste período'
                               : 'Nenhuma nota encontrada ainda';
             empty.classList.remove('hidden');
             return;
@@ -2214,8 +2446,100 @@ document.addEventListener('wheel', e => {
             const obsTipo = !n.divergencia && n.tipo && n.tipo !== n.status ? ` · ${n.tipo}` : '';
             // Emitente: para notas sem match inclui nome do arquivo no tooltip
             const emitTitle = arquivoReal ? `${n.entidade} — ${arquivoReal}${parcelaM ? ' #p'+parcelaM[1] : ''}` : n.entidade;
+
+            const chaveA  = _chaveAlerta(n);
+            const chaveV  = _chaveVinculo(n);
+            const temDiverg  = !!(n.divergencia || n.status === 'divergente' || n.status === 'data-divergente');
+            const temFaltando = n.status === 'faltando';
+            const isFalso    = alertasFalsos.has(chaveA);
+            const isVinculado = vinculosNotas.has(chaveV);
+            const isAberto   = alertasAbertos.has(chaveA);
+            const isVinculoAberto = vinculosAbertos.has(chaveV);
+            const dadosFalso   = isFalso    ? alertasFalsos.get(chaveA) : null;
+            const dadosVinculo = isVinculado ? vinculosNotas.get(chaveV) : null;
+
+            const mkChevron = (rotated) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:10px;height:10px;transition:transform .18s;transform:${rotated ? 'rotate(90deg)' : 'rotate(0)'}"><polyline points="9 18 15 12 9 6"/></svg>`;
+            const svgLink = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:9px;height:9px;margin-right:2px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+
+            const btnToggle = temDiverg
+                ? `<button data-comp-toggle="${chaveA}" title="Alerta falso" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-right:6px;opacity:.6;cursor:pointer;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:4px;flex-shrink:0;vertical-align:middle">${mkChevron(isAberto)}</button>`
+                : temFaltando
+                ? `<button data-vinculo-toggle="${chaveV}" title="Vincular entrada" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-right:6px;opacity:.6;cursor:pointer;background:${isVinculado ? 'rgba(96,165,250,.15)' : 'rgba(255,255,255,.08)'};border:1px solid ${isVinculado ? 'rgba(96,165,250,.35)' : 'rgba(255,255,255,.12)'};border-radius:4px;flex-shrink:0;vertical-align:middle">${svgLink}${mkChevron(isVinculoAberto)}</button>`
+                : '';
+
+            const obsCor = isFalso ? '#4ade80' : isVinculado ? '#60a5fa' : statusColor(n.status);
+            const obsHtml = isFalso
+                ? `<span style="opacity:.45;text-decoration:line-through">${obsBase}${obsTipo}</span><span style="color:#4ade80;font-size:.68rem;margin-left:6px">✓ Alerta falso</span>`
+                : isVinculado
+                ? `<span style="opacity:.55">${obsBase}${obsTipo}</span><span style="color:#60a5fa;font-size:.68rem;margin-left:6px">🔗 ${dadosVinculo.entrada}</span>`
+                : `${obsBase}${obsTipo}`;
+
+            // Campos de correção baseados no tipo de divergência
+            const TIPOS_BANCO = ['NF','NFS','FATURA','BOLETO','DAM','IMPOSTO','NÃO IDENTIFICADO'];
+            const inputStyle = 'font-size:.78rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:5px 8px;color:#e8f0e8;outline:none';
+            const labelStyle = 'font-size:.73rem;color:rgba(255,255,255,.45);margin-right:4px;white-space:nowrap';
+
+            const campoTipo = n.tipoDiverge ? `
+                <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)">
+                    <span style="${labelStyle}">Tipo errado, alterado para:</span>
+                    <select data-alerta-tipo="${chaveA}" style="${inputStyle};cursor:pointer">
+                        <option value="">— selecione —</option>
+                        ${TIPOS_BANCO.map(t => `<option value="${t}">${t}${t === n.tipo ? ' ← pasta' : t === n.tipoBanco ? ' ← planilha' : ''}</option>`).join('')}
+                    </select>
+                    <span style="font-size:.7rem;color:rgba(255,255,255,.3)">${n.tipo||'—'} → planilha: ${n.tipoPlanilha||'—'}</span>
+                </div>` : '';
+
+            const campoValor = n.valorItemAlerta ? `
+                <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)">
+                    <span style="${labelStyle}">Valor errado, corrigido para:</span>
+                    <input data-alerta-valor="${chaveA}" type="text" inputmode="decimal" placeholder="R$ 0,00" style="${inputStyle};width:110px" />
+                    <span style="font-size:.7rem;color:rgba(255,255,255,.3)">pasta: ${fmtVal(n.valorBanco||n.valor)} · planilha: ${fmtVal(n.valorItem||n.valor)}</span>
+                </div>` : '';
+
+            const camposAtivos = campoTipo || campoValor;
+
+            const vinculoHtml = temFaltando ? `
+            <tr style="display:${isVinculoAberto ? 'table-row' : 'none'}">
+                <td colspan="9" style="padding:0 16px 10px 16px;border-bottom:1px solid rgba(255,255,255,.06)">
+                    <div style="margin-left:8px;padding:12px 16px;background:rgba(96,165,250,.04);border-radius:8px;border:1px solid rgba(96,165,250,.15)">
+                        <div style="font-size:.68rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(96,165,250,.5);margin-bottom:8px">Vincular Entrada</div>
+                        ${isVinculado ? `
+                        <div style="color:#60a5fa;font-size:.8rem;margin-bottom:10px">🔗 Vinculado a: <strong>${dadosVinculo.entrada}</strong>${dadosVinculo.obs ? ' · ' + dadosVinculo.obs : ''}</div>
+                        <button data-vinculo-remove="${chaveV}" style="font-size:.73rem;color:#f87171;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;padding:4px 10px;cursor:pointer">Remover vínculo</button>
+                        ` : `
+                        <div style="color:rgba(255,255,255,.45);font-size:.78rem;margin-bottom:10px">Gostaria de vincular uma entrada a essa nota?</div>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                            <input data-vinculo-entrada="${chaveV}" type="text" placeholder="NF, arquivo ou descrição da entrada…" style="${inputStyle};flex:2;min-width:220px" />
+                            <input data-vinculo-obs="${chaveV}"    type="text" placeholder="Observação (opcional)" style="${inputStyle};flex:1;min-width:140px" />
+                            <button data-vinculo-confirm="${chaveV}" style="font-size:.73rem;color:#60a5fa;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);border-radius:6px;padding:5px 14px;cursor:pointer;font-weight:700;white-space:nowrap">Confirmar vínculo</button>
+                        </div>
+                        `}
+                    </div>
+                </td>
+            </tr>` : '';
+
+            const detalheHtml = temDiverg ? `
+            <tr style="display:${isAberto ? 'table-row' : 'none'}">
+                <td colspan="9" style="padding:0 16px 10px 16px;border-bottom:1px solid rgba(255,255,255,.06)">
+                    <div style="margin-left:8px;padding:12px 16px;background:rgba(255,255,255,.04);border-radius:8px;border:1px solid rgba(255,255,255,.1)">
+                        <div style="font-size:.68rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px">Alerta Falso</div>
+                        ${isFalso ? `
+                        <div style="color:#4ade80;font-size:.8rem;margin-bottom:10px">✓ ${dadosFalso.motivo || 'Marcado como alerta falso'}${dadosFalso.obs ? ' · ' + dadosFalso.obs : ''}</div>
+                        <button data-alerta-remove="${chaveA}" style="font-size:.73rem;color:#f87171;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;padding:4px 10px;cursor:pointer">Remover marcação</button>
+                        ` : `
+                        ${camposAtivos || `<div style="color:rgba(255,255,255,.5);font-size:.78rem;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)">${obsBase}</div>`}
+                        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)">
+                            <span style="${labelStyle}">Observação:</span>
+                            <input data-alerta-obs="${chaveA}" type="text" placeholder="(opcional)" style="${inputStyle};flex:1;min-width:160px" />
+                            <button data-alerta-confirm="${chaveA}" style="font-size:.73rem;color:#4ade80;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);border-radius:6px;padding:5px 14px;cursor:pointer;font-weight:700;white-space:nowrap">Confirmar alerta falso</button>
+                        </div>
+                        `}
+                    </div>
+                </td>
+            </tr>` : '';
+
             return `
-            <tr style="border-bottom:1px solid rgba(255,255,255,.06)">
+            <tr style="border-bottom:${isAberto ? 'none' : '1px solid rgba(255,255,255,.06)'}">
                 <td class="px-4 py-3 font-mono text-sm" style="color:rgba(255,255,255,.85)">${n.nf || '—'}</td>
                 <td class="px-4 py-3 text-xs max-w-[200px] truncate" style="color:rgba(255,255,255,.7)" title="${emitTitle}">${n.entidade || '—'}</td>
                 <td class="px-4 py-3 text-right font-mono text-sm" style="color:#a0d87a">${fmtVal(n.valor)}</td>
@@ -2223,9 +2547,9 @@ document.addEventListener('wheel', e => {
                 <td class="px-4 py-3 text-xs" style="color:${vencCor}">${vencTxt}</td>
                 <td class="px-4 py-3 text-xs" style="color:rgba(255,255,255,.5)">${n.emissao || '—'}</td>
                 <td class="px-4 py-3 text-xs" style="color:rgba(255,255,255,.5)">${n.filial || '—'}</td>
-                <td class="px-4 py-3 text-xs" style="color:${statusColor(n.status)}">${obsBase}${obsTipo}</td>
+                <td class="px-4 py-3 text-xs" style="color:${obsCor}">${btnToggle}${obsHtml}</td>
                 <td class="px-4 py-3 text-center">${btnVer}</td>
-            </tr>`;
+            </tr>${detalheHtml}${vinculoHtml}`;
         }).join('');
 
         // Rodapé de paginação
@@ -2247,6 +2571,81 @@ document.addEventListener('wheel', e => {
     $('compPagNext').addEventListener('click', () => { comparacaoPagina++; renderComparacao(false); $('comparacaoBody').scrollIntoView({ block: 'nearest' }); });
 
     $('comparacaoBody').addEventListener('click', e => {
+        const toggle = e.target.closest('[data-comp-toggle]');
+        if (toggle) {
+            const chave = toggle.dataset.compToggle;
+            if (alertasAbertos.has(chave)) alertasAbertos.delete(chave);
+            else alertasAbertos.add(chave);
+            renderComparacao(false);
+            return;
+        }
+
+        const confirmBtn = e.target.closest('[data-alerta-confirm]');
+        if (confirmBtn) {
+            const chave = confirmBtn.dataset.alertaConfirm;
+            const tbody = $('comparacaoBody');
+            const tipoSel  = tbody.querySelector(`[data-alerta-tipo="${chave}"]`);
+            const valorInp = tbody.querySelector(`[data-alerta-valor="${chave}"]`);
+            const obsInp   = tbody.querySelector(`[data-alerta-obs="${chave}"]`);
+            // Monta motivo automaticamente a partir dos campos preenchidos
+            const partesMot = [];
+            if (tipoSel  && tipoSel.value)        partesMot.push(`Tipo alterado para ${tipoSel.value}`);
+            if (valorInp && valorInp.value.trim()) partesMot.push(`Valor corrigido para ${valorInp.value.trim()}`);
+            const motivo = partesMot.join(' · ') || 'Alerta falso confirmado';
+            const dados = { motivo, obs: obsInp ? obsInp.value.trim() : '' };
+            alertasFalsos.set(chave, dados);
+            alertasAbertos.delete(chave);
+            renderResumoComparacao();
+            renderComparacao(false);
+            _syncAlertaFalso('POST', chave, dados);
+            return;
+        }
+
+        const removeBtn = e.target.closest('[data-alerta-remove]');
+        if (removeBtn) {
+            const chave = removeBtn.dataset.alertaRemove;
+            alertasFalsos.delete(chave);
+            alertasAbertos.delete(chave);
+            renderResumoComparacao();
+            renderComparacao(false);
+            _syncAlertaFalso('DELETE', chave);
+            return;
+        }
+
+        const vinculoToggle = e.target.closest('[data-vinculo-toggle]');
+        if (vinculoToggle) {
+            const chave = vinculoToggle.dataset.vinculoToggle;
+            if (vinculosAbertos.has(chave)) vinculosAbertos.delete(chave);
+            else vinculosAbertos.add(chave);
+            renderComparacao(false);
+            return;
+        }
+
+        const vinculoConfirm = e.target.closest('[data-vinculo-confirm]');
+        if (vinculoConfirm) {
+            const chave = vinculoConfirm.dataset.vinculoConfirm;
+            const entradaInp = $('comparacaoBody').querySelector(`[data-vinculo-entrada="${chave}"]`);
+            const obsInp     = $('comparacaoBody').querySelector(`[data-vinculo-obs="${chave}"]`);
+            const entrada = entradaInp ? entradaInp.value.trim() : '';
+            if (!entrada) { showToast('Informe a entrada a vincular.', 'warning', 3000); return; }
+            const dados = { entrada, obs: obsInp ? obsInp.value.trim() : '' };
+            vinculosNotas.set(chave, dados);
+            vinculosAbertos.delete(chave);
+            renderComparacao(false);
+            _syncVinculo('POST', chave, dados);
+            return;
+        }
+
+        const vinculoRemove = e.target.closest('[data-vinculo-remove]');
+        if (vinculoRemove) {
+            const chave = vinculoRemove.dataset.vinculoRemove;
+            vinculosNotas.delete(chave);
+            vinculosAbertos.delete(chave);
+            renderComparacao(false);
+            _syncVinculo('DELETE', chave);
+            return;
+        }
+
         const btn = e.target.closest('[data-comp-view]');
         if (!btn || btn.disabled) return;
         const nota = comparacaoNotasAtuais[+btn.dataset.compView];

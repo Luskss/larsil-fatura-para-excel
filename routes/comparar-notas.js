@@ -8,8 +8,11 @@
 const TOLERANCIA_DIAS_PRINCIPAL = 3;
 const { getConnection } = require('../config');
 const { setFullSecurityHeaders, requireAuth } = require('./_helpers');
+const { getAlertasFalsos } = require('./_alertas-falsos-db');
+const { getVinculos }      = require('./_vinculos-db');
 const XLSX = require('xlsx');
 const fs = require('fs');
+const path = require('path');
 
 function norm(s) {
     return String(s || '').trim().toUpperCase().replace(/\s+/g, ' ');
@@ -106,6 +109,35 @@ function entidadeMatch(a, b) {
     return false;
 }
 
+// CNPJ (14 dígitos) de uma string, com ou sem formatação. '' se não achar.
+// Aceita "41.534.692/0001-35", "08420245000180", "...S.A 41.534.692/0001-35".
+function extrairCnpj(s) {
+    const str = String(s || '');
+    const m = str.match(/\d{2}[.\s]?\d{3}[.\s]?\d{3}[\/\s]?\d{4}[-\s]?\d{2}/);
+    if (m) {
+        const d = m[0].replace(/\D/g, '');
+        if (d.length === 14) return d;
+    }
+    const m2 = str.match(/(?<!\d)\d{14}(?!\d)/);
+    return m2 ? m2[0] : '';
+}
+
+// Empresa auditada (a PAGADORA). A IA às vezes lê o CNPJ e/ou o nome dela como
+// "emitente" do documento (típico em recibos de pagamento), contaminando o match.
+// Raiz do CNPJ (8 primeiros dígitos) cobre todas as filiais. (Cliente-específico.)
+const PAGADOR_CNPJ_ROOT = '08420245';
+function cnpjEhPagador(cnpj) { return !!cnpj && cnpj.slice(0, 8) === PAGADOR_CNPJ_ROOT; }
+function nomeEhPagador(nome) { return /\bLARSIL\b/.test(norm(nome)); }
+
+// Compara entidades usando CNPJ como evidência SÓ POSITIVA: CNPJs iguais = mesma
+// empresa (sinal forte, casa mesmo com nomes escritos diferente). CNPJs diferentes
+// NÃO rejeitam — cai no nome fuzzy (o CNPJ do banco é ruidoso: filiais, OCR, e a IA
+// às vezes troca pelo CNPJ do pagador). Assim o CNPJ só ADICIONA matches, nunca remove.
+function entidadeBate(emitB, cnpjB, entP, cnpjP) {
+    if (cnpjB && cnpjP && cnpjB === cnpjP) return true;
+    return entidadeMatch(emitB, entP);
+}
+
 const TOL_VAL = 0.02;
 
 // VALIDA o valor do banco contra a nota da planilha. Considera correto se o valor
@@ -158,19 +190,12 @@ function tipoBate(tipoBanco, nota, rowB) {
     // NF (produto) e NFS (serviço) são intercambiáveis: a planilha Delsoft costuma
     // lançar nota de serviço como "NOTA FISCAL RFB" (→ NF), então não é divergência.
     if ((tb === 'NF' || tb === 'NFS') && (tp === 'NF' || tp === 'NFS')) return true;
-    // Fatura em lote (FT no nome do arquivo): um boleto/duplicata que paga em lote
-    // NFS-e/NF-e anexas. A planilha lança como FATURA, mas o PDF é classificado como
-    // NFS/NF pelo conteúdo. Só vale para docs "FT..." → não afeta notas normais.
-    if (tp === 'FATURA' && (tb === 'NF' || tb === 'NFS') && ehFaturaLote(rowB)) return true;
+    // Fatura em lote: um boleto/duplicata que paga em lote NFS-e/NF-e anexas. A
+    // planilha lança como FATURA, mas o PDF é classificado como NFS/NF pelo conteúdo.
+    // Não é divergência. (Antes restringíamos a docs "FT..." pelo NOME do arquivo, mas
+    // por decisão do usuário o nome do arquivo não é usado para determinar tipo.)
+    if (tp === 'FATURA' && (tb === 'NF' || tb === 'NFS')) return true;
     return false;
-}
-
-// "Fatura em lote": doc do banco cujo NOME traz número de FATURA (FT.../FATURA) — um
-// boleto que paga em lote uma ou mais NFS-e/NF-e anexas (ex.: FT9476 = NFS-e 58676 +
-// NF-e 20294). Marcador exclusivo dessa convenção: o "FT" no nome do arquivo.
-function ehFaturaLote(rowB) {
-    const arq = String((rowB && rowB.arquivo) || '').replace(/#p\d+$/i, '').toUpperCase();
-    return /\bFT\s*\.?\s*\d/.test(arq) || /\bFATURA\b/.test(arq);
 }
 
 // ── Cache da planilha ─────────────────────────────────────────────────────────
@@ -300,6 +325,7 @@ function lerPlanilhaIndexada(planilhaPath) {
         const tipoStr = norm(row[idxTipo]);
         const nota = {
             nf, entidade: ent,
+            cnpj: extrairCnpj(row[idxEntidade]),           // CNPJ embutido na ENTIDADE (match exato)
             nfClean: nf.replace(/^[A-Za-z]+/, '').replace(/^0+/, '') || nf.replace(/^0+/, ''),
             valor:     normVal(row[idxValor]),            // VL_TOTAL_CAB (cabeçalho da nota)
             valorItem: valItem,                            // soma de VL_ITEM (itens da nota)
@@ -389,8 +415,9 @@ function indexarBanco(periodo, csv) {
             const idxP = cols.indexOf('pasta');
             const idxT = cols.indexOf('tipo');
             const idxD = cols.indexOf('dados_parser');
+            const idxC = cols.indexOf('cnpj');
             for (let i = 1; i < lines.length; i++) {
-                const rowB = parseCsvLine(lines[i], idxA, idxP, idxT, idxD);
+                const rowB = parseCsvLine(lines[i], idxA, idxP, idxT, idxD, idxC);
                 linhas.push(rowB);
                 total++;
                 if (rowB.nf) {
@@ -529,7 +556,7 @@ function extrairValorDeParsed(parser, arquivo) {
 }
 
 // ── Parse CSV do banco uma vez por linha ─────────────────────────────────────
-function parseCsvLine(line, idxArquivo, idxPasta, idxTipo, idxDadosParser) {
+function parseCsvLine(line, idxArquivo, idxPasta, idxTipo, idxDadosParser, idxCnpj) {
     const fields = [];
     let cur = '', inQ = false;
     
@@ -579,6 +606,18 @@ function parseCsvLine(line, idxArquivo, idxPasta, idxTipo, idxDadosParser) {
     const nfArq = extrairNFDoArquivo(arquivo);
     const nfAlt = (nfArq && nfArq !== nf) ? nfArq : '';
 
+    // CNPJ do emitente: preferir o do parser, senão a coluna 'cnpj' do relatório.
+    let cnpj = parser ? extrairCnpj(parser['CNPJ emitente'] || parser['CNPJ Emitente'] || '') : '';
+    if (!cnpj && idxCnpj >= 0) cnpj = extrairCnpj(fields[idxCnpj] || '');
+    let emitente = norm(extrairEmitenteDeParsed(parser, arquivo));
+
+    // Lever 3: a IA frequentemente lê a PAGADORA (LARSIL) no lugar do fornecedor.
+    // Zera SÓ a parte contaminada: se o NOME é a pagadora, descarta o nome; se o CNPJ
+    // é o da pagadora, descarta só o CNPJ (o nome costuma ser o fornecedor REAL —
+    // ex.: emitente "BIOS NETWORKS" com CNPJ da LARSIL → mantém "BIOS NETWORKS").
+    if (nomeEhPagador(emitente)) emitente = '';
+    if (cnpjEhPagador(cnpj))     cnpj = '';
+
     return {
         arquivo,
         pasta:       fields[idxPasta] ?? '',
@@ -586,7 +625,8 @@ function parseCsvLine(line, idxArquivo, idxPasta, idxTipo, idxDadosParser) {
         nf,
         nfAlt,
         ocp:         extrairOCPDeParsed(parser, arquivo),
-        emitente:    norm(extrairEmitenteDeParsed(parser, arquivo)),
+        emitente,
+        cnpj,
         valor:       extrairValorDeParsed(parser, arquivo),
         vencimento:  venc,
         dataMs,
@@ -781,18 +821,18 @@ module.exports = async function compararNotasRoute(req, res) {
                     partes.push(`ℹ Fatura consolida ${grupo.length} notas (${nfs}) — soma R$${rowB.valor.toFixed(2)}`);
                 } else {
                     valorDiverge = true;
-                    partes.push(`⚠ Valor: banco R$${rowB.valor.toFixed(2)} × planilha R$${nota.valor.toFixed(2)}` +
+                    partes.push(`⚠ Valor: Pasta R$${rowB.valor.toFixed(2)} × Planilha R$${nota.valor.toFixed(2)}` +
                         (nota.valorItem > 0 && Math.abs(nota.valorItem - nota.valor) > TOL_VAL ? ` (itens R$${nota.valorItem.toFixed(2)})` : ''));
                 }
             } else if (vRes.ok && /^parcela \d+x$/.test(vRes.base || '')) {
                 // Compra parcelada: informativo, não é divergência.
-                partes.push(`ℹ Parcela ${vRes.base.match(/\d+/)[0]}x — banco R$${rowB.valor.toFixed(2)} × total planilha R$${nota.valor.toFixed(2)}`);
+                partes.push(`ℹ Parcela ${vRes.base.match(/\d+/)[0]}x — Pasta R$${rowB.valor.toFixed(2)} × total Planilha R$${nota.valor.toFixed(2)}`);
             }
 
             // VALIDA TIPO (banco classificado × TIPO da planilha mapeado)
             if (!tipoBate(rowB.tipo, nota, rowB)) {
                 tipoDiverge = true;
-                partes.push(`⚠ Tipo: banco ${rowB.tipo || '—'} × planilha ${nota.tipo || '—'}`);
+                partes.push(`⚠ Tipo: Pasta ${rowB.tipo || '—'} × Planilha ${nota.tipo || '—'}`);
             }
 
             // Sem alerta de divergência de data: a planilha não tem vencimento para comparar.
@@ -849,9 +889,9 @@ module.exports = async function compararNotasRoute(req, res) {
             // entidade, deixa todos os candidatos passarem e o resultado vira divergente.
             if (candidatos.length > 0 && nota.entidade) {
                 const compativeisEntidade = candidatos.filter(c =>
-                    c.rowB.emitente
-                        ? entidadeMatch(c.rowB.emitente, nota.entidade)
-                        // SEM emitente extraído: aceita por número, MAS se o doc tem valor e ele
+                    (c.rowB.emitente || c.rowB.cnpj)
+                        ? entidadeBate(c.rowB.emitente, c.rowB.cnpj, nota.entidade, nota.cnpj)
+                        // SEM emitente/CNPJ extraído: aceita por número, MAS se o doc tem valor e ele
                         // NÃO bate, rejeita — evita um comprovante avulso (ex.: pgto EVA CARD,
                         // sem emitente e sem NF própria) sequestrar uma NF homônima por colisão
                         // de número. Sem valor (0), não dá p/ refutar → mantém o comportamento antigo.
@@ -924,8 +964,8 @@ module.exports = async function compararNotasRoute(req, res) {
                     // NF 1639). Quando o banco tem emitente, mantém só candidatos com entidade
                     // compatível; se NENHUM bate por entidade, só aceita quem bate por VALOR.
                     // Sem isso, AGRIPONTA (R$4125) casaria com V M CARNEIRO (R$2331) só pela NF.
-                    if (rowB.emitente) {
-                        const compat = cands.filter(p => !p.entidade || entidadeMatch(rowB.emitente, p.entidade));
+                    if (rowB.emitente || rowB.cnpj) {
+                        const compat = cands.filter(p => !p.entidade || entidadeBate(rowB.emitente, rowB.cnpj, p.entidade, p.cnpj));
                         if (compat.length > 0) cands = compat;
                         else cands = cands.filter(p => valorBate(rowB.valor, p).ok);
                     } else if (rowB.valor > 0) {
@@ -949,10 +989,10 @@ module.exports = async function compararNotasRoute(req, res) {
 
                         const diff = diffDias(rowB.dataMs, p.lancamentoMs);
                         if (diff == null || diff > TOL_DIAS_FALLBACK) continue;
-                        // Requer emitente em AMBOS os lados — sem emitente no banco não há como confirmar
-                        if (!rowB.emitente || !p.entidade) continue;
-                        if (!entidadeMatch(rowB.emitente, p.entidade)) continue;
-                        
+                        // Requer identidade em AMBOS os lados — sem emitente/CNPJ no banco não há como confirmar
+                        if ((!rowB.emitente && !rowB.cnpj) || !p.entidade) continue;
+                        if (!entidadeBate(rowB.emitente, rowB.cnpj, p.entidade, p.cnpj)) continue;
+
                         if (!valorBate(rowB.valor, p).ok) continue;
                         naPlanilha = p;
                         break;
@@ -966,7 +1006,7 @@ module.exports = async function compararNotasRoute(req, res) {
                 // Casa SÓ com valor + emitente compatível e marca como match fraco p/ conferir o
                 // número. Prioriza o mês conferido; depois varre a planilha inteira pelo valor.
                 let viaRecuperacao = false;
-                if (!naPlanilha && rowB.emitente && rowB.valor > 0) {
+                if (!naPlanilha && (rowB.emitente || rowB.cnpj) && rowB.valor > 0) {
                     // Valor EXATO (cabeçalho/soma itens/item individual) — SEM a lógica de
                     // "parcela ÷ N", que aqui geraria falso positivo (ex.: R$100 = 20x de
                     // R$2.000 casaria MEGA REDES com MEGA GUINDASTES). Conservador: só recupera
@@ -976,7 +1016,7 @@ module.exports = async function compararNotasRoute(req, res) {
                         (p.valorItem > 0 && Math.abs(rowB.valor - p.valorItem) <= TOL_VAL) ||
                         (p.itens || []).some(v => Math.abs(rowB.valor - v) <= TOL_VAL);
                     const casaVE = p => !planilhaUsada.has(p) && p.entidade &&
-                        entidadeMatch(rowB.emitente, p.entidade) && valorExato(p);
+                        entidadeBate(rowB.emitente, rowB.cnpj, p.entidade, p.cnpj) && valorExato(p);
                     naPlanilha = (porPeriodo.get(periodo) || []).find(casaVE)
                               || (planilhaPorVal.get(Math.round(rowB.valor * 100)) || []).find(casaVE)
                               || null;
@@ -1085,9 +1125,50 @@ module.exports = async function compararNotasRoute(req, res) {
         const consolidadasKeys = new Set([...consolidadas].map(chaveNota));
         const naoEncontradasFinal = naoEncontradas.filter(n => !consolidadasKeys.has(chaveNota(n)));
 
+        // ── 7) Anota alertas falsos registrados no banco ─────────────────────
+        const chaveAlerta = n => `${n.nf||''}|${n.arquivo||''}|${n.entidade||''}`;
+        try {
+            const afMapa = await getAlertasFalsos(pool, periodo);
+            if (afMapa.size > 0) {
+                const anotar = arr => arr.forEach(n => {
+                    const af = afMapa.get(chaveAlerta(n));
+                    if (af) {
+                        n.alertaFalso      = true;
+                        n.alertaFalsoMotivo = af.motivo;
+                        n.alertaFalsoObs    = af.obs;
+                        n.alertaFalsoPor    = af.criadoPor;
+                    }
+                });
+                anotar(encontradas);
+                anotar(naoEncontradasFinal);
+                anotar(faltandoPlanilha);
+            }
+        } catch (e) {
+            console.warn('[comparar-notas] alertas-falsos indisponível:', e.message);
+        }
+
+        // ── 8) Anota vínculos manuais em naoEncontradas ──────────────────────
+        const chaveVinculo = n => `${n.nf||''}|${n.entidade||''}|${n.periodo||''}`;
+        try {
+            const vMapa = await getVinculos(pool, periodo);
+            if (vMapa.size > 0) {
+                naoEncontradasFinal.forEach(n => {
+                    const v = vMapa.get(chaveVinculo(n));
+                    if (v) {
+                        n.vinculo      = true;
+                        n.vinculoEntrada = v.entrada;
+                        n.vinculoObs     = v.obs;
+                        n.vinculoPor     = v.criadoPor;
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('[comparar-notas] vinculos-notas indisponível:', e.message);
+        }
+
         const valorParcialCount = encontradas.filter(n => n.status === 'valor-parcial').length;
-        const divergentesCount  = encontradas.filter(n => n.status === 'divergente').length;
-        console.log(`[comparar-notas] resultado: ${encontradas.length} encontradas (${divergentesCount} divergentes), ${naoEncontradasFinal.length} faltando no banco, ${faltandoPlanilha.length} faltando na planilha, ${tributos.length} tributos`);
+        const divergentesCount  = encontradas.filter(n => n.status === 'divergente' && !n.alertaFalso).length;
+        console.log(`[comparar-notas] resultado: ${encontradas.length} encontradas (${divergentesCount} divergentes), ${naoEncontradasFinal.length} faltando na Pasta, ${faltandoPlanilha.length} faltando na Planilha, ${tributos.length} tributos`);
 
         return res.json({
             success: true,
@@ -1096,8 +1177,8 @@ module.exports = async function compararNotasRoute(req, res) {
                 totalPlanilha:    notasPlanilha.length,
                 encontradas:      encontradas.length,
                 naoEncontradas:   naoEncontradasFinal.length,
-                divergentes:      encontradas.filter(n => n.status === 'divergente').length,
-                dataDivergente:   encontradas.filter(n => n.status === 'data-divergente').length,
+                divergentes:      encontradas.filter(n => n.status === 'divergente' && !n.alertaFalso).length,
+                dataDivergente:   encontradas.filter(n => n.status === 'data-divergente' && !n.alertaFalso).length,
                 valorParcial:     valorParcialCount,
                 faltandoPlanilha: faltandoPlanilha.length,
                 tributos:         tributos.length,

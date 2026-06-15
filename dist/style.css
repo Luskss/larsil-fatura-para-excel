@@ -1365,9 +1365,8 @@ body.page-leaving {
   display: none;
   position: absolute;
   top: calc(100% + 10px);
-  left: 50%;
   transform: translateX(-50%);
-  min-width: 175px;
+  min-width: 150px;
   padding: 6px;
   background: rgba(8,22,8,.97);
   backdrop-filter: blur(20px);
