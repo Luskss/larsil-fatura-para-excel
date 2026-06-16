@@ -1,0 +1,21 @@
+# Instalado no build via `npm ci` — nunca copiar o node_modules local (Windows).
+node_modules
+
+# Controle de versão / IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Segredos (configurados nas variáveis do Railway, não na imagem)
+.env
+.ENV
+.env.local
+.env-example
+
+# Artefatos locais que não pertencem à imagem
+teste/
+.claude/
+*.log
+Dockerfile
+.dockerignore
