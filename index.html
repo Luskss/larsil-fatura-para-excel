@@ -14,6 +14,32 @@
   <link rel="stylesheet" href="dist/style.css">
   <style>
     body { display: flex; align-items: center; justify-content: center; overflow: hidden; }
+
+    /* Avatar de quem já entrou neste aparelho (foto vinda da IAM, em cache local) */
+    #avatarBox { display: none; text-align: center; margin: 0 0 26px; }
+    #avatarBox.on { display: block; }
+    .avatar-ring {
+      width: 92px; height: 92px; margin: 0 auto 12px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+      background: rgba(255,255,255,.10);
+      border: 2px solid rgba(77,181,94,.55);
+      box-shadow: 0 8px 28px rgba(0,0,0,.45), 0 0 0 6px rgba(77,181,94,.10);
+    }
+    .avatar-ring img { width: 100%; height: 100%; object-fit: cover; display: none; }
+    .avatar-ring .iniciais {
+      font: 700 1.65rem/1 Montserrat, system-ui, sans-serif;
+      color: rgba(255,255,255,.85); letter-spacing: .5px;
+    }
+    .avatar-ring svg { width: 42px; height: 42px; color: rgba(255,255,255,.45); display: none; }
+    #avatarNome {
+      font: 700 .96rem/1.3 Montserrat, system-ui, sans-serif;
+      color: rgba(255,255,255,.92); margin-bottom: 2px;
+    }
+    #trocarUsuario {
+      background: none; border: none; padding: 0; cursor: pointer;
+      font: 600 .74rem Montserrat, system-ui, sans-serif; color: #4db55e; opacity: .85;
+    }
+    #trocarUsuario:hover { text-decoration: underline; opacity: 1; }
   </style>
 </head>
 <body>
@@ -29,6 +55,20 @@
     <p class="text-xs mt-3 font-normal" style="color:rgba(255,255,255,.55)">
       Conversor de PDF para Excel &mdash; faça login para continuar
     </p>
+  </div>
+
+  <!-- Foto de quem já entrou neste aparelho (só com "Lembrar-me"; some ao trocar de usuário) -->
+  <div id="avatarBox">
+    <div class="avatar-ring">
+      <img id="avatarImg" alt="" />
+      <span id="avatarIniciais" class="iniciais"></span>
+      <svg id="avatarGenerico" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+    </div>
+    <div id="avatarNome"></div>
+    <button type="button" id="trocarUsuario">Não é você? Trocar usuário</button>
   </div>
 
   <form id="loginForm" novalidate>
@@ -81,14 +121,59 @@
     </div>
   </form>
 
+  <!-- Primeiro acesso: senha provisória vira definitiva (fluxo exigido pela IAM) -->
+  <form id="onboardingForm" novalidate style="display:none">
+    <p class="text-[.82rem] mb-5 text-center" style="color:rgba(255,255,255,.7)">
+      Primeiro acesso: defina sua senha e confirme seus dados de contato.
+    </p>
+
+    <div class="mb-5">
+      <label for="novaSenha" class="block text-[.75rem] font-bold uppercase tracking-[.6px] mb-1.5"
+             style="color:rgba(255,255,255,.75)">Nova senha</label>
+      <input class="login-input" type="password" id="novaSenha"
+             placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+    </div>
+
+    <div class="mb-5">
+      <label for="novaSenha2" class="block text-[.75rem] font-bold uppercase tracking-[.6px] mb-1.5"
+             style="color:rgba(255,255,255,.75)">Repita a nova senha</label>
+      <input class="login-input" type="password" id="novaSenha2"
+             placeholder="Digite novamente" autocomplete="new-password" />
+    </div>
+
+    <div class="mb-5">
+      <label for="obEmail" class="block text-[.75rem] font-bold uppercase tracking-[.6px] mb-1.5"
+             style="color:rgba(255,255,255,.75)">E-mail</label>
+      <input class="login-input" type="email" id="obEmail"
+             placeholder="seu.email@larsil.com.br" autocomplete="email" />
+    </div>
+
+    <div class="mb-6">
+      <label for="obTelefone" class="block text-[.75rem] font-bold uppercase tracking-[.6px] mb-1.5"
+             style="color:rgba(255,255,255,.75)">Telefone</label>
+      <input class="login-input" type="tel" id="obTelefone"
+             placeholder="(00) 00000-0000" autocomplete="tel" />
+    </div>
+
+    <button type="submit" class="btn-primary">Concluir primeiro acesso</button>
+
+    <div id="obErrorMsg" class="error-box text-center text-[.84rem]"></div>
+  </form>
+
   <div class="text-center text-[.74rem] mt-7 font-normal" style="color:rgba(255,255,255,.3)">
-    Versão 1.0 &bull; Uso interno
+    Versão 1.0 &bull; Login único Larsil (IAM)
   </div>
 </div>
 
 <script>
-  if (sessionStorage.getItem('cf_loggedIn')) {
+  const params = new URLSearchParams(window.location.search);
+  // Só volta sozinho pro menu se não chegou aqui por falta de permissão ou 1º acesso.
+  if (sessionStorage.getItem('cf_loggedIn')
+      && !params.has('sem_permissao') && !params.has('primeiro_acesso') && !params.has('sessao')) {
     window.location.replace('home.html');
+  }
+  if (params.has('sem_permissao')) {
+    sessionStorage.clear();
   }
 
   const toggleBtn = document.getElementById('togglePw');
@@ -109,6 +194,58 @@
   const rememberCheck = document.getElementById('remember');
   const savedUser     = localStorage.getItem('cf_user');
   if (savedUser) { usernameInput.value = savedUser; rememberCheck.checked = true; }
+
+  /* ── Foto do usuário lembrado ────────────────────────────────────────────
+     A foto vem da IAM (`/api/foto`, resolvida por nome lá) e é guardada como
+     data URL no login anterior — a tela de login é pública, então nada pode ser
+     consultado no servidor a partir do usuário digitado (viraria enumerador de
+     colaboradores). Sem cache, mostra as iniciais.                          */
+  const avatarBox  = document.getElementById('avatarBox');
+  const avatarImg  = document.getElementById('avatarImg');
+  const avatarIni  = document.getElementById('avatarIniciais');
+  const avatarGen  = document.getElementById('avatarGenerico');
+  const avatarNome = document.getElementById('avatarNome');
+  const limparLembrado = () => ['cf_user', 'cf_nome', 'cf_foto'].forEach(k => localStorage.removeItem(k));
+
+  const nomeLembrado = localStorage.getItem('cf_nome') || savedUser || '';
+  const fotoLembrada = localStorage.getItem('cf_foto') || '';
+  const temFotoCache = fotoLembrada.indexOf('data:image/') === 0;
+
+  const primeiroNome = (nome) => String(nome).trim().split(/\s+/)[0] || '';
+  function iniciaisDe(nome) {
+    const partes = String(nome).trim().split(/\s+/).filter(Boolean);
+    if (!partes.length) return '?';
+    return (partes[0][0] + (partes.length > 1 ? partes[partes.length - 1][0] : '')).toUpperCase();
+  }
+
+  // A foto só aparece enquanto o usuário digitado for o lembrado; digitou outro,
+  // vira ícone neutro — nada de mostrar o rosto de A com o login de B na tela.
+  function pintarAvatar() {
+    const mesmo = usernameInput.value.trim().toLowerCase() === String(savedUser).toLowerCase();
+    const usaFoto = mesmo && temFotoCache && !avatarImg.dataset.falhou;
+    avatarImg.style.display = usaFoto ? 'block' : 'none';
+    avatarIni.style.display = (mesmo && !usaFoto) ? 'block' : 'none';
+    avatarGen.style.display = mesmo ? 'none' : 'block';
+    avatarNome.textContent  = mesmo ? ('Bem-vindo de volta, ' + primeiroNome(nomeLembrado)) : '';
+  }
+
+  if (savedUser) {
+    avatarIni.textContent = iniciaisDe(nomeLembrado);
+    avatarImg.alt = 'Foto de ' + nomeLembrado;
+    avatarImg.addEventListener('error', () => { avatarImg.dataset.falhou = '1'; pintarAvatar(); });
+    if (temFotoCache) avatarImg.src = fotoLembrada;
+    avatarBox.classList.add('on');
+    pintarAvatar();
+    usernameInput.addEventListener('input', pintarAvatar);
+  }
+
+  document.getElementById('trocarUsuario').addEventListener('click', () => {
+    limparLembrado();
+    avatarBox.classList.remove('on');
+    usernameInput.value = '';
+    rememberCheck.checked = false;
+    usernameInput.focus();
+  });
 
   document.getElementById('loginForm').addEventListener('submit', async function (e) {
     e.preventDefault();
@@ -140,10 +277,24 @@
       const data = await response.json();
 
       if (data.success) {
-        if (rememberCheck.checked) { localStorage.setItem('cf_user', user); }
-        else { localStorage.removeItem('cf_user'); }
+        if (rememberCheck.checked) {
+          const loginReal = data.login || user;
+          // Trocou de pessoa: a foto em cache é de outro rosto — o session-guard
+          // busca a nova na IAM assim que a próxima página carregar.
+          if (String(savedUser || '').toLowerCase() !== loginReal.toLowerCase()) {
+            localStorage.removeItem('cf_foto');
+          }
+          localStorage.setItem('cf_user', loginReal);
+          localStorage.setItem('cf_nome', data.username || loginReal);
+        } else {
+          limparLembrado();
+        }
         sessionStorage.setItem('cf_loggedIn', '1');
         sessionStorage.setItem('cf_username', data.username || user);
+
+        // Senha provisória: a IAM exige concluir o 1º acesso antes de liberar o sistema.
+        if (data.senha_provisoria) { mostrarOnboarding(); return; }
+
         window.location.href = 'home.html';
       } else {
         errorEl.textContent = data.message || 'Usuário ou senha incorretos.';
@@ -153,12 +304,77 @@
       }
     } catch (err) {
       errorEl.textContent = err.name === 'AbortError'
-        ? 'Tempo esgotado ao conectar ao banco de dados.'
-        : 'Não foi possível conectar ao servidor. Verifique se o XAMPP está ativo.';
+        ? 'Tempo esgotado ao conectar ao sistema de login.'
+        : 'Não foi possível conectar ao servidor. Verifique sua conexão.';
       errorEl.style.display = 'block';
     } finally {
       btnEl.disabled    = false;
       btnEl.textContent = 'Entrar';
+    }
+  });
+
+  /* ── Primeiro acesso (senha provisória → definitiva) ────────────────────── */
+  const loginForm = document.getElementById('loginForm');
+  const obForm    = document.getElementById('onboardingForm');
+
+  function mostrarOnboarding() {
+    loginForm.style.display = 'none';
+    obForm.style.display    = 'block';
+    document.getElementById('novaSenha').focus();
+  }
+
+  // Chegou aqui redirecionado com o 1º acesso ainda pendente.
+  if (params.has('primeiro_acesso')) mostrarOnboarding();
+
+  // Foi barrado por falta de permissão na tela que tentou abrir.
+  if (params.has('sem_permissao')) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = 'Você não tem permissão para a tela "'
+      + params.get('sem_permissao') + '". Peça liberação à TI.';
+    el.style.display = 'block';
+  }
+
+  // A sessão foi encerrada pelo servidor (acesso revogado, conta desativada…).
+  if (params.has('sessao')) {
+    sessionStorage.clear();
+    const el = document.getElementById('errorMsg');
+    el.textContent = params.get('sessao');
+    el.style.display = 'block';
+  }
+
+  obForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const s1  = document.getElementById('novaSenha').value;
+    const s2  = document.getElementById('novaSenha2').value;
+    const err = document.getElementById('obErrorMsg');
+    const btn = obForm.querySelector('.btn-primary');
+
+    const falhar = (msg) => { err.textContent = msg; err.style.display = 'block'; };
+    err.style.display = 'none';
+
+    if (s1.length < 6)  return falhar('A nova senha deve ter ao menos 6 caracteres.');
+    if (s1 !== s2)      return falhar('As senhas não conferem.');
+
+    btn.disabled = true;
+    btn.textContent = 'Aguarde…';
+    try {
+      const resp = await fetch('api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          novaSenha: s1,
+          email:     document.getElementById('obEmail').value.trim(),
+          telefone:  document.getElementById('obTelefone').value.trim(),
+        }),
+      });
+      const data = await resp.json();
+      if (data.success) { window.location.href = 'home.html'; return; }
+      falhar(data.message || 'Não foi possível concluir o primeiro acesso.');
+    } catch (_) {
+      falhar('Não foi possível conectar ao servidor.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Concluir primeiro acesso';
     }
   });
 </script>

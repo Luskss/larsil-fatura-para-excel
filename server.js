@@ -15,6 +15,8 @@ const session = require('express-session');
 
 require('./config'); // carrega .env (loadEnv) ao iniciar
 const { initScheduler } = require('./scheduler');
+const { PERM_POR_ARQUIVO, permTela, IAM_ADMIN_URL } = require('./iam');
+const { iamRefresh, revalidarPagina, requirePermissao, tem } = require('./routes/_iam-session');
 
 const app = express();
 app.set('trust proxy', 1); // necessário se atrás de proxy (Railway etc.)
@@ -35,8 +37,16 @@ app.use(session({
   },
 }));
 
+// ── IAM: mantém o acesso da sessão fresco em toda chamada de API ─────────
+// Reconsulta a IAM a cada 5 min: permissão revogada ou conta desativada pela TI
+// derruba a sessão aqui, sem esperar o JWT expirar.
+app.use('/api', (req, res, next) => Promise.resolve(iamRefresh(req, res, next)).catch(next));
+
 // ── ROTAS DA API (mesmas URLs dos arquivos .php) ─────────────────────────
 const authRoute = require('./routes/auth');
+const meRoute = require('./routes/me');
+const fotoRoute = require('./routes/foto');
+const onboardingRoute = require('./routes/onboarding');
 const logoutRoute = require('./routes/logout');
 const usuariosRoute = require('./routes/usuarios');
 const aiParseRoute = require('./routes/ai-dispatch-parse');
@@ -66,60 +76,94 @@ const vinculosNotasRoute = require('./routes/vinculos-notas');
 // Captura rejeições de rotas async para não travar a requisição no Express 4.
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+// Atalhos para as permissões de tela (cada endpoint pertence a uma tela só).
+const soExtrato     = requirePermissao(permTela('/extrato'));
+const soConversor   = requirePermissao(permTela('/conversor'));
+const soNotaFiscal  = requirePermissao(permTela('/nota-fiscal'));
+const soConferencia = requirePermissao(permTela('/conferencia-notas'));
+const soConfig      = requirePermissao(permTela('/configuracoes'));
+
+// Públicas / de sessão
 app.all('/api/auth.php', wrap(authRoute));
 app.all('/api/logout.php', wrap(logoutRoute));
-app.all('/api/usuarios.php', wrap(usuariosRoute)); // GET/POST/DELETE/PATCH
-app.all('/api/openai-parse.php', wrap(aiParseRoute));
-app.all('/api/openai-extrato.php', wrap(aiExtratoRoute));
-app.all('/api/openai-nota-fiscal.php', wrap(aiNotaFiscalRoute));
-app.all('/api/openai-nota-fiscal-resumo.php', wrap(aiNotaFiscalResumoRoute));
-app.all('/api/horarios.php', wrap(horariosRoute));
-app.all('/api/monitor-config', wrap(monitorConfigRoute));
-app.all('/api/planilha-central', wrap(planilhaCentralRoute));
-app.all('/api/comparar-notas', wrap(compararNotasRoute));
-app.all('/api/alertas-falsos', wrap(alertasFalsosRoute));
-app.all('/api/vinculos-notas', wrap(vinculosNotasRoute));
-app.all('/api/scan-status', wrap(scanStatusRoute));
-app.all('/api/classify-unidentified', wrap(classifyUnidentifiedRoute));
-app.all('/api/classify-fallback', wrap(classifyFallbackRoute));
-app.all('/api/pdf-file', wrap(pdfFileRoute));
-app.all('/api/pdf-viewer', wrap(pdfViewerRoute));
-console.log('[server] rota /api/classify-unidentified registrada');
-app.post('/api/ocr', wrap(ocrRoute));
-app.all('/api/config', wrap(configRoute));
-app.all('/api/relatorio', wrap(relatorioRoute));
+app.get('/api/me', wrap(meRoute));
+app.get('/api/foto', wrap(fotoRoute)); // foto do próprio usuário (nome vem da sessão)
+app.all('/api/onboarding', wrap(onboardingRoute));
+app.all('/api/usuarios.php', wrap(usuariosRoute)); // 410 → gestão é na IAM
+
+// Conversões (uma permissão por tela)
+app.all('/api/openai-parse.php', soConversor, wrap(aiParseRoute));
+app.all('/api/openai-extrato.php', soExtrato, wrap(aiExtratoRoute));
+app.all('/api/openai-nota-fiscal.php', soNotaFiscal, wrap(aiNotaFiscalRoute));
+app.all('/api/openai-nota-fiscal-resumo.php', soNotaFiscal, wrap(aiNotaFiscalResumoRoute));
+
+// Conferência de notas
+app.all('/api/comparar-notas', soConferencia, wrap(compararNotasRoute));
+app.all('/api/alertas-falsos', soConferencia, wrap(alertasFalsosRoute));
+app.all('/api/vinculos-notas', soConferencia, wrap(vinculosNotasRoute));
+app.all('/api/classify-unidentified', soConferencia, wrap(classifyUnidentifiedRoute));
+app.all('/api/classify-fallback', soConferencia, wrap(classifyFallbackRoute));
+app.all('/api/pdf-file', soConferencia, wrap(pdfFileRoute));
+app.all('/api/pdf-viewer', soConferencia, wrap(pdfViewerRoute));
+app.all('/api/relatorio', soConferencia, wrap(relatorioRoute));
+app.post('/api/ocr', soConferencia, wrap(ocrRoute));
+
+// Configurações / administração do monitoramento
+app.all('/api/horarios.php', soConfig, wrap(horariosRoute));
+app.all('/api/monitor-config', soConfig, wrap(monitorConfigRoute));
+app.all('/api/planilha-central', soConfig, wrap(planilhaCentralRoute));
+app.all('/api/scan-status', soConfig, wrap(scanStatusRoute));
+app.all('/api/config', soConfig, wrap(configRoute));
+app.all('/api/empresas-contas', soConfig, wrap(empresasContasRoute));
+app.post('/api/force-scan', soConfig, wrap(forceScanRoute));
+app.post('/api/force-scan-ai', soConfig, wrap(forceScanAiRoute));
+app.post('/api/scan-empresas', soConfig, wrap(scanEmpresasRoute));
+
+// Sem tela dona: basta estar autenticado (a própria rota chama requireAuth).
 app.post('/api/claude-parse', wrap(claudeParseRoute));
-app.post('/api/force-scan', wrap(forceScanRoute));
-app.post('/api/force-scan-ai', wrap(forceScanAiRoute));
-app.all('/api/empresas-contas', wrap(empresasContasRoute));
-app.post('/api/scan-empresas', wrap(scanEmpresasRoute));
 
 // ── ESTÁTICOS (apenas o que é público; não expõe .env, código ou node_modules) ─
-const PUBLIC_PAGES = new Set([
-  'index.html',
-  'home.html',
-  'extrato.html',
-  'conversor.html',
-  'nota-fiscal.html',
-  'gestao-usuarios.html',
-  'configuracoes.html',
-  'conferencia-notas.html',
-]);
+// Só a tela de login é pública. Todas as outras exigem sessão IAM + a permissão
+// `fatura.tela:<rota>` daquela página — o gate real é aqui, no servidor; o guard
+// do front só melhora a experiência (esconder link, mensagem clara).
+const PAGINA_PUBLICA = 'index.html';
 
 app.use('/img',  express.static(path.join(__dirname, 'img')));
 app.use('/dist', express.static(path.join(__dirname, 'dist')));
 app.get('/theme.js', (req, res) => res.sendFile(path.join(__dirname, 'theme.js')));
 app.get('/transitions.js', (req, res) => res.sendFile(path.join(__dirname, 'transitions.js')));
+app.get('/session-guard.js', (req, res) => res.sendFile(path.join(__dirname, 'session-guard.js')));
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, PAGINA_PUBLICA)));
 
-app.get('/:page', (req, res, next) => {
+// Gestão de usuários agora é no console da TI (IAM) — nunca mais neste sistema.
+app.get('/gestao-usuarios.html', (req, res) => res.redirect(302, IAM_ADMIN_URL));
+
+app.get('/:page', wrap(async (req, res, next) => {
   const page = req.params.page;
-  if (PUBLIC_PAGES.has(page)) {
-    return res.sendFile(path.join(__dirname, page));
+
+  if (page === PAGINA_PUBLICA) return res.sendFile(path.join(__dirname, page));
+
+  const permissao = PERM_POR_ARQUIVO[page];
+  if (!permissao) return next(); // não é página do sistema → 404
+
+  if (!req.session || !req.session.cf_loggedIn) {
+    return res.redirect(302, '/index.html');
   }
-  next();
-});
+  // Revalida na IAM antes de entregar a página (permissão revogada / conta
+  // desativada barram já aqui, não só na próxima chamada de API).
+  if (!(await revalidarPagina(req, res))) return;
+  if (req.session.cf_onboarding_pendente) {
+    return res.redirect(302, '/index.html?primeiro_acesso=1');
+  }
+  if (!tem(req, permissao)) {
+    // Sem permissão para ESTA tela: volta ao menu com o aviso, em vez de 403 cru.
+    // Se nem o menu ela pode ver, cai no login (evita redirect em loop).
+    const destino = tem(req, permTela('/')) ? '/home.html' : '/index.html';
+    return res.redirect(302, destino + '?sem_permissao=' + encodeURIComponent(page));
+  }
+  return res.sendFile(path.join(__dirname, page));
+}));
 
 // 404 genérico
 app.use((req, res) => {

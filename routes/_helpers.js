@@ -119,7 +119,12 @@ function getActiveAiProvider() {
   }
 }
 
-/** Exige sessão autenticada; envia 401 e retorna false se não houver. */
+/**
+ * Exige sessão autenticada; envia 401 e retorna false se não houver.
+ * A sessão só nasce depois de a IAM validar a senha (routes/auth.js) e é
+ * revalidada em `routes/_iam-session.js`. Para exigir uma permissão específica,
+ * use `requirePermissao(codigo)` de `_iam-session.js` no registro da rota.
+ */
 function requireAuth(req, res) {
   if (!req.session || !req.session.cf_loggedIn) {
     res.status(401).json({ success: false, message: 'Não autenticado.' });

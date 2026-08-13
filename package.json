@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node server.js",
     "serve": "nodemon server.js",
+    "iam:sync": "node scripts/iam-sync.js",
     "build": "tailwindcss -i ./src/input.css -o ./dist/style.css",
     "dev": "tailwindcss -i ./src/input.css -o ./dist/style.css --watch"
   },

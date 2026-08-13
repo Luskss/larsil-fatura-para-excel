@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="dist/style.css">
+  <script src="session-guard.js"></script>
   <style>
     body { display: flex; flex-direction: column; }
   </style>
@@ -113,11 +114,15 @@
   const navUser = document.getElementById('navUser');
   if (userName && navUser) navUser.textContent = 'Olá, ' + userName;
 
-  document.getElementById('btnLogout').addEventListener('click', async () => {
-    try { await fetch('api/logout.php', { method: 'POST' }); } catch (_) {}
-    sessionStorage.clear();
-    window.location.replace('index.html');
-  });
+  // Esta tela não tem barra de navegação: só liga o logout se o botão existir.
+  const btnLogout = document.getElementById('btnLogout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+      try { await fetch('api/logout.php', { method: 'POST' }); } catch (_) {}
+      sessionStorage.clear();
+      window.location.replace('index.html');
+    });
+  }
 </script>
 </body>
 </html>
