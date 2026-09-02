@@ -627,6 +627,46 @@ const CONTAS_SEM_DOCUMENTO = new Set([
     // para 11,5%), porque a planilha registra bem menos guias do que a pasta arquiva.
 ]);
 
+// ── Entidades que nunca emitem nota de fornecedor ────────────────────────────
+// O corte por CONTA_C (acima) não alcança estes: recolhimento a Receita Federal e
+// a fazenda estadual cai em "Impostos e Taxas", e proventos caem em contas de
+// folha variadas — contas que, no geral, TÊM nota e por isso não podem ser
+// cortadas inteiras (ver a ressalva sobre IMPOSTOS E TAXAS logo acima).
+//
+// A saída é a mesma que o lado da pasta já usa em PADROES_NAO_FISCAL: identificar
+// pelo NOME. Aqui o nome é o da ENTIDADE, e é inequívoco — recolhimento de tributo
+// federal ou estadual e provento de folha não geram nota de fornecedor para
+// arquivar. Medido em jan–jun/2026, entre os que ficavam como "sem documento":
+//
+//   Receita Federal .......  7 lanç.  R$   922.419,38   0 com documento
+//   Divisão de proventos ..  5 lanç.  R$   742.685,65   0 com documento
+//   Fazenda estadual ...... 31 lanç.  R$   210.903,00   0 com documento
+//   Prefeitura ............  3 lanç.  R$     1.550,60   0 com documento
+//
+// A coluna "com documento" é o teste de segurança: se o padrão pegasse coisa que
+// costuma ter nota arquivada, ela seria alta. Sendo zero nos quatro, o corte não
+// esconde ausência real.
+//
+// FICARAM DE FORA, deliberadamente:
+//   • CARTAO CRED (18 sem documento, R$ 470 mil) — a fatura ÀS VEZES é arquivada:
+//     achamos "052.DOC-...CARTAO DE CREDITO. RCB 901727" casando por 3 sinais.
+//     Cortar esconderia as vezes em que ela realmente falta.
+//   • FOLHA DE PAGAMENTO (3 sem, R$ 675 mil) — 3 dos 6 casaram, e volume baixo
+//     demais para justificar regra. (Os 3 pares são fracos, só por valor, contra
+//     "pgto PRESTADOR SERVIÇO" — provavelmente errados, mas isso é outro assunto.)
+const ENTIDADES_SEM_NOTA = [
+    [/SECRETARIA\s+DA\s+RECEITA\s+FEDERAL|RECEITA\s+FEDERAL\s+DO\s+BRASIL/i, 'Receita Federal'],
+    [/^DIVISAO\s+DE\s+PROVENTOS/i, 'Divisão de proventos'],
+    [/GOVERNO\s+DO\s+(ESTADO|PARANA|MATO\s+GROSSO)|SEC(RETARIA)?\s+DE\s+ESTADO\s+DA\s+FAZENDA/i,
+     'Fazenda estadual'],
+    [/^PREFEITURA(\s+MUNICIPAL)?\b/i, 'Prefeitura'],
+];
+function entidadeSemNota(ent) {
+    const e = String(ent || '');
+    for (const [re, rotulo] of ENTIDADES_SEM_NOTA) if (re.test(e)) return rotulo;
+    return '';
+}
+
 // Lançamento informativo: a contabilidade marca com "*" na ENTIDADE
 // (*P.R.B INFORMATIVO, *INF. JUROS INFORMATIVO, *DEPRECIACAO...). Não é pagamento a
 // fornecedor — 64 lançamentos em 6 meses, mas R$ 81 milhões, então distorcem somas.
@@ -709,6 +749,19 @@ function contarNaPlanilha(planilhaPath) {
             if (!vistos.has(chave)) { vistos.add(chave); m.excluidos++; m.informativos++; }
             continue;
         }
+        // Recolhimento de tributo e provento de folha: a conta contábil não os
+        // separa (caem em contas que no geral TÊM nota), mas o nome da entidade
+        // sim. Contados em `porConta` junto com os demais cortes, com o rótulo do
+        // padrão, para nenhum corte ficar invisível no tooltip.
+        const semNota = entidadeSemNota(ent);
+        if (semNota) {
+            if (!vistos.has(chave)) {
+                vistos.add(chave);
+                m.excluidos++;
+                m.porConta[semNota] = (m.porConta[semNota] || 0) + 1;
+            }
+            continue;
+        }
 
         m.linhas++;   // linhas da base comparável (antes do agrupamento)
 
@@ -737,6 +790,44 @@ function contarNaPlanilha(planilhaPath) {
         `cabeçalho linha ${headerRow + 1}, ${rows.length} linhas, ${Object.keys(porMes).length} meses)`);
     cachePlanilha = { path: planilhaPath, mtime, porMes };
     return porMes;
+}
+
+// ── Resumo por valor dos lançamentos sem documento ───────────────────────────
+// A pergunta do painel é "todos os lançamentos da planilha estão na pasta?". A
+// resposta útil não é só quantos faltam, é QUANTO falta: nota de R$ 21.616 sem
+// papel é problema fiscal, pedágio de R$ 12,10 não é. As faixas separam os dois.
+const FAIXAS = [
+    { chave: 'alto',  rotulo: 'acima de R$ 1.000', teste: v => v >= 1000 },
+    { chave: 'medio', rotulo: 'R$ 100 a R$ 1.000', teste: v => v >= 100 && v < 1000 },
+    { chave: 'baixo', rotulo: 'abaixo de R$ 100',  teste: v => v < 100 },
+];
+// Quantos lançamentos da lista aparecem na tela; o resto fica no CSV. 200 é o que
+// cabe numa rolagem sem pesar o JSON (a lista inteira de 03/2026 tem 259).
+const MAX_LISTA = 200;
+
+function resumoPorValor(todos, semDocumento) {
+    const soma = a => a.reduce((s, l) => s + (Math.abs(l.valor) || 0), 0);
+    const faixas = FAIXAS.map(f => {
+        const g = semDocumento.filter(l => f.teste(Math.abs(l.valor) || 0));
+        return { chave: f.chave, rotulo: f.rotulo, n: g.length, valor: soma(g) };
+    });
+    // Ordenada por valor: quem confere começa pelo que pesa.
+    const lista = [...semDocumento]
+        .sort((a, b) => (Math.abs(b.valor) || 0) - (Math.abs(a.valor) || 0))
+        .slice(0, MAX_LISTA)
+        .map(l => ({
+            entidade: l.entidade,
+            nf: l.nf,
+            valor: Math.abs(l.valor) || 0,
+            dtLancamento: l.dtLancamento,
+        }));
+    return {
+        valorTotal: soma(todos),
+        valorSemDocumento: soma(semDocumento),
+        faixasSemDocumento: faixas,
+        listaSemDocumento: lista,
+        listaTruncadaEm: semDocumento.length > MAX_LISTA ? MAX_LISTA : null,
+    };
 }
 
 // ── Rota ─────────────────────────────────────────────────────────────────────
@@ -871,6 +962,12 @@ module.exports = async function compararNotasRoute(req, res) {
                     janelaDias: pareamento.JANELA_DIAS,
                     vizinhanca: r.vizinhanca,
                     ms: Date.now() - t0,
+                    // ── O que a tela precisa para responder "está tudo arquivado?" ──
+                    // Contagem sozinha trata R$ 12,10 de pedágio igual a R$ 21.616 de
+                    // nota de serviço. Medido em 03/2026: dos 259 sem documento, 59 são
+                    // abaixo de R$ 100 e somam R$ 2.600 — 23% dos casos, 0,09% do valor.
+                    // O que decide a conferência é o valor, não a contagem.
+                    ...resumoPorValor(lancamentos, r.semDocumento),
                 };
                 console.log(`[comparar-notas] ${periodo}: pareamento ${conferencia.conferidos} de ` +
                     `${lancamentos.length} lançamentos (${r.pares.length} no mês, ` +

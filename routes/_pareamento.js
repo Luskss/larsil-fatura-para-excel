@@ -415,6 +415,9 @@ function conferirPeriodo(lancamentos, documentosPorMes, periodo) {
         // "Sem documento" já considera as vizinhas — é o número que interessa a quem
         // confere: o papel existe, só está arquivado noutro mês.
         lancamentosSemDocumento: semDocumento.length,
+        // A LISTA, não só a contagem: a pergunta que o painel responde é "quais
+        // lançamentos não têm papel", e para agir é preciso saber quais são.
+        semDocumento,
         // Só do mês: documento de pasta vizinha não é "desta pasta" e não entra aqui.
         documentosSemLancamento: noMes.documentosSemLancamento,
         vizinhanca: VIZINHANCA,

@@ -217,99 +217,151 @@
             to { transform: rotate(360deg); }
         }
         /* ── Comparação com planilha ─────────────────────────────────── */
-        /* Painel de reconciliação. Duas colunas (documento | lançamento) que
-           NÃO somam entre si; a ponte no meio é a única grandeza compartilhada.
-           Cada coluna imprime sua identidade como equação legível — é o que
-           impede a pergunta "os números não batem" de voltar. */
-        #comparacaoResumo { display: grid; gap: 1.75rem; }
-        .rec-grid {
-            display: grid; gap: 1rem;
-            grid-template-columns: 1fr;
+        /* O painel responde UMA pergunta: "todos os lançamentos da planilha têm
+           documento arquivado?". Por isso tem um eixo só — o lançamento. A versão
+           anterior dava metade da tela ao lado documento (534 PDFs, 324 sem
+           lançamento), que é outra pergunta e cuja taxa é estruturalmente baixa
+           pelo descasamento de mês: o papel de março está na pasta de abril.
+           Aquilo virou contexto de rodapé; a resposta ocupa o centro. */
+        #comparacaoResumo { display: grid; gap: 1.5rem; min-width: 0; }
+        #comparacaoResumo > * { min-width: 0; }
+
+        /* Resposta: a barra de cobertura, com o número que decide em cima. */
+        .cf-topo { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem 2.5rem; }
+        .cf-topo > * { min-width: 0; }
+        .cf-num { font: 800 3rem/1 'Montserrat', sans-serif; letter-spacing: -.03em; }
+        .cf-num-lbl { font-size: .8rem; color: rgba(255,255,255,.5); margin-top: .4rem; }
+        .cf-num-sub { font-size: .72rem; color: rgba(255,255,255,.34); margin-top: .15rem; }
+        .cf-dinheiro { margin-left: auto; text-align: right; }
+        .cf-dinheiro .v { font: 800 1.5rem/1 'Montserrat', sans-serif; letter-spacing: -.02em; color: #f87171; }
+        .cf-dinheiro .l { font-size: .72rem; color: rgba(255,255,255,.42); margin-top: .3rem; }
+
+        /* Barra: com documento à esquerda, sem à direita. Uma peça só — a soma é
+           o total, e a proporção é lida de relance sem contar número. */
+        .cf-barra {
+            display: flex; height: 12px; border-radius: 999px; overflow: hidden;
+            background: rgba(255,255,255,.06);
         }
-        @media (min-width: 820px) {
-            .rec-grid { grid-template-columns: minmax(0,1fr) 10rem minmax(0,1fr); align-items: stretch; }
+        .cf-barra i { display: block; height: 100%; }
+        .cf-barra .ok { background: linear-gradient(90deg,#4db55e,#6cd47e); }
+        .cf-barra .falta { background: #f87171; }
+        .cf-legenda {
+            display: flex; flex-wrap: wrap; gap: .35rem 1.5rem;
+            font-size: .75rem; color: rgba(255,255,255,.5);
         }
-        .rec-col {
-            border: 1px solid rgba(255,255,255,.10);
-            border-radius: 16px;
-            background: rgba(255,255,255,.035);
-            padding: 1.25rem 1.25rem 1.1rem;
-            display: flex; flex-direction: column;
-            min-width: 0;
+        .cf-legenda span { display: inline-flex; align-items: center; gap: .45rem; }
+        .cf-legenda i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+        /* Por classe, não inline: inline em branco some no tema claro. */
+        .cf-leg-n { color: rgba(255,255,255,.78); font-weight: 700; }
+
+        /* Faixas de valor: é o que separa nota de serviço de pedágio. */
+        .cf-faixas {
+            display: grid; gap: .6rem;
+            border-top: 1px solid rgba(255,255,255,.10);
+            padding-top: 1.1rem;
         }
-        .rec-col-head {
-            font: 700 .7rem/1.3 'Montserrat', sans-serif;
-            letter-spacing: .09em; text-transform: uppercase;
-            color: rgba(255,255,255,.5);
-            display: flex; align-items: baseline; gap: .5rem;
-            margin-bottom: 1rem;
+        .cf-faixa {
+            display: grid; grid-template-columns: 1fr auto auto; gap: .5rem 1rem;
+            align-items: baseline; font-size: .82rem;
         }
-        .rec-col-head span { font-weight: 500; letter-spacing: .02em; text-transform: none; color: rgba(255,255,255,.32); }
-        .rec-lead { margin-bottom: 1rem; }
-        .rec-lead .rec-num { font: 800 2.6rem/1 'Montserrat', sans-serif; letter-spacing: -.03em; display: block; }
-        .rec-lead .rec-cap { font-size: .78rem; color: rgba(255,255,255,.5); margin-top: .35rem; display: block; }
-        .rec-lead .rec-cap, .rec-lead .rec-sub { overflow-wrap: anywhere; }
-        .rec-lead .rec-sub { font-size: .72rem; color: rgba(255,255,255,.34); margin-top: .12rem; display: block; }
-        .rec-col > * { min-width: 0; max-width: 100%; }
-        .rec-split { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: .75rem; margin-top: auto; }
-        .rec-cell {
-            border-radius: 11px; padding: .7rem .75rem;
-            background: rgba(255,255,255,.04);
-            border: 1px solid rgba(255,255,255,.07);
-            min-width: 0;
+        .cf-faixa .r { color: rgba(255,255,255,.55); }
+        .cf-faixa .n { color: rgba(255,255,255,.4); font-size: .75rem; text-align: right; white-space: nowrap; }
+        .cf-faixa .v {
+            font: 700 .9rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+            text-align: right; white-space: nowrap; color: rgba(255,255,255,.82);
         }
-        .rec-cell .rec-n { font: 800 1.35rem/1 'Montserrat', sans-serif; letter-spacing: -.02em; display: block; }
-        .rec-cell .rec-l { font-size: .68rem; color: rgba(255,255,255,.45); margin-top: .3rem; display: block; line-height: 1.35; }
-        .rec-cell .rec-s { font-size: .64rem; color: rgba(255,255,255,.32); margin-top: .1rem; display: block; line-height: 1.3; }
-        .rec-eq {
-            margin-top: .95rem; padding-top: .8rem;
-            border-top: 1px dashed rgba(255,255,255,.12);
-            font: 500 .7rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
-            color: rgba(255,255,255,.4);
+        .cf-faixa.destaque .r { color: rgba(255,255,255,.85); font-weight: 600; }
+        .cf-faixa.destaque .v { color: #f87171; }
+        .cf-faixa.apagada .r, .cf-faixa.apagada .v, .cf-faixa.apagada .n { color: rgba(255,255,255,.3); }
+
+        /* Lista dos que faltam — a ação, não só o diagnóstico. */
+        .cf-lista-topo {
+            display: flex; align-items: baseline; justify-content: space-between;
+            gap: 1rem; margin-bottom: .5rem;
         }
-        .rec-eq b { color: rgba(255,255,255,.72); font-weight: 700; }
-        /* Ponte central: o único número que as duas colunas compartilham. */
-        .rec-bridge {
-            display: flex; flex-direction: column; align-items: center;
-            justify-content: center; text-align: center;
-            padding: .5rem .25rem; gap: .3rem;
+        .cf-lista-tit { font: 700 .72rem/1.3 'Montserrat', sans-serif; letter-spacing: .09em;
+                        text-transform: uppercase; color: rgba(255,255,255,.5); }
+        /* overflow-x junto do y: no celular a tabela de 4 colunas não cabe, e sem
+           isso ela empurrava o painel inteiro para fora da tela. */
+        .cf-lista-wrap { max-height: 17rem; overflow: auto; border-radius: 12px;
+                         border: 1px solid rgba(255,255,255,.09); }
+        .cf-lista { width: 100%; border-collapse: collapse; font-size: .78rem; }
+        .cf-lista th {
+            position: sticky; top: 0; z-index: 1;
+            background: #14301a; text-align: left; font-weight: 600;
+            font-size: .68rem; text-transform: uppercase; letter-spacing: .06em;
+            color: rgba(255,255,255,.42); padding: .5rem .75rem;
+            border-bottom: 1px solid rgba(255,255,255,.10);
         }
-        .rec-bridge .rec-arm { flex: 1; width: 1px; background: linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.02)); min-height: 14px; }
-        .rec-bridge .rec-arm:last-child { background: linear-gradient(rgba(255,255,255,.02), rgba(255,255,255,.18)); }
-        .rec-bridge-num { font: 800 1.7rem/1 'Montserrat', sans-serif; letter-spacing: -.02em; color: #6cd47e; }
-        .rec-bridge-lbl { font-size: .6rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.4); max-width: 9rem; line-height: 1.35; }
-        @media (max-width: 819px) {
-            .rec-bridge { padding: .35rem 0; gap: .5rem; }
-            .rec-bridge .rec-arm {
-                width: 40px; height: 1px; min-height: 0;
-                background: rgba(255,255,255,.14) !important;
-            }
-            .rec-bridge-num { font-size: 1.4rem; }
+        .cf-lista td { padding: .45rem .75rem; border-bottom: 1px solid rgba(255,255,255,.05); }
+        .cf-lista tr:last-child td { border-bottom: 0; }
+        .cf-lista tr:hover td { background: rgba(255,255,255,.04); }
+        .cf-lista .num {
+            text-align: right; white-space: nowrap;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         }
-        .rec-note {
-            font-size: .72rem; line-height: 1.55; color: rgba(255,255,255,.4);
-            text-align: center; max-width: 60ch; margin: 0 auto;
+        .cf-lista .forte { color: #f87171; font-weight: 700; }
+        .cf-lista .fraco { color: rgba(255,255,255,.4); }
+        .cf-ent { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .cf-rodape { font-size: .72rem; line-height: 1.6; color: rgba(255,255,255,.38); }
+        .cf-rodape b { color: rgba(255,255,255,.58); font-weight: 600; }
+        .cf-btn {
+            font: 600 .7rem/1 'Montserrat', sans-serif; letter-spacing: .04em;
+            text-transform: uppercase; cursor: pointer;
+            background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14);
+            color: rgba(255,255,255,.7); border-radius: 8px; padding: .45rem .8rem;
+            transition: background .15s, color .15s, border-color .15s;
         }
-        .rec-note b { color: rgba(255,255,255,.62); font-weight: 700; }
-        .rec-dim { color: rgba(255,255,255,.28); }
-        /* Cursor de ajuda só onde há hint. */
+        .cf-btn:hover { background: rgba(255,255,255,.13); color: #fff; border-color: rgba(255,255,255,.28); }
         [data-hint] { cursor: help; }
-        html.light #comparacaoResumo .rec-col { background: rgba(0,0,0,.02) !important; border-color: rgba(0,0,0,.10) !important; }
-        html.light #comparacaoResumo .rec-cell { background: rgba(0,0,0,.03) !important; border-color: rgba(0,0,0,.07) !important; }
-        html.light #comparacaoResumo .rec-col-head,
-        html.light #comparacaoResumo .rec-lead .rec-cap { color: rgba(0,0,0,.55) !important; }
-        html.light #comparacaoResumo .rec-col-head span { color: rgba(0,0,0,.4) !important; }
-        html.light #comparacaoResumo .rec-lead .rec-sub,
-        html.light #comparacaoResumo .rec-cell .rec-l,
-        html.light #comparacaoResumo .rec-cell .rec-s,
-        html.light #comparacaoResumo .rec-eq,
-        html.light #comparacaoResumo .rec-note { color: rgba(0,0,0,.5) !important; }
-        html.light #comparacaoResumo .rec-eq b,
-        html.light #comparacaoResumo .rec-note b { color: rgba(0,0,0,.75) !important; }
-        html.light #comparacaoResumo .rec-bridge-num { color: #1d7a34 !important; }
-        html.light #comparacaoResumo .rec-bridge-lbl { color: rgba(0,0,0,.5) !important; }
-        html.light #comparacaoResumo .rec-bridge .rec-arm { background: rgba(0,0,0,.12) !important; }
-        html.light #comparacaoResumo .rec-eq { border-top-color: rgba(0,0,0,.14) !important; }
+
+        html.light .cf-num-lbl, html.light .cf-legenda,
+        html.light .cf-faixa .r { color: rgba(0,0,0,.55) !important; }
+        html.light .cf-leg-n { color: rgba(0,0,0,.8) !important; }
+        html.light .cf-num-sub, html.light .cf-faixa .n,
+        html.light .cf-dinheiro .l, html.light .cf-rodape { color: rgba(0,0,0,.45) !important; }
+        html.light .cf-faixa .v { color: rgba(0,0,0,.8) !important; }
+        html.light .cf-faixa.destaque .r { color: rgba(0,0,0,.85) !important; }
+        /* A faixa que pesa continua em vermelho no claro — é o destaque da tela. */
+        html.light .cf-faixa.destaque .v { color: #c62828 !important; }
+        html.light .cf-lista .forte { color: #c62828 !important; }
+        html.light .cf-dinheiro .v { color: #c62828 !important; }
+        html.light .cf-num { color: #c62828 !important; }
+        html.light .cf-faixa.apagada .r, html.light .cf-faixa.apagada .v,
+        html.light .cf-faixa.apagada .n { color: rgba(0,0,0,.32) !important; }
+        html.light .cf-rodape b { color: rgba(0,0,0,.68) !important; }
+        html.light .cf-barra { background: rgba(0,0,0,.08) !important; }
+        html.light .cf-faixas { border-top-color: rgba(0,0,0,.12) !important; }
+        html.light .cf-lista-wrap { border-color: rgba(0,0,0,.10) !important; }
+        html.light .cf-lista th { background: #eef4ee !important; color: rgba(0,0,0,.5) !important;
+                                  border-bottom-color: rgba(0,0,0,.10) !important; }
+        html.light .cf-lista td { border-bottom-color: rgba(0,0,0,.06) !important; color: #1a2e1a !important; }
+        html.light .cf-lista tr:hover td { background: rgba(0,0,0,.03) !important; }
+        html.light .cf-lista .fraco { color: rgba(0,0,0,.42) !important; }
+        html.light .cf-lista-tit { color: rgba(0,0,0,.5) !important; }
+        html.light .cf-btn { background: rgba(0,0,0,.04) !important; border-color: rgba(0,0,0,.14) !important;
+                             color: rgba(0,0,0,.65) !important; }
+
+        /* ── Celular ────────────────────────────────────────────────────
+           Abaixo de 560px nada disso cabe lado a lado: o valor total sai da
+           direita e vai para baixo do número, e a faixa vira duas linhas
+           (rótulo em cima, contagem e valor embaixo) em vez de 3 colunas. */
+        @media (max-width: 560px) {
+            .cf-num { font-size: 2.4rem; }
+            .cf-dinheiro { margin-left: 0; text-align: left; width: 100%; }
+            .cf-dinheiro .v { font-size: 1.25rem; }
+            .cf-legenda { flex-direction: column; gap: .4rem; }
+            .cf-faixa {
+                grid-template-columns: 1fr auto;
+                row-gap: .15rem;
+            }
+            .cf-faixa .r { grid-column: 1 / -1; }
+            .cf-faixa .n { text-align: left; }
+            .cf-lista-topo { flex-wrap: wrap; }
+            .cf-ent { max-width: 11rem; }
+        }
+
 
         /* ── Toast de Cachê ──────────────────────────────────────────── */
         @keyframes slideInUp {
@@ -2299,98 +2351,168 @@ document.addEventListener('wheel', e => {
         return linhas.join('\n');
     }
 
-    // Reconciliação. Duas colunas de UNIDADE DIFERENTE — documento e lançamento —
-    // que nunca somam entre si. Cada coluna: número-líder, split do que se casou e
-    // do que não, e a equação que fecha. A ponte central é a única grandeza comum
-    // (os lançamentos que têm papel arquivado nesta mesma pasta).
+    // O painel responde UMA pergunta: "todos os lançamentos da planilha têm
+    // documento arquivado?". Eixo único, o lançamento.
+    //
+    // A versão anterior punha lado a lado documento e lançamento. Ficava honesta
+    // mas não respondia: metade da tela ia para "324 PDFs sem lançamento", que é
+    // outra pergunta e cuja taxa é estruturalmente baixa — o papel de março está
+    // arquivado na pasta de abril, e serve à conferência DAQUELE mês. Medido em
+    // 03/2026: 59,5% dos lançamentos acham papel, mas só 39,3% dos papéis acham
+    // lançamento. Mostrar os dois com o mesmo peso fazia o segundo parecer um
+    // problema que não é. Virou linha de rodapé.
     function renderResumoComparacao() {
         if (!compData) return;
         const { pasta, banco, planilha } = compData;
         const c = compData.conferencia || { disponivel: false };
         const el = document.getElementById('comparacaoResumo');
-        const n = v => (v === 0 || v ? v : '—');
-        const esc = s => String(s || '').replace(/"/g, '&quot;');
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,
+            ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
         const hint = h => h ? ` data-hint title="${esc(h)}"` : '';
+        const brl = v => (v || 0).toLocaleString('pt-BR',
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const brlCurto = v => v >= 1000
+            ? 'R$ ' + (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil'
+            : 'R$ ' + brl(v);
 
-        // ── Coluna documento ─────────────────────────────────────────
-        const docLead = pasta.disponivel
-            ? `<span class="rec-num" style="color:#4ade80">${pasta.total}</span>
-               <span class="rec-cap">PDFs de nota nesta pasta</span>
-               <span class="rec-sub">${n(banco.total)} também salvos no banco pelo OCR</span>`
-            : `<span class="rec-num rec-dim">—</span>
-               <span class="rec-cap">pasta indisponível</span>`;
+        if (!planilha.disponivel || !c.disponivel) {
+            el.innerHTML = `<p class="cf-rodape" style="text-align:center;padding:2rem 0">
+                ${!planilha.disponivel
+                    ? 'Planilha indisponível — PLANILHA_PATH não configurado ou inacessível.'
+                    : 'Pareamento indisponível' + (c.motivo ? `: ${esc(c.motivo)}` : '.')}
+             </p>`;
+            return;
+        }
 
-        const docSplit = (pasta.disponivel && c.disponivel) ? `
-            <div class="rec-split">
-                <div class="rec-cell"${hint(hintConferencia(c, pasta, planilha))}>
-                    <span class="rec-n" style="color:#fbbf24">${n(c.noMes)}</span>
-                    <span class="rec-l">com lançamento nesta pasta</span>
+        const total = planilha.total;
+        const comDoc = c.conferidos;
+        const semDoc = c.lancamentosSemDocumento;
+        const pcOk = total ? (comDoc / total * 100) : 0;
+
+        // ── Resposta ────────────────────────────────────────────────────────
+        const topo = `
+            <div class="cf-topo">
+                <div>
+                    <div class="cf-num" style="color:#f87171">${semDoc}</div>
+                    <div class="cf-num-lbl">lançamentos <b>sem documento</b> arquivado</div>
+                    <div class="cf-num-sub"${hint(hintPlanilha(planilha))}>de ${total} que
+                        deveriam ter · procurado em ${(c.vizinhanca || []).length + 1} pastas</div>
                 </div>
-                <div class="rec-cell">
-                    <span class="rec-n" style="color:rgba(255,255,255,.7)">${n(c.documentosSemLancamento)}</span>
-                    <span class="rec-l">sem lançamento correspondente</span>
-                </div>
-            </div>
-            <p class="rec-eq"><b>${c.noMes}</b> + <b>${c.documentosSemLancamento}</b> = <b>${pasta.total}</b> PDFs nesta pasta</p>` : '';
-
-        const colDoc = `
-            <div class="rec-col">
-                <div class="rec-col-head">Documento <span>papel arquivado</span></div>
-                <div class="rec-lead"${hint(pasta.disponivel ? hintPasta(pasta) : '')}>${docLead}</div>
-                ${docSplit}
+                ${c.valorSemDocumento != null ? `
+                <div class="cf-dinheiro">
+                    <div class="v">R$ ${brl(c.valorSemDocumento)}</div>
+                    <div class="l">sem documento${c.valorTotal
+                        ? ` · ${(c.valorSemDocumento / c.valorTotal * 100).toFixed(0)}% do valor do mês` : ''}</div>
+                </div>` : ''}
             </div>`;
 
-        // ── Coluna lançamento ────────────────────────────────────────
-        const lancLead = planilha.disponivel
-            ? `<span class="rec-num" style="color:#c084fc">${planilha.total}</span>
-               <span class="rec-cap">lançamentos que deveriam ter documento</span>
-               <span class="rec-sub">março 2026 · escopo NF_ENTRADA · filial LARSIL</span>`
-            : `<span class="rec-num rec-dim">—</span>
-               <span class="rec-cap">planilha indisponível</span>`;
-
-        const lancSplit = (planilha.disponivel && c.disponivel) ? `
-            <div class="rec-split">
-                <div class="rec-cell"${hint(hintConferencia(c, pasta, planilha))}>
-                    <span class="rec-n" style="color:#fbbf24">${n(c.conferidos)}</span>
-                    <span class="rec-l">com documento encontrado</span>
-                    ${c.emPastaVizinha ? `<span class="rec-s">${c.noMes} aqui · ${c.emPastaVizinha} em pasta vizinha</span>` : (c.fracos ? `<span class="rec-s">${c.fracos} a conferir</span>` : '')}
+        const barra = `
+            <div>
+                <div class="cf-barra">
+                    <i class="ok" style="width:${pcOk}%"></i>
+                    <i class="falta" style="width:${100 - pcOk}%"></i>
                 </div>
-                <div class="rec-cell">
-                    <span class="rec-n" style="color:#f87171">${n(c.lancamentosSemDocumento)}</span>
-                    <span class="rec-l">sem documento em nenhuma pasta</span>
+                <div class="cf-legenda" style="margin-top:.6rem">
+                    <span${hint(hintConferencia(c, pasta, planilha))}>
+                        <i style="background:#6cd47e"></i>
+                        <b class="cf-leg-n">${comDoc}</b>&nbsp;com documento
+                        (${pcOk.toFixed(1)}%)${c.emPastaVizinha
+                            ? ` — ${c.noMes} nesta pasta, ${c.emPastaVizinha} em pasta vizinha` : ''}
+                    </span>
+                    <span><i style="background:#f87171"></i>
+                        <b class="cf-leg-n">${semDoc}</b>&nbsp;sem documento
+                        (${(100 - pcOk).toFixed(1)}%)</span>
                 </div>
-            </div>
-            <p class="rec-eq"><b>${c.conferidos}</b> + <b>${c.lancamentosSemDocumento}</b> = <b>${planilha.total}</b> lançamentos</p>` : '';
-
-        const colLanc = `
-            <div class="rec-col">
-                <div class="rec-col-head">Lançamento <span>linha da planilha</span></div>
-                <div class="rec-lead"${hint(planilha.disponivel ? hintPlanilha(planilha) : '')}>${lancLead}</div>
-                ${lancSplit}
             </div>`;
 
-        // ── Ponte ────────────────────────────────────────────────────
-        const bridge = (pasta.disponivel && planilha.disponivel && c.disponivel) ? `
-            <div class="rec-bridge">
-                <div class="rec-arm"></div>
-                <div class="rec-bridge-num">${n(c.noMes)}</div>
-                <div class="rec-bridge-lbl">pares que fecham nesta pasta</div>
-                <div class="rec-arm"></div>
-            </div>` : '<div class="rec-bridge"><div class="rec-arm"></div><div class="rec-arm"></div></div>';
+        // ── Faixas de valor: separa nota de serviço de pedágio ──────────────
+        const faixas = (c.faixasSemDocumento || []).length ? `
+            <div class="cf-faixas">
+                ${c.faixasSemDocumento.map(f => `
+                    <div class="cf-faixa ${f.chave === 'alto' ? 'destaque' : (f.chave === 'baixo' ? 'apagada' : '')}">
+                        <span class="r">${esc(f.rotulo)}</span>
+                        <span class="n">${f.n} lanç.</span>
+                        <span class="v">R$ ${brl(f.valor)}</span>
+                    </div>`).join('')}
+            </div>` : '';
 
-        // ── Nota de fecho ────────────────────────────────────────────
-        const nota = c.disponivel && c.emPastaVizinha
-            ? `As duas colunas contam coisas diferentes e por isso <b>não somam entre si</b>.
-               Dos ${c.conferidos} lançamentos com documento, <b>${c.emPastaVizinha}</b> têm o
-               papel arquivado em pasta de outro mês — normal: a nota é arquivada quando chega
-               e a planilha lança no pagamento.`
-            : `As duas colunas contam coisas diferentes — documento e lançamento — e por isso
-               <b>não somam entre si</b>.`;
+        // ── Lista: o que fazer com a resposta ───────────────────────────────
+        const lista = (c.listaSemDocumento || []).length ? `
+            <div>
+                <div class="cf-lista-topo">
+                    <span class="cf-lista-tit">Os que faltam${c.listaTruncadaEm
+                        ? ` — ${c.listaTruncadaEm} maiores de ${semDoc}` : ''}</span>
+                    <button type="button" class="cf-btn" id="btnBaixarFaltantes">Baixar CSV</button>
+                </div>
+                <div class="cf-lista-wrap">
+                    <table class="cf-lista">
+                        <thead><tr>
+                            <th>Fornecedor</th><th>NF</th>
+                            <th style="text-align:right">Valor</th><th>Lançamento</th>
+                        </tr></thead>
+                        <tbody>${c.listaSemDocumento.map(l => `
+                            <tr>
+                                <td><div class="cf-ent" title="${esc(l.entidade)}">${esc(l.entidade)}</div></td>
+                                <td class="fraco">${esc(l.nf) || '—'}</td>
+                                <td class="num ${l.valor >= 1000 ? 'forte' : ''}">${brl(l.valor)}</td>
+                                <td class="fraco">${l.dtLancamento
+                                    ? new Date(l.dtLancamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—'}</td>
+                            </tr>`).join('')}</tbody>
+                    </table>
+                </div>
+            </div>` : '';
 
-        el.innerHTML = `
-            <div class="rec-grid">${colDoc}${bridge}${colLanc}</div>
-            <p class="rec-note">${nota}</p>`;
+        // ── Contexto: o lado documento, que NÃO é a pergunta ────────────────
+        const ctx = [];
+        if (pasta.disponivel)
+            ctx.push(`<span${hint(hintPasta(pasta))}><b>${pasta.total}</b> PDFs de nota ` +
+                     `arquivados nesta pasta` +
+                     (banco && banco.total != null ? ` (${banco.total} lidos pelo OCR)` : '') +
+                     `</span>`);
+        if (pasta.disponivel && c.documentosSemLancamento != null)
+            ctx.push(`${c.documentosSemLancamento} deles sem lançamento neste mês — ` +
+                     `normal: pertencem à conferência do mês vizinho`);
+        const rodape = `
+            <p class="cf-rodape">
+                ${ctx.join(' · ')}${ctx.length ? '.' : ''}
+                ${c.emPastaVizinha ? `A nota é arquivada quando chega e a planilha lança no
+                pagamento, por isso ${c.emPastaVizinha} dos documentos deste mês estão em pasta de
+                outro mês.` : ''}
+            </p>`;
+
+        el.innerHTML = topo + barra + faixas + lista + rodape;
+
+        const btn = document.getElementById('btnBaixarFaltantes');
+        if (btn) btn.addEventListener('click', () => baixarFaltantes(c, compData.periodo));
     }
+
+    // CSV com a lista que está na tela. O download é do próprio navegador (Blob),
+    // sem passar pelo servidor — a lista já veio no JSON da comparação.
+    function baixarFaltantes(c, periodo) {
+        const linhas = [['fornecedor', 'nf', 'valor', 'dt_lancamento']];
+        for (const l of (c.listaSemDocumento || [])) {
+            linhas.push([
+                l.entidade, l.nf,
+                (l.valor || 0).toFixed(2).replace('.', ','),
+                l.dtLancamento ? new Date(l.dtLancamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
+            ]);
+        }
+        const csv = linhas.map(r => r.map(v => {
+            const s = String(v == null ? '' : v);
+            return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        }).join(';')).join('\r\n');
+        // BOM para o Excel abrir em UTF-8.
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sem-documento-${String(periodo || '').replace('.', '-')}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
 
     // Tooltip da coluna documento: composição do total de PDFs, o que ficou de
     // fora do escopo e por quê. A versão antiga descartava categorias em silêncio
