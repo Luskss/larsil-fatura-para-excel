@@ -12,12 +12,10 @@ const v = require('./variantes');
 
 const VARIANTES = [
     ['baseline (produção)',            { ocr: false }],
-    ['+ OCR (preenche o que falta)',   { ocr: true }],
-    ['+ OCR + veto CNPJ',              { ocr: true, vetoCnpj: true }],
-    ['+ OCR + veto + via CNPJ',        { ocr: true, vetoCnpj: true, viaCnpj: true }],
-    ['+ OCR, vizinhança larga',        { ocr: true, vizinhanca: [-3, -2, -1, 1, 2, 3, 4] }],
-    ['+ OCR, janela 30d',              { ocr: true, janelaDias: 30 }],
-    ['+ OCR, janela 7d',               { ocr: true, janelaDias: 7 }],
+    ['+ OCR (em produção hoje)',       { ocr: true }],
+    ['+ OCR, número ≥2 dígitos',       { ocr: true, minDigitosNum: 2 }],
+    ['+ OCR, número ≥1 dígito',        { ocr: true, minDigitosNum: 1 }],
+    ['+ OCR, nº≥1, vizinhança larga',  { ocr: true, minDigitosNum: 1, vizinhanca: [-3, -2, -1, 1, 2, 3, 4] }],
 ];
 
 (async () => {

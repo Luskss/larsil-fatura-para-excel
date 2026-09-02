@@ -55,9 +55,24 @@ const JANELA_DIAS = 15;
 // Tolerância de centavos na comparação de valor (evita ruído de arredondamento).
 const TOL_VALOR = 0.005;
 
-// Mínimo de dígitos para um número servir de chave. Abaixo disso ("1", "12") ele
-// casaria com quase tudo.
-const MIN_DIGITOS_NUM = 3;
+// Mínimo de dígitos para um número servir de chave.
+//
+// Era 3, pelo raciocínio de que "1" ou "12" casaria com quase tudo. O raciocínio
+// vale para o número SOZINHO — mas aqui ele nunca é usado sozinho: `casa()` exige
+// (número E entidade), e o caminho por valor não olha número. Com o fornecedor
+// junto, o risco de colisão de um número curto é outro.
+//
+// O piso de 3 escondia um defeito real: NF de 1-2 dígitos (6,6% dos lançamentos —
+// 206 em jan–jun/2026) NUNCA casava por número, mesmo com o número idêntico no
+// papel e na planilha. AGRO AIR NF 52, JUNIOR LOCACOES NF 69, G CORPORI NF 60 —
+// todos caíam no caminho fraco (só valor) e eram vetados pela janela de 15 dias.
+//
+// Medido em 02/09/2026 baixando o piso para 2: +32 pares (1.982 → 2.014) e
+// precisão SUBINDO junto (90,9% → 91,3%). Os 34 pares ganhos são todos de força
+// 3 ou 4; os 2 perdidos eram colisão por valor (MONT KOYA casada com documento da
+// BRV). Piso 1 rende só +2 sobre o piso 2 e é mais arriscado — parou em 2.
+// Ver TIPOS-IGNORADOS-COMPARADOR.md §13.
+const MIN_DIGITOS_NUM = 2;
 
 // Mínimo de letras para um token de entidade valer. Com 4, "ROSA" vira prefixo de
 // "ROSANE" e casa todo sobrenome da base (medido em PROGRESSO §4).

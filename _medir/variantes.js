@@ -47,13 +47,19 @@ function enriquecer(doc, o) {
 const valorBate = (l, d) =>
     d.valor != null && l.valor > 0 && Math.abs(l.valor - d.valor) < TOL_VALOR;
 
-function numeroBate(l, d) {
-    if (l.nfDig.length < MIN_DIGITOS_NUM) return false;
-    const cands = [d.numeroDig, d.numeroAlt].filter(x => x && x.length >= MIN_DIGITOS_NUM);
-    for (const c of cands)
-        if (l.nfDig === c || l.nfDig === String(Number(c))) return true;
-    return false;
+// `minDigitos` parametrizável para medir o piso. O piso existe porque um número
+// de 1-2 dígitos casaria com muita coisa — mas isso vale para o número SOZINHO, e
+// aqui ele é sempre exigido JUNTO com o fornecedor.
+function fazNumeroBate(minDigitos) {
+    return function numeroBate(l, d) {
+        if (l.nfDig.length < minDigitos) return false;
+        const cands = [d.numeroDig, d.numeroAlt].filter(x => x && x.length >= minDigitos);
+        for (const c of cands)
+            if (l.nfDig === c || l.nfDig === String(Number(c))) return true;
+        return false;
+    };
 }
+let numeroBate = fazNumeroBate(MIN_DIGITOS_NUM);
 
 const entidadeBate = (l, d) => {
     for (const t of l.tokens) if (d.tokens.has(t)) return true;
@@ -207,6 +213,8 @@ function conferirPeriodo(lancamentos, documentosPorMes, periodo, casa, vizinhanc
 
 // ── Execução de uma variante sobre os 6 períodos ─────────────────────────────
 function rodar(c, idxOcr, opt) {
+    // Piso de dígitos do número, parametrizável para medir (default = produção).
+    numeroBate = fazNumeroBate(opt.minDigitosNum == null ? MIN_DIGITOS_NUM : opt.minDigitosNum);
     const casa = fazerCasa(opt);
     const vizinhanca = opt.vizinhanca || par.VIZINHANCA;
     const usarOcr = !!opt.ocr;

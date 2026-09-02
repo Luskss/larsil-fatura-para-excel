@@ -941,3 +941,70 @@ ordem de entrada, como em §10.8.
 O harness da medição está em `_medir/` (`baseline.js`, `comparar.js`,
 `verificar.js`). `verificar.js` roda o caminho **de produção**, não a
 reimplementação — é o que confirma que 1.982 é o número que a tela mostra.
+
+## 13. Piso de dígitos do número (02/09/2026) — defeito achado pela amostra
+
+A amostra de auditoria (§12.5, `_medir/amostra.js`) trouxe no topo casos assim:
+
+    G CORPORI LTDA · NF 60 · R$ 1.720,00 · lanç. 19/01
+    doc: 053.DOC- 1720,00-2026.02.18.CORPORI . NF 60+ BOL.pdf
+
+Fornecedor, valor **e número** idênticos, e mesmo assim "sem documento". Rodando
+`_medir/diagnostico.js`, que pergunta ao motor par a par por que recusou:
+
+    CAUSA DE NÃO CASAR (só os que têm candidato óbvio na pasta)
+      regra recusou ...................... 43
+      perdeu a disputa pelo documento .... 2
+      sem candidato óbvio ................ 1076
+
+E nos 43 recusados pela regra, sempre o mesmo diagnóstico:
+
+    nfPlanilha=52  numDoc=52  ->  numero=false
+    nfPlanilha=69  numDoc=69  ->  numero=false
+    nfPlanilha=60  numDoc=60  ->  numero=false
+
+### 13.1. A causa
+
+`MIN_DIGITOS_NUM = 3` recusava qualquer número com menos de 3 dígitos. O
+comentário justificava: *"abaixo disso ('1', '12') ele casaria com quase tudo"*.
+
+O raciocínio vale para o número **sozinho** — mas o motor nunca usa o número
+sozinho: `casa()` exige (número E entidade), e o caminho por valor não olha
+número. Com o fornecedor exigido junto, o risco de colisão é outro.
+
+O piso descartava 206 lançamentos (6,6% de jan–jun/2026) que têm NF de 1-2
+dígitos. Todos caíam no caminho fraco (só valor) e eram vetados pela janela de 15
+dias — apareciam como "sem documento" com o papel na pasta ao lado.
+
+### 13.2. A medição
+
+| variante | pares | cobertura | sem doc. | precisão |
+|---|---|---|---|---|
+| baseline (antes de §12) | 1.934 | 62,3% | 1.169 | 88,9% |
+| + OCR (§12) | 1.982 | 63,9% | 1.121 | 90,9% |
+| **+ OCR, piso 2 dígitos** | **2.014** | **64,9%** | **1.089** | **91,3%** |
+| + OCR, piso 1 dígito | 2.016 | 65,0% | 1.087 | 91,3% |
+
+Sobe cobertura e precisão junto, de novo sem trade-off. Os **34 pares ganhos** são
+todos de força 3 ou 4 (fornecedor + número, a maioria com valor também):
+
+    AGRO AIR NF 52 R$ 21.616,00   × 018.DOC- 21616,00 ... AGRO AIR. NFS 52
+    JUNIOR LOCACOES NF 69         × 059.DOC- 12641,60 ... JUNIOR LOCACOES. NF 69
+    JC LAVANDERIA NF 52           × 044.DOC- 7105,35 ... JC LAVANDEIRA. NFS 52
+
+Os **2 pares perdidos** eram colisão por valor, exatamente o tipo de erro que §10
+mediu: `MONT KOYA` casada com documento da `BRV`, `ACG` com `LM CURSOS`. O número
+curto, ao entrar, tira o documento de quem o tinha tomado por engano.
+
+Piso 1 rende só +2 sobre o piso 2 e amplia a superfície de colisão sem retorno —
+**parou em 2**. Estável em 4 sementes de embaralhamento (2.014 em todas).
+
+### 13.3. Lição de método
+
+O defeito não apareceu em nenhuma das medições de §10 e §12 porque todas mediam
+*agregado* — cobertura e precisão somadas. Ele só apareceu quando a amostra
+listou casos **individuais** para conferência humana, e o caso mais óbvio da lista
+era um par que qualquer pessoa casaria de olho.
+
+Vale para a próxima rodada: **listar exemplos concretos acha defeito que média
+esconde.** A amostra pagou o custo dela antes mesmo de alguém conferir.
