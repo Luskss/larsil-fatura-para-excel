@@ -54,3 +54,4 @@ _medir/.cache/
 
 # Saída da amostra (contém dados de fornecedor) — gerar com node _medir/amostra.js
 _medir/amostra-sem-documento.*
+_medir/conferir-maiores.*
