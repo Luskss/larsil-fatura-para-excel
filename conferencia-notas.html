@@ -216,23 +216,100 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-
         /* ── Comparação com planilha ─────────────────────────────────── */
-        .comp-tab {
-            padding: 5px 14px; border-radius: 20px; font-size: .75rem;
-            font-weight: 600; cursor: pointer; transition: all .15s;
-            border: 1px solid rgba(255,255,255,.15); color: rgba(255,255,255,.5);
-            background: transparent;
+        /* Painel de reconciliação. Duas colunas (documento | lançamento) que
+           NÃO somam entre si; a ponte no meio é a única grandeza compartilhada.
+           Cada coluna imprime sua identidade como equação legível — é o que
+           impede a pergunta "os números não batem" de voltar. */
+        #comparacaoResumo { display: grid; gap: 1.75rem; }
+        .rec-grid {
+            display: grid; gap: 1rem;
+            grid-template-columns: 1fr;
         }
-        .comp-tab.active { background: rgba(255, 255, 255, 0.433); border-color: rgb(255, 255, 255); color: #ffffff; }
-        .comp-tab:hover:not(.active) { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.75); }
-        html.light .comp-tab { color: rgba(0,0,0,.5); border-color: rgba(0,0,0,.15); }
-        html.light .comp-tab.active { background: rgba(109,40,217,.15); border-color: rgba(109,40,217,.4); color: #6d28d9; }
-        /* Botão "Ver" da tabela de comparação — hover via CSS (sem handlers inline) */
-        .comp-ver { color: rgba(255,255,255,.55); border: 1px solid rgba(255,255,255,.18); transition: color .15s, border-color .15s; }
-        .comp-ver:not(:disabled):hover { color: #d8b4fe; border-color: rgba(139,45,181,.5); }
-        .comp-ver:disabled { opacity: .3; cursor: not-allowed; }
-        #comparacaoPager button { transition: all .15s; }
+        @media (min-width: 820px) {
+            .rec-grid { grid-template-columns: minmax(0,1fr) 10rem minmax(0,1fr); align-items: stretch; }
+        }
+        .rec-col {
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 16px;
+            background: rgba(255,255,255,.035);
+            padding: 1.25rem 1.25rem 1.1rem;
+            display: flex; flex-direction: column;
+            min-width: 0;
+        }
+        .rec-col-head {
+            font: 700 .7rem/1.3 'Montserrat', sans-serif;
+            letter-spacing: .09em; text-transform: uppercase;
+            color: rgba(255,255,255,.5);
+            display: flex; align-items: baseline; gap: .5rem;
+            margin-bottom: 1rem;
+        }
+        .rec-col-head span { font-weight: 500; letter-spacing: .02em; text-transform: none; color: rgba(255,255,255,.32); }
+        .rec-lead { margin-bottom: 1rem; }
+        .rec-lead .rec-num { font: 800 2.6rem/1 'Montserrat', sans-serif; letter-spacing: -.03em; display: block; }
+        .rec-lead .rec-cap { font-size: .78rem; color: rgba(255,255,255,.5); margin-top: .35rem; display: block; }
+        .rec-lead .rec-cap, .rec-lead .rec-sub { overflow-wrap: anywhere; }
+        .rec-lead .rec-sub { font-size: .72rem; color: rgba(255,255,255,.34); margin-top: .12rem; display: block; }
+        .rec-col > * { min-width: 0; max-width: 100%; }
+        .rec-split { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: .75rem; margin-top: auto; }
+        .rec-cell {
+            border-radius: 11px; padding: .7rem .75rem;
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.07);
+            min-width: 0;
+        }
+        .rec-cell .rec-n { font: 800 1.35rem/1 'Montserrat', sans-serif; letter-spacing: -.02em; display: block; }
+        .rec-cell .rec-l { font-size: .68rem; color: rgba(255,255,255,.45); margin-top: .3rem; display: block; line-height: 1.35; }
+        .rec-cell .rec-s { font-size: .64rem; color: rgba(255,255,255,.32); margin-top: .1rem; display: block; line-height: 1.3; }
+        .rec-eq {
+            margin-top: .95rem; padding-top: .8rem;
+            border-top: 1px dashed rgba(255,255,255,.12);
+            font: 500 .7rem/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+            color: rgba(255,255,255,.4);
+        }
+        .rec-eq b { color: rgba(255,255,255,.72); font-weight: 700; }
+        /* Ponte central: o único número que as duas colunas compartilham. */
+        .rec-bridge {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; text-align: center;
+            padding: .5rem .25rem; gap: .3rem;
+        }
+        .rec-bridge .rec-arm { flex: 1; width: 1px; background: linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.02)); min-height: 14px; }
+        .rec-bridge .rec-arm:last-child { background: linear-gradient(rgba(255,255,255,.02), rgba(255,255,255,.18)); }
+        .rec-bridge-num { font: 800 1.7rem/1 'Montserrat', sans-serif; letter-spacing: -.02em; color: #6cd47e; }
+        .rec-bridge-lbl { font-size: .6rem; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.4); max-width: 9rem; line-height: 1.35; }
+        @media (max-width: 819px) {
+            .rec-bridge { padding: .35rem 0; gap: .5rem; }
+            .rec-bridge .rec-arm {
+                width: 40px; height: 1px; min-height: 0;
+                background: rgba(255,255,255,.14) !important;
+            }
+            .rec-bridge-num { font-size: 1.4rem; }
+        }
+        .rec-note {
+            font-size: .72rem; line-height: 1.55; color: rgba(255,255,255,.4);
+            text-align: center; max-width: 60ch; margin: 0 auto;
+        }
+        .rec-note b { color: rgba(255,255,255,.62); font-weight: 700; }
+        .rec-dim { color: rgba(255,255,255,.28); }
+        /* Cursor de ajuda só onde há hint. */
+        [data-hint] { cursor: help; }
+        html.light #comparacaoResumo .rec-col { background: rgba(0,0,0,.02) !important; border-color: rgba(0,0,0,.10) !important; }
+        html.light #comparacaoResumo .rec-cell { background: rgba(0,0,0,.03) !important; border-color: rgba(0,0,0,.07) !important; }
+        html.light #comparacaoResumo .rec-col-head,
+        html.light #comparacaoResumo .rec-lead .rec-cap { color: rgba(0,0,0,.55) !important; }
+        html.light #comparacaoResumo .rec-col-head span { color: rgba(0,0,0,.4) !important; }
+        html.light #comparacaoResumo .rec-lead .rec-sub,
+        html.light #comparacaoResumo .rec-cell .rec-l,
+        html.light #comparacaoResumo .rec-cell .rec-s,
+        html.light #comparacaoResumo .rec-eq,
+        html.light #comparacaoResumo .rec-note { color: rgba(0,0,0,.5) !important; }
+        html.light #comparacaoResumo .rec-eq b,
+        html.light #comparacaoResumo .rec-note b { color: rgba(0,0,0,.75) !important; }
+        html.light #comparacaoResumo .rec-bridge-num { color: #1d7a34 !important; }
+        html.light #comparacaoResumo .rec-bridge-lbl { color: rgba(0,0,0,.5) !important; }
+        html.light #comparacaoResumo .rec-bridge .rec-arm { background: rgba(0,0,0,.12) !important; }
+        html.light #comparacaoResumo .rec-eq { border-top-color: rgba(0,0,0,.14) !important; }
 
         /* ── Toast de Cachê ──────────────────────────────────────────── */
         @keyframes slideInUp {
@@ -266,7 +343,6 @@
     <div class="nav-dropdown-wrap">
       <button class="nav-dropdown-btn">Gestão <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <div class="nav-dropdown-menu">
-        <a href="gestao-usuarios.html" class="nav-dropdown-item">Usuários   </a>
         <a href="configuracoes.html" class="nav-dropdown-item">Configurações</a>
         <a href="#" class="nav-dropdown-item">Feedback                      </a>
       </div>
@@ -288,14 +364,8 @@
     <button id="btnLogout" class="btn-logout">Sair</button>
   </div>
 </nav>
+<script src="nav.js" defer></script>
 <script>
-(function(){
-  document.querySelectorAll('.nav-dropdown-wrap').forEach(function(w){
-    var btn=w.querySelector('.nav-dropdown-btn'),menu=w.querySelector('.nav-dropdown-menu');
-    btn.addEventListener('click',function(e){e.stopPropagation();var open=menu.classList.contains('open');document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});if(!open){menu.classList.add('open');btn.classList.add('open');}});
-  });
-  document.addEventListener('click',function(){document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});});
-})();
   if (!sessionStorage.getItem('cf_loggedIn')) window.location.href = 'index.html';
   document.getElementById('navUser').textContent = 'Olá, ' + (sessionStorage.getItem('cf_username') || 'usuário');
   document.getElementById('btnLogout').addEventListener('click', async () => {
@@ -416,44 +486,12 @@
             </div>
             <button id="btnFecharComparacao" class="text-white/40 hover:text-white text-xl leading-none">&times;</button>
         </div>
-        <!-- Resumo cards -->
-        <div id="comparacaoResumo" class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-8 gap-3 p-4"></div>
-        <!-- Tabs -->
-        <div class="flex flex-wrap gap-1 px-4 pb-3">
-            <button class="comp-tab active" data-tab="ok">Encontradas</button>
-            <button class="comp-tab" data-tab="divergente">Divergentes</button>
-            <button class="comp-tab" data-tab="data-divergente">Data divergente</button>
-            <button class="comp-tab" data-tab="tributos">Impostos</button>
-            <button class="comp-tab" data-tab="faltando">Faltando na pasta</button>
-            <button class="comp-tab" data-tab="faltando-planilha">Faltando na planilha</button>
-            <button class="comp-tab" data-tab="alertas-corrigidos">Alertas Corrigidos</button>
-
-        </div>
-        <!-- Tabela -->
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="text-xs uppercase tracking-wider" style="background:rgba(255, 255, 255, 0.414);color:rgb(255, 255, 255)">
-                    <tr>
-                        <th class="text-left font-medium px-4 py-3">Nº NF</th>
-                        <th class="text-left font-medium px-4 py-3">Emitente</th>
-                        <th class="text-right font-medium px-4 py-3">Valor planilha</th>
-                        <th class="text-right font-medium px-4 py-3">Σ Itens</th>
-                        <th class="text-left font-medium px-4 py-3">Vencimento</th>
-                        <th class="text-left font-medium px-4 py-3">Emissão</th>
-                        <th class="text-left font-medium px-4 py-3">Filial</th>
-                        <th class="text-left font-medium px-4 py-3">Observação</th>
-                        <th class="text-center font-medium px-4 py-3"></th>
-                    </tr>
-                </thead>
-                <tbody id="comparacaoBody"></tbody>
-            </table>
-        </div>
-        <div id="comparacaoPager" class="hidden items-center justify-center gap-3 py-4 text-sm" style="border-top:1px solid rgba(255,255,255,.06)">
-            <button id="compPagPrev" class="px-3 py-1.5 rounded-lg" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.12)">‹ Anterior</button>
-            <span id="compPagInfo" style="color:rgba(255,255,255,.55)"></span>
-            <button id="compPagNext" class="px-3 py-1.5 rounded-lg" style="background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.12)">Próxima ›</button>
-        </div>
-        <p id="comparacaoEmpty" class="hidden text-center text-white/30 text-sm py-8"></p>
+        <!-- Reconciliação em DUAS COLUNAS que não somam entre si: a esquerda conta
+             DOCUMENTO (papel arquivado), a direita conta LANÇAMENTO (linha da planilha).
+             534 e 639 nunca vão bater — são grandezas diferentes, não erro de contagem.
+             A ponte central é a única grandeza compartilhada; cada coluna imprime sua
+             identidade como equação. Mesma lição de §12. -->
+        <div id="comparacaoResumo" class="p-6"></div>
     </div>
     <p class="text-center mt-6 text-white/40 text-xs">Processamento 100% local no navegador · pdf.js + REGEX</p>
 </div>
@@ -503,32 +541,10 @@
             <button id="btnCancelarComp" class="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all text-xl">&times;</button>
         </div>
 
-        <!-- linha principal: calendário | meses | anos -->
-        <div class="flex gap-4">
+        <!-- linha principal: meses | ano -->
+        <div class="flex gap-5 justify-center">
 
-            <!-- coluna 1: calendário de dias -->
-            <div class="flex-shrink-0" style="min-width:220px">
-                <div class="flex items-center justify-between mb-3">
-                    <p id="compCalLabel" class="text-sm font-semibold text-white"></p>
-                    <button id="compLimparDias" class="text-[11px] text-white/40 hover:text-white transition-all">limpar</button>
-                </div>
-                <div class="grid grid-cols-7 gap-1 mb-1">
-                    <div class="cal-hdr">Dom</div><div class="cal-hdr">Seg</div><div class="cal-hdr">Ter</div>
-                    <div class="cal-hdr">Qua</div><div class="cal-hdr">Qui</div><div class="cal-hdr">Sex</div>
-                    <div class="cal-hdr">Sáb</div>
-                </div>
-                <div id="compGrid" class="grid grid-cols-7 gap-1 mb-2"></div>
-                <p id="compDiasStatus" class="text-center text-xs text-white/35 mb-3 min-h-[1.1em]">Mês todo</p>
-                <button id="btnConfirmarComp" class="w-full btn-cn text-sm py-2.5 rounded-xl" style="background:linear-gradient(135deg,#2d5e1a,#6cd47e)">
-                    Comparar
-                </button>
-                <p class="text-center text-[10px] text-white/25 mt-1.5">Duplo clique no mês/ano gera direto</p>
-            </div>
-
-            <!-- divisor -->
-            <div style="width:1px;background:rgba(255,255,255,.09);flex-shrink:0"></div>
-
-            <!-- coluna 2: meses (1º e 2º semestre) -->
+            <!-- meses (1º e 2º semestre) -->
             <div class="flex gap-2 flex-shrink-0">
                 <div class="flex flex-col gap-2">
                     <p class="text-[11px] text-white/40 text-center mb-0.5">1° Semestre</p>
@@ -553,7 +569,7 @@
             <!-- divisor -->
             <div style="width:1px;background:rgba(255,255,255,.09);flex-shrink:0"></div>
 
-            <!-- coluna 3: anos — wheel picker -->
+            <!-- ano — wheel picker -->
             <div class="flex flex-col flex-shrink-0" style="min-width:88px">
                 <p class="text-[11px] text-white/40 text-center mb-1.5">Ano</p>
                 <div id="anoWheelWrap" style="position:relative;height:220px;overflow:hidden">
@@ -567,6 +583,15 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- rodapé: período escolhido + ação -->
+        <div class="mt-5 pt-4" style="border-top:1px solid rgba(255,255,255,.09)">
+            <p id="compCalLabel" class="text-center text-sm font-semibold text-white mb-3"></p>
+            <button id="btnConfirmarComp" class="w-full btn-cn text-sm py-2.5 rounded-xl" style="background:linear-gradient(135deg,#2d5e1a,#6cd47e)">
+                Comparar
+            </button>
+            <p class="text-center text-[10px] text-white/25 mt-1.5">Duplo clique no mês ou no ano compara direto</p>
         </div>
 
         <!-- hidden inputs para compatibilidade com o JS existente -->
@@ -1981,139 +2006,35 @@ document.addEventListener('wheel', e => {
     const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
     let compData = null; // último resultado de comparação
-    let compTabAtiva = 'divergente' //Define a aba ativa na comparação (divergente, ausente, nova)
-    const compDiasSel = new Set(); // dias (DD) selecionados; vazio = mês todo
-    const alertasFalsos = new Map(); // chave → {motivo, obs}
-    const alertasAbertos = new Set(); // chaves com dropdown aberto
-    const _chaveAlerta = n => `${n.nf||''}|${n.arquivo||''}|${n.entidade||''}`;
-
-    const vinculosNotas  = new Map(); // chave → {entrada, obs}
-    const vinculosAbertos = new Set();
-    const _chaveVinculo  = n => `${n.nf||''}|${n.entidade||''}|${n.periodo||''}`;
-    const _syncVinculo = async (method, chave, dados = null) => {
-        if (!compData) return;
-        const obj = {};
-        vinculosNotas.forEach((v, k) => { obj[k] = v; });
-        localStorage.setItem('vinculosNotas:' + compData.periodo, JSON.stringify(obj));
-        try {
-            const r = await fetch('/api/vinculos-notas', {
-                method,
-                credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(method === 'DELETE'
-                    ? { periodo: compData.periodo, chave }
-                    : { periodo: compData.periodo, chave, ...dados }),
-            });
-            if (!r.ok) {
-                const txt = await r.text().catch(() => r.status);
-                console.error('[vinculos-notas] erro do servidor:', r.status, txt);
-                showToast(`Erro ao salvar vínculo (${r.status}). Salvo apenas localmente.`, 'warning', 5000);
-            }
-        } catch(e) {
-            console.error('[vinculos-notas] falha de rede:', e);
-            showToast('Sem conexão — vínculo salvo apenas localmente.', 'warning', 4000);
-        }
-    };
-    // Sincroniza um alerta com o servidor. Retorna true se ok, false se falhou.
-    const _syncAlertaFalso = async (method, chave, dados = null) => {
-        if (!compData) return false;
-        // Atualiza cache localStorage imediatamente (independente do servidor)
-        const obj = {};
-        alertasFalsos.forEach((v, k) => { obj[k] = v; });
-        localStorage.setItem('alertasFalsos:' + compData.periodo, JSON.stringify(obj));
-        try {
-            const r = await fetch('/api/alertas-falsos', {
-                method,
-                credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(method === 'DELETE'
-                    ? { periodo: compData.periodo, chave }
-                    : { periodo: compData.periodo, chave, ...dados }),
-            });
-            if (!r.ok) {
-                const txt = await r.text().catch(() => r.status);
-                console.error('[alertas-falsos] erro do servidor:', r.status, txt);
-                showToast(`Erro ao salvar alerta falso no servidor (${r.status}). Salvo apenas localmente.`, 'warning', 5000);
-                return false;
-            }
-            return true;
-        } catch(e) {
-            console.error('[alertas-falsos] falha de rede:', e);
-            showToast('Sem conexão — alerta salvo apenas localmente.', 'warning', 4000);
-            return false;
-        }
-    };
-
-    // Estado do picker (mês 1-12, ano)
+    // ── Picker de período (mês + ano) ───────────────────────────────────────
     let compPickMes = new Date().getMonth() + 1;
     let compPickAno = new Date().getFullYear();
 
-    // Sincroniza hidden inputs (usados por executarComparacao)
     function syncHiddenInputs() {
         $('compMes').value = compPickMes;
         $('compAno').value = compPickAno;
     }
 
-    // Destaca botão ativo nos pickers
     function atualizarPickerUI() {
         document.querySelectorAll('.comp-mes-btn').forEach(b => {
             b.classList.toggle('active', parseInt(b.dataset.m) === compPickMes);
         });
         anoWheelScrollTo(compPickAno);
-        const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-                       'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
         $('compCalLabel').textContent = `${MESES[compPickMes]} ${compPickAno}`;
         syncHiddenInputs();
-        renderCompDias();
     }
 
-    // Renderiza a grade de dias do mês/ano escolhido, preservando a seleção válida
-    function renderCompDias() {
-        const mes = compPickMes;
-        const ano = compPickAno;
-        const grid = $('compGrid');
-        grid.innerHTML = '';
-        if (!mes || !ano) return;
-
-        const firstWeekday = new Date(ano, mes - 1, 1).getDay();
-        const daysInMonth  = new Date(ano, mes, 0).getDate();
-        for (const d of [...compDiasSel]) if (d > daysInMonth) compDiasSel.delete(d);
-
-        for (let i = 0; i < firstWeekday; i++) grid.appendChild(document.createElement('div'));
-        for (let d = 1; d <= daysInMonth; d++) {
-            const cell = document.createElement('div');
-            cell.className = 'cal-day' + (compDiasSel.has(d) ? ' selected' : '');
-            cell.textContent = d;
-            cell.addEventListener('click', () => {
-                if (compDiasSel.has(d)) compDiasSel.delete(d); else compDiasSel.add(d);
-                cell.classList.toggle('selected');
-                updateCompDiasStatus();
-            });
-            grid.appendChild(cell);
-        }
-        updateCompDiasStatus();
-    }
-
-    function updateCompDiasStatus() {
-        const n = compDiasSel.size;
-        const el = $('compDiasStatus');
-        if (n === 0) { el.textContent = 'Mês todo'; return; }
-        const dias = [...compDiasSel].sort((a, b) => a - b);
-        el.textContent = n === 1 ? `Dia ${dias[0]}` : `${n} dias: ${dias.join(', ')}`;
-    }
-
-    // Clique nos botões de mês — simples: seleciona; duplo: gera direto
+    // Clique simples seleciona; duplo clique compara direto.
     let _compMesClickTimer = null;
     document.querySelectorAll('.comp-mes-btn').forEach(b => {
         b.addEventListener('click', () => {
             compPickMes = parseInt(b.dataset.m);
             atualizarPickerUI();
-            // duplo clique: se mesmo mês clicado duas vezes rápido → gera
             if (_compMesClickTimer) {
                 clearTimeout(_compMesClickTimer);
                 _compMesClickTimer = null;
                 fecharCompModal();
-                executarComparacao(compPickMes, compPickAno, [...compDiasSel].sort((a,b)=>a-b));
+                executarComparacao(compPickMes, compPickAno);
             } else {
                 _compMesClickTimer = setTimeout(() => { _compMesClickTimer = null; }, 350);
             }
@@ -2128,7 +2049,7 @@ document.addEventListener('wheel', e => {
     })();
     const ITEM_H = 44;
     const anosComDados = new Set();
-    const anoWheelEl   = $('anoWheel');
+    const anoWheelEl      = $('anoWheel');
     const anoWheelItemsEl = $('anoWheelItems');
 
     function buildAnoWheelItems() {
@@ -2176,7 +2097,6 @@ document.addEventListener('wheel', e => {
                 compPickAno = ANOS_WHEEL[idx];
                 syncHiddenInputs();
                 $('compCalLabel').textContent = `${MESES[compPickMes]} ${compPickAno}`;
-                renderCompDias();
             }
         }, 120);
     }, { passive: true });
@@ -2191,29 +2111,27 @@ document.addEventListener('wheel', e => {
         anoWheelScrollTo(ano, true);
         syncHiddenInputs();
         $('compCalLabel').textContent = `${MESES[compPickMes]} ${compPickAno}`;
-        renderCompDias();
         if (_anoWheelClickTimer) {
             clearTimeout(_anoWheelClickTimer);
             _anoWheelClickTimer = null;
             fecharCompModal();
-            executarComparacao(compPickMes, compPickAno, [...compDiasSel].sort((a,b)=>a-b));
+            executarComparacao(compPickMes, compPickAno);
         } else {
             _anoWheelClickTimer = setTimeout(() => { _anoWheelClickTimer = null; }, 350);
         }
     });
 
-    // Probe silencioso: descobre anos com dados (verifica jan + jul de cada ano)
+    // Marca com um ponto os anos que já têm relatório gravado (probe silencioso).
     (async () => {
         await Promise.allSettled(ANOS_WHEEL.flatMap(ano =>
-            ['01','07'].map(async mm => {
+            ['01', '07'].map(async mm => {
                 try {
                     const r = await fetch(`/api/relatorio?tipo=M&data=${mm}.${ano}`, { credentials: 'include' });
-                    if (r.ok) {
-                        const j = await r.json();
-                        if ((j.rows || []).length > 0 && !anosComDados.has(ano)) {
-                            anosComDados.add(ano);
-                            buildAnoWheelItems();
-                        }
+                    if (!r.ok) return;
+                    const j = await r.json();
+                    if ((j.rows || []).length > 0 && !anosComDados.has(ano)) {
+                        anosComDados.add(ano);
+                        buildAnoWheelItems();
                     }
                 } catch (_) {}
             })
@@ -2232,17 +2150,12 @@ document.addEventListener('wheel', e => {
     $('modalCompMes').addEventListener('click', e => {
         if (e.target === $('modalCompMes')) fecharCompModal();
     });
-    $('compLimparDias').addEventListener('click', () => {
-        compDiasSel.clear();
-        renderCompDias();
-    });
 
     $('btnConfirmarComp').addEventListener('click', async () => {
         const mes = compPickMes;
         const ano = compPickAno;
-        const dias = [...compDiasSel].sort((a, b) => a - b);
         fecharCompModal();
-        await executarComparacao(mes, ano, dias);
+        await executarComparacao(mes, ano);
     });
 
     $('btnFecharComparacao').addEventListener('click', () => {
@@ -2250,17 +2163,8 @@ document.addEventListener('wheel', e => {
         compData = null;
     });
 
-    // Tabs
-    document.querySelectorAll('.comp-tab').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.comp-tab').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            compTabAtiva = btn.dataset.tab;
-            renderComparacao();
-        });
-    });
 
-    async function executarComparacao(mes, ano, dias = []) {
+    async function executarComparacao(mes, ano) {
         const btn = $('btnCompararPlanilha');
         const spinner = $('comparacaoSpinner');
 
@@ -2272,7 +2176,7 @@ document.addEventListener('wheel', e => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ mes, ano, dias }),
+                body: JSON.stringify({ mes, ano }),
             });
             const json = await r.json();
 
@@ -2282,60 +2186,17 @@ document.addEventListener('wheel', e => {
             }
 
             compData = json;
-            alertasFalsos.clear();
-            alertasAbertos.clear();
-            // Inicializa a partir do servidor (notas marcadas no banco chegam com alertaFalso:true)
-            let carregouDoServidor = false;
-            [...(json.encontradas || []), ...(json.naoEncontradas || []), ...(json.faltandoPlanilha || [])].forEach(n => {
-                if (n.alertaFalso) {
-                    carregouDoServidor = true;
-                    alertasFalsos.set(_chaveAlerta(n), {
-                        motivo: n.alertaFalsoMotivo || '',
-                        obs:    n.alertaFalsoObs    || '',
-                        por:    n.alertaFalsoPor    || '',
-                    });
-                }
-            });
-            // Fallback: se o servidor não anotou nenhum, usa cache localStorage.
-            if (!carregouDoServidor) {
-                try {
-                    const saved = localStorage.getItem('alertasFalsos:' + json.periodo);
-                    if (saved) Object.entries(JSON.parse(saved)).forEach(([k, v]) => alertasFalsos.set(k, v));
-                } catch(e) {}
-            }
-
-            // Vínculos manuais (naoEncontradas com vinculo:true)
-            vinculosNotas.clear();
-            vinculosAbertos.clear();
-            let carregouVinculos = false;
-            (json.naoEncontradas || []).forEach(n => {
-                if (n.vinculo) {
-                    carregouVinculos = true;
-                    vinculosNotas.set(_chaveVinculo(n), { entrada: n.vinculoEntrada || '', obs: n.vinculoObs || '' });
-                }
-            });
-            if (!carregouVinculos) {
-                try {
-                    const saved = localStorage.getItem('vinculosNotas:' + json.periodo);
-                    if (saved) Object.entries(JSON.parse(saved)).forEach(([k, v]) => vinculosNotas.set(k, v));
-                } catch(e) {}
-            }
-
-            compTabAtiva = json.naoEncontradas.length > 0 ? 'divergente' : 'ok';
-
-            // Atualiza tab ativa
-            document.querySelectorAll('.comp-tab').forEach(b => {
-                b.classList.toggle('active', b.dataset.tab === compTabAtiva);
-            });
 
             $('comparacaoWrap').classList.remove('hidden');
-            const escopo = dias.length
-                ? `${MESES[mes]} ${ano} · ${dias.length === 1 ? `dia ${dias[0]}` : `dias ${dias.join(', ')}`}`
-                : `${MESES[mes]} ${ano}`;
-            $('comparacaoSubtitle').textContent = `${escopo} — planilha (apenas ORIG=CP) vs pasta`;
+            // O "NNN.DOC" vale para pasta e banco; a planilha conta lançamentos. O que as
+            // três fontes têm em comum é o que se quer comparar: documentos esperados.
+            // O subtítulo antigo ("documentos esperados, contados em três fontes
+            // independentes") afirmava que os três cards mediam a MESMA coisa — e era
+            // justamente isso que fazia 534 e 639 parecerem erro de contagem.
+            $('comparacaoSubtitle').textContent =
+                `${MESES[mes]} ${ano} — documentos arquivados e lançamentos da planilha, e quanto já se casou`;
 
             renderResumoComparacao();
-            renderComparacao();
             $('status').textContent = '';
 
             // Scroll para o painel
@@ -2350,310 +2211,202 @@ document.addEventListener('wheel', e => {
         }
     }
 
+    // Formata "categoria: N" ordenado por contagem — usado no corte da planilha
+    // (por conta contábil) e no corte de pasta/banco (por tipo de pagamento).
+    function listaPorCategoria(porCategoria, limite) {
+        return Object.entries(porCategoria || {}).sort((a, b) => b[1] - a[1]).slice(0, limite || 12)
+            .map(([categoria, n]) => `   ${categoria}: ${n}`);
+    }
+
+    // O corte da planilha tem que ficar legível: a versão antiga descartava categorias em
+    // silêncio, e por isso o número não podia ser conferido por quem olhava a tela. Aqui
+    // vai a composição inteira do que saiu, por conta contábil.
+    function hintPlanilha(p) {
+        const escopo = Array.isArray(p.escopo) ? p.escopo.join(', ') : (p.escopo || 'NF_ENTRADA');
+        const linhas = [
+            `${p.total} lançamentos que deveriam ter um documento arquivado.`,
+            `É este número que se compara com os PDFs na pasta e no banco.`,
+            '',
+            `Escopo: ORIG=${escopo}, FILIAL=LARSIL.`,
+            `${p.linhas} linhas na base (uma nota com vários itens ocupa várias linhas `
+                + `e conta como um lançamento só)`
+                + (p.linhasEscopoBruto ? ` · ${p.linhasEscopoBruto} linhas no escopo` : '')
+                + ` · ${p.linhasTodasOrig} linhas no mês somando todas as origens.`,
+        ];
+        if (p.excluidos) {
+            // Estes NÃO entram no total acima: não são documentos que faltam, são
+            // lançamentos que nunca teriam nota (folha, benefício, encargo, tarifa).
+            linhas.push('', `Fora da comparação — ${p.excluidos} lançamentos sem nota para `
+                          + 'arquivar (não estão somados no número acima):');
+            linhas.push(...listaPorCategoria(p.porConta));
+            if (p.informativos) linhas.push(`   lançamento informativo (*): ${p.informativos}`);
+        }
+        return linhas.join('\n');
+    }
+
+    // Painel enxuto: três contagens de fontes INDEPENDENTES. Nenhuma depende da outra
+    // nem de regra de casamento — se elas não fecharem entre si, o problema é de captura.
+    // Só entram arquivos "NNN.DOC-…" (o documento em si); CPV, extrato do dia e demais
+    // anexos da pasta ficam de fora.
+    // Tooltip do card "Conferidos". O número só é confiável se o leitor souber POR QUE
+    // cada par foi aceito — daí a composição por via de casamento, e o destaque para os
+    // pares apoiados num sinal só, que são os que merecem conferência humana.
+    // Regra e calibragem medidas: TIPOS-IGNORADOS-COMPARADOR.md §10.
+    function hintConferencia(c, pasta, planilha) {
+        if (!c || !c.disponivel)
+            return 'Pareamento indisponível' + (c && c.motivo ? `: ${c.motivo}` : '.');
+        const via = {
+            'numero+entidade+valor': 'número + fornecedor + valor (os três)',
+            'numero+entidade':       'número + fornecedor (valor difere — boleto com desconto/retenção)',
+            'valor+entidade':        'valor + fornecedor',
+            'valor':                 'somente valor (sinal único)',
+        };
+        const linhas = [
+            `${c.conferidos} lançamentos têm documento arquivado.`,
+            '',
+            `   ${c.noMes} na pasta deste mês`,
+        ];
+        if (c.emPastaVizinha) {
+            // O documento é arquivado quando CHEGA e a planilha lança no pagamento, então
+            // a pasta do mês seguinte guarda boa parte do papel deste mês. Sem essa linha
+            // o usuário lê "conferidos" como se todos estivessem na pasta do mês.
+            const de = Object.entries(c.porPastaVizinha || {}).sort((a, b) => b[1] - a[1])
+                .map(([p, n]) => `${p} (${n})`).join(', ');
+            linhas.push(`   ${c.emPastaVizinha} em pasta de mês vizinho: ${de}`);
+        }
+        linhas.push(
+            '',
+            `De ${planilha.total} lançamentos na planilha: ${c.lancamentosSemDocumento} sem documento.`,
+            `De ${pasta.total} documentos nesta pasta: ${c.documentosSemLancamento} sem lançamento.`,
+            '',
+            'Como cada par foi confirmado:',
+        );
+        for (const [k, n] of Object.entries(c.porVia || {}).sort((a, b) => b[1] - a[1]))
+            linhas.push(`   ${n} por ${via[k] || k}`);
+        if (c.fracos) {
+            linhas.push('');
+            linhas.push(`${c.fracos} apoiados num sinal só — são os que merecem conferência:`);
+            linhas.push('casar apenas por valor erra em ~25% dos casos (valores redondos colidem).');
+        }
+        linhas.push('');
+        linhas.push(`Par sustentado só pelo valor exige documento a até ${c.janelaDias} dias do lançamento.`);
+        if (c.vizinhanca && c.vizinhanca.length)
+            linhas.push(`Pastas consultadas: a do mês e ${c.vizinhanca.map(o => (o > 0 ? '+' : '') + o).join(', ')} meses.`);
+        // O documento de pasta vizinha NÃO entra em "sem lançamento" acima: ele pertence
+        // à conferência do mês dele. Sem esta ressalva os dois números parecem brigar.
+        if (c.emPastaVizinha)
+            linhas.push('Documento de pasta vizinha conta para o lançamento, não para esta pasta.');
+        return linhas.join('\n');
+    }
+
+    // Reconciliação. Duas colunas de UNIDADE DIFERENTE — documento e lançamento —
+    // que nunca somam entre si. Cada coluna: número-líder, split do que se casou e
+    // do que não, e a equação que fecha. A ponte central é a única grandeza comum
+    // (os lançamentos que têm papel arquivado nesta mesma pasta).
     function renderResumoComparacao() {
         if (!compData) return;
-        const { resumo } = compData;
-        const cards = [
-            { label: 'Na planilha',          val: resumo.totalPlanilha,                                         color: '#4ade80' },
-            { label: 'Encontradas',          val: resumo.encontradas,                                           color: '#4ade80' },
-            { label: 'Impostos',             val: resumo.tributos || 0,                                         color: '#38bdf8' },
-            { label: 'Divergentes',          val: resumo.divergentes - alertasFalsos.size,                      color: '#fbbf24' },
-            { label: 'Datas divergentes',    val: resumo.dataDivergente || 0,                                   color: '#fbbf24' },
-            { label: 'Faltando na pasta',    val: resumo.naoEncontradas,                                        color: '#f87171' },
-            { label: 'Faltando na planilha', val: resumo.faltandoPlanilha || 0,                                 color: '#f87171' },
-            { label: 'Alertas Corrigidos',   val: alertasFalsos.size,                                           color: '#4ade80' },
-                ];
-        $('comparacaoResumo').innerHTML = cards.map(c => `
-            <div class="rounded-xl p-4 text-center" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)">
-                <p class="text-2xl font-bold" style="color:${c.color}">${c.val}</p>
-                <p class="text-xs mt-1" style="color:rgba(255,255,255,.45)">${c.label}</p>
-            </div>`).join('');
+        const { pasta, banco, planilha } = compData;
+        const c = compData.conferencia || { disponivel: false };
+        const el = document.getElementById('comparacaoResumo');
+        const n = v => (v === 0 || v ? v : '—');
+        const esc = s => String(s || '').replace(/"/g, '&quot;');
+        const hint = h => h ? ` data-hint title="${esc(h)}"` : '';
+
+        // ── Coluna documento ─────────────────────────────────────────
+        const docLead = pasta.disponivel
+            ? `<span class="rec-num" style="color:#4ade80">${pasta.total}</span>
+               <span class="rec-cap">PDFs de nota nesta pasta</span>
+               <span class="rec-sub">${n(banco.total)} também salvos no banco pelo OCR</span>`
+            : `<span class="rec-num rec-dim">—</span>
+               <span class="rec-cap">pasta indisponível</span>`;
+
+        const docSplit = (pasta.disponivel && c.disponivel) ? `
+            <div class="rec-split">
+                <div class="rec-cell"${hint(hintConferencia(c, pasta, planilha))}>
+                    <span class="rec-n" style="color:#fbbf24">${n(c.noMes)}</span>
+                    <span class="rec-l">com lançamento nesta pasta</span>
+                </div>
+                <div class="rec-cell">
+                    <span class="rec-n" style="color:rgba(255,255,255,.7)">${n(c.documentosSemLancamento)}</span>
+                    <span class="rec-l">sem lançamento correspondente</span>
+                </div>
+            </div>
+            <p class="rec-eq"><b>${c.noMes}</b> + <b>${c.documentosSemLancamento}</b> = <b>${pasta.total}</b> PDFs nesta pasta</p>` : '';
+
+        const colDoc = `
+            <div class="rec-col">
+                <div class="rec-col-head">Documento <span>papel arquivado</span></div>
+                <div class="rec-lead"${hint(pasta.disponivel ? hintPasta(pasta) : '')}>${docLead}</div>
+                ${docSplit}
+            </div>`;
+
+        // ── Coluna lançamento ────────────────────────────────────────
+        const lancLead = planilha.disponivel
+            ? `<span class="rec-num" style="color:#c084fc">${planilha.total}</span>
+               <span class="rec-cap">lançamentos que deveriam ter documento</span>
+               <span class="rec-sub">março 2026 · escopo NF_ENTRADA · filial LARSIL</span>`
+            : `<span class="rec-num rec-dim">—</span>
+               <span class="rec-cap">planilha indisponível</span>`;
+
+        const lancSplit = (planilha.disponivel && c.disponivel) ? `
+            <div class="rec-split">
+                <div class="rec-cell"${hint(hintConferencia(c, pasta, planilha))}>
+                    <span class="rec-n" style="color:#fbbf24">${n(c.conferidos)}</span>
+                    <span class="rec-l">com documento encontrado</span>
+                    ${c.emPastaVizinha ? `<span class="rec-s">${c.noMes} aqui · ${c.emPastaVizinha} em pasta vizinha</span>` : (c.fracos ? `<span class="rec-s">${c.fracos} a conferir</span>` : '')}
+                </div>
+                <div class="rec-cell">
+                    <span class="rec-n" style="color:#f87171">${n(c.lancamentosSemDocumento)}</span>
+                    <span class="rec-l">sem documento em nenhuma pasta</span>
+                </div>
+            </div>
+            <p class="rec-eq"><b>${c.conferidos}</b> + <b>${c.lancamentosSemDocumento}</b> = <b>${planilha.total}</b> lançamentos</p>` : '';
+
+        const colLanc = `
+            <div class="rec-col">
+                <div class="rec-col-head">Lançamento <span>linha da planilha</span></div>
+                <div class="rec-lead"${hint(planilha.disponivel ? hintPlanilha(planilha) : '')}>${lancLead}</div>
+                ${lancSplit}
+            </div>`;
+
+        // ── Ponte ────────────────────────────────────────────────────
+        const bridge = (pasta.disponivel && planilha.disponivel && c.disponivel) ? `
+            <div class="rec-bridge">
+                <div class="rec-arm"></div>
+                <div class="rec-bridge-num">${n(c.noMes)}</div>
+                <div class="rec-bridge-lbl">pares que fecham nesta pasta</div>
+                <div class="rec-arm"></div>
+            </div>` : '<div class="rec-bridge"><div class="rec-arm"></div><div class="rec-arm"></div></div>';
+
+        // ── Nota de fecho ────────────────────────────────────────────
+        const nota = c.disponivel && c.emPastaVizinha
+            ? `As duas colunas contam coisas diferentes e por isso <b>não somam entre si</b>.
+               Dos ${c.conferidos} lançamentos com documento, <b>${c.emPastaVizinha}</b> têm o
+               papel arquivado em pasta de outro mês — normal: a nota é arquivada quando chega
+               e a planilha lança no pagamento.`
+            : `As duas colunas contam coisas diferentes — documento e lançamento — e por isso
+               <b>não somam entre si</b>.`;
+
+        el.innerHTML = `
+            <div class="rec-grid">${colDoc}${bridge}${colLanc}</div>
+            <p class="rec-note">${nota}</p>`;
     }
 
-    function fmtVal(v) {
-        return v != null ? `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—';
+    // Tooltip da coluna documento: composição do total de PDFs, o que ficou de
+    // fora do escopo e por quê. A versão antiga descartava categorias em silêncio
+    // e por isso o número não podia ser conferido.
+    function hintPasta(pasta) {
+        return `${pasta.total} arquivos "NNN.DOC" que parecem nota fiscal, em ${pasta.raiz}.\n`
+            + `${pasta.ignorados} PDFs ignorados por não serem .DOC (CPV, extrato, anexos).`
+            + (pasta.naoFiscal
+                ? `\n\nFora da comparação — ${pasta.naoFiscal} arquivos ".DOC" que não são nota `
+                  + `(consórcio, financiamento, PIX, folha — não estão somados no número acima):\n`
+                  + listaPorCategoria(pasta.naoFiscalPorCategoria).join('\n')
+                : '')
+            + (pasta.semData ? `\n\n${pasta.semData} sem data no nome nem na subpasta.` : '')
+            + (pasta.mesesNaPasta && pasta.mesesNaPasta.length
+                ? `\n\nMeses presentes na pasta: ${pasta.mesesNaPasta.join(', ')}` : '');
     }
-
-    // Paginação: renderizar milhares de linhas de uma vez trava o navegador
-    // (DOM com dezenas de milhares de nós). Mostramos PAGE_SIZE por vez.
-    const COMP_PAGE_SIZE = 100;
-    let comparacaoNotasAtuais = [];  // lista filtrada da aba atual (todas as notas)
-    let comparacaoPagina = 0;        // página atual (0-based)
-
-    function renderComparacao(resetarPagina = true) {
-        if (!compData) return;
-        const tbody = $('comparacaoBody');
-        const empty = $('comparacaoEmpty');
-        const pager = $('comparacaoPager');
-
-        let notas = [];
-        if (compTabAtiva === 'faltando')          notas = compData.naoEncontradas;
-        if (compTabAtiva === 'faltando-planilha') notas = compData.faltandoPlanilha || [];
-        if (compTabAtiva === 'data-divergente')     notas = compData.encontradas.filter(n => n.status === 'data-divergente' && !alertasFalsos.has(_chaveAlerta(n)));
-        if (compTabAtiva === 'divergente')          notas = compData.encontradas.filter(n => n.status === 'divergente'      && !alertasFalsos.has(_chaveAlerta(n)));
-        if (compTabAtiva === 'ok')                  notas = compData.encontradas.filter(n => n.status === 'ok');
-        if (compTabAtiva === 'tributos')            notas = compData.tributos || [];
-        if (compTabAtiva === 'alertas-corrigidos')  notas = [
-            ...compData.encontradas,
-            ...(compData.naoEncontradas    || []),
-            ...(compData.faltandoPlanilha  || []),
-        ].filter(n => alertasFalsos.has(_chaveAlerta(n)));
-
-        comparacaoNotasAtuais = notas;
-        if (resetarPagina) comparacaoPagina = 0;
-
-        if (notas.length === 0) {
-            tbody.innerHTML = '';
-            pager.classList.add('hidden');
-            empty.textContent = compTabAtiva === 'faltando'             ? 'Nenhuma nota faltando na pasta! ✓'
-                              : compTabAtiva === 'faltando-planilha'  ? 'Nenhuma nota faltando na planilha! ✓'
-                              : compTabAtiva === 'data-divergente'    ? 'Nenhuma nota com data divergente ✓'
-                              : compTabAtiva === 'divergente'         ? 'Nenhuma divergência ✓'
-                              : compTabAtiva === 'tributos'           ? 'Nenhum tributo/DAM identificado ✓'
-                              : compTabAtiva === 'alertas-corrigidos' ? 'Nenhum alerta corrigido neste período'
-                              : 'Nenhuma nota encontrada ainda';
-            empty.classList.remove('hidden');
-            return;
-        }
-        empty.classList.add('hidden');
-
-        const statusColor = s => s === 'ok' ? '#4ade80' : s === 'divergente' ? '#fb923c' : s === 'data-divergente' ? '#fbbf24' : s === 'faltando-planilha' ? '#60a5fa' : s === 'tributo' ? '#94a3b8' : '#f87171';
-        const statusLabel = s => s === 'ok' ? 'OK' : s === 'divergente' ? '⚠ Divergente' : s === 'data-divergente' ? '⚠ Data divergente' : s === 'faltando-planilha' ? 'Não consta na planilha' : s === 'tributo' ? 'Tributo/DAM' : 'Não encontrada';
-
-        // Fatia só a página atual
-        const totalPag = Math.ceil(notas.length / COMP_PAGE_SIZE);
-        if (comparacaoPagina >= totalPag) comparacaoPagina = totalPag - 1;
-        if (comparacaoPagina < 0) comparacaoPagina = 0;
-        const ini = comparacaoPagina * COMP_PAGE_SIZE;
-        const fim = Math.min(ini + COMP_PAGE_SIZE, notas.length);
-        const pagina = notas.slice(ini, fim);
-
-        const svgVer = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-        tbody.innerHTML = pagina.map((n, i) => {
-            const idx = ini + i;
-            const arquivoReal = (n.arquivo || '').replace(/#p\d+$/i, '');
-            const parcelaM = (n.arquivo || '').match(/#p(\d+)$/i);
-            const parcelaBadge = parcelaM ? ` <span style="color:#60a5fa;font-size:.7rem">#p${parcelaM[1]}</span>` : '';
-            const temPdf = !!arquivoReal;
-            const btnVer = `<button data-comp-view="${idx}" class="comp-ver inline-flex items-center gap-1 text-xs rounded-lg px-2.5 py-1"${temPdf ? '' : ' disabled'}>${svgVer}Ver</button>`;
-            const itemCor = n.valorItemAlerta ? '#fb923c' : 'rgba(255,255,255,.55)';
-            const itemTxt = (n.valorItem != null && n.valorItem > 0) ? fmtVal(n.valorItem) : '—';
-            const vencCor = n.dataAlerta ? '#fbbf24' : 'rgba(255,255,255,.5)';
-            const vencTxt = n.vencimento && n.vencimento !== '—' ? n.vencimento
-                          : (n.vencimentoBanco && n.vencimentoBanco !== '—' ? n.vencimentoBanco : '—');
-            // Observação: divergência ou label de status; para notas sem match na planilha
-            // acrescenta o tipo do banco como contexto extra (ex.: "Não consta na planilha · NF")
-            const obsBase = n.divergencia || statusLabel(n.status);
-            const obsTipo = !n.divergencia && n.tipo && n.tipo !== n.status ? ` · ${n.tipo}` : '';
-            // Emitente: para notas sem match inclui nome do arquivo no tooltip
-            const emitTitle = arquivoReal ? `${n.entidade} — ${arquivoReal}${parcelaM ? ' #p'+parcelaM[1] : ''}` : n.entidade;
-
-            const chaveA  = _chaveAlerta(n);
-            const chaveV  = _chaveVinculo(n);
-            const temDiverg  = !!(n.divergencia || n.status === 'divergente' || n.status === 'data-divergente');
-            const temFaltando = n.status === 'faltando';
-            const isFalso    = alertasFalsos.has(chaveA);
-            const isVinculado = vinculosNotas.has(chaveV);
-            const isAberto   = alertasAbertos.has(chaveA);
-            const isVinculoAberto = vinculosAbertos.has(chaveV);
-            const dadosFalso   = isFalso    ? alertasFalsos.get(chaveA) : null;
-            const dadosVinculo = isVinculado ? vinculosNotas.get(chaveV) : null;
-
-            const mkChevron = (rotated) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:10px;height:10px;transition:transform .18s;transform:${rotated ? 'rotate(90deg)' : 'rotate(0)'}"><polyline points="9 18 15 12 9 6"/></svg>`;
-            const svgLink = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:9px;height:9px;margin-right:2px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
-
-            const btnToggle = temDiverg
-                ? `<button data-comp-toggle="${chaveA}" title="Alerta falso" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-right:6px;opacity:.6;cursor:pointer;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:4px;flex-shrink:0;vertical-align:middle">${mkChevron(isAberto)}</button>`
-                : temFaltando
-                ? `<button data-vinculo-toggle="${chaveV}" title="Vincular entrada" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-right:6px;opacity:.6;cursor:pointer;background:${isVinculado ? 'rgba(96,165,250,.15)' : 'rgba(255,255,255,.08)'};border:1px solid ${isVinculado ? 'rgba(96,165,250,.35)' : 'rgba(255,255,255,.12)'};border-radius:4px;flex-shrink:0;vertical-align:middle">${svgLink}${mkChevron(isVinculoAberto)}</button>`
-                : '';
-
-            const obsCor = isFalso ? '#4ade80' : isVinculado ? '#60a5fa' : statusColor(n.status);
-            const obsHtml = isFalso
-                ? `<span style="opacity:.45;text-decoration:line-through">${obsBase}${obsTipo}</span><span style="color:#4ade80;font-size:.68rem;margin-left:6px">✓ Alerta falso</span>`
-                : isVinculado
-                ? `<span style="opacity:.55">${obsBase}${obsTipo}</span><span style="color:#60a5fa;font-size:.68rem;margin-left:6px">🔗 ${dadosVinculo.entrada}</span>`
-                : `${obsBase}${obsTipo}`;
-
-            // Campos de correção baseados no tipo de divergência
-            const TIPOS_BANCO = ['NF','NFS','FATURA','BOLETO','DAM','IMPOSTO','NÃO IDENTIFICADO'];
-            const inputStyle = 'font-size:.78rem;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:5px 8px;color:#e8f0e8;outline:none';
-            const labelStyle = 'font-size:.73rem;color:rgba(255,255,255,.45);margin-right:4px;white-space:nowrap';
-
-            const campoTipo = n.tipoDiverge ? `
-                <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)">
-                    <span style="${labelStyle}">Tipo errado, alterado para:</span>
-                    <select data-alerta-tipo="${chaveA}" style="${inputStyle};cursor:pointer">
-                        <option value="">— selecione —</option>
-                        ${TIPOS_BANCO.map(t => `<option value="${t}">${t}${t === n.tipo ? ' ← pasta' : t === n.tipoBanco ? ' ← planilha' : ''}</option>`).join('')}
-                    </select>
-                    <span style="font-size:.7rem;color:rgba(255,255,255,.3)">${n.tipo||'—'} → planilha: ${n.tipoPlanilha||'—'}</span>
-                </div>` : '';
-
-            const campoValor = n.valorItemAlerta ? `
-                <div style="display:flex;align-items:center;gap:6px;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)">
-                    <span style="${labelStyle}">Valor errado, corrigido para:</span>
-                    <input data-alerta-valor="${chaveA}" type="text" inputmode="decimal" placeholder="R$ 0,00" style="${inputStyle};width:110px" />
-                    <span style="font-size:.7rem;color:rgba(255,255,255,.3)">pasta: ${fmtVal(n.valorBanco||n.valor)} · planilha: ${fmtVal(n.valorItem||n.valor)}</span>
-                </div>` : '';
-
-            const camposAtivos = campoTipo || campoValor;
-
-            const vinculoHtml = temFaltando ? `
-            <tr style="display:${isVinculoAberto ? 'table-row' : 'none'}">
-                <td colspan="9" style="padding:0 16px 10px 16px;border-bottom:1px solid rgba(255,255,255,.06)">
-                    <div style="margin-left:8px;padding:12px 16px;background:rgba(96,165,250,.04);border-radius:8px;border:1px solid rgba(96,165,250,.15)">
-                        <div style="font-size:.68rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(96,165,250,.5);margin-bottom:8px">Vincular Entrada</div>
-                        ${isVinculado ? `
-                        <div style="color:#60a5fa;font-size:.8rem;margin-bottom:10px">🔗 Vinculado a: <strong>${dadosVinculo.entrada}</strong>${dadosVinculo.obs ? ' · ' + dadosVinculo.obs : ''}</div>
-                        <button data-vinculo-remove="${chaveV}" style="font-size:.73rem;color:#f87171;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;padding:4px 10px;cursor:pointer">Remover vínculo</button>
-                        ` : `
-                        <div style="color:rgba(255,255,255,.45);font-size:.78rem;margin-bottom:10px">Gostaria de vincular uma entrada a essa nota?</div>
-                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                            <input data-vinculo-entrada="${chaveV}" type="text" placeholder="NF, arquivo ou descrição da entrada…" style="${inputStyle};flex:2;min-width:220px" />
-                            <input data-vinculo-obs="${chaveV}"    type="text" placeholder="Observação (opcional)" style="${inputStyle};flex:1;min-width:140px" />
-                            <button data-vinculo-confirm="${chaveV}" style="font-size:.73rem;color:#60a5fa;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);border-radius:6px;padding:5px 14px;cursor:pointer;font-weight:700;white-space:nowrap">Confirmar vínculo</button>
-                        </div>
-                        `}
-                    </div>
-                </td>
-            </tr>` : '';
-
-            const detalheHtml = temDiverg ? `
-            <tr style="display:${isAberto ? 'table-row' : 'none'}">
-                <td colspan="9" style="padding:0 16px 10px 16px;border-bottom:1px solid rgba(255,255,255,.06)">
-                    <div style="margin-left:8px;padding:12px 16px;background:rgba(255,255,255,.04);border-radius:8px;border:1px solid rgba(255,255,255,.1)">
-                        <div style="font-size:.68rem;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:8px">Alerta Falso</div>
-                        ${isFalso ? `
-                        <div style="color:#4ade80;font-size:.8rem;margin-bottom:10px">✓ ${dadosFalso.motivo || 'Marcado como alerta falso'}${dadosFalso.obs ? ' · ' + dadosFalso.obs : ''}</div>
-                        <button data-alerta-remove="${chaveA}" style="font-size:.73rem;color:#f87171;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;padding:4px 10px;cursor:pointer">Remover marcação</button>
-                        ` : `
-                        ${camposAtivos || `<div style="color:rgba(255,255,255,.5);font-size:.78rem;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)">${obsBase}</div>`}
-                        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)">
-                            <span style="${labelStyle}">Observação:</span>
-                            <input data-alerta-obs="${chaveA}" type="text" placeholder="(opcional)" style="${inputStyle};flex:1;min-width:160px" />
-                            <button data-alerta-confirm="${chaveA}" style="font-size:.73rem;color:#4ade80;background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3);border-radius:6px;padding:5px 14px;cursor:pointer;font-weight:700;white-space:nowrap">Confirmar alerta falso</button>
-                        </div>
-                        `}
-                    </div>
-                </td>
-            </tr>` : '';
-
-            return `
-            <tr style="border-bottom:${isAberto ? 'none' : '1px solid rgba(255,255,255,.06)'}">
-                <td class="px-4 py-3 font-mono text-sm" style="color:rgba(255,255,255,.85)">${n.nf || '—'}</td>
-                <td class="px-4 py-3 text-xs max-w-[200px] truncate" style="color:rgba(255,255,255,.7)" title="${emitTitle}">${n.entidade || '—'}</td>
-                <td class="px-4 py-3 text-right font-mono text-sm" style="color:#a0d87a">${fmtVal(n.valor)}</td>
-                <td class="px-4 py-3 text-right font-mono text-xs" style="color:${itemCor}">${itemTxt}</td>
-                <td class="px-4 py-3 text-xs" style="color:${vencCor}">${vencTxt}</td>
-                <td class="px-4 py-3 text-xs" style="color:rgba(255,255,255,.5)">${n.emissao || '—'}</td>
-                <td class="px-4 py-3 text-xs" style="color:rgba(255,255,255,.5)">${n.filial || '—'}</td>
-                <td class="px-4 py-3 text-xs" style="color:${obsCor}">${btnToggle}${obsHtml}</td>
-                <td class="px-4 py-3 text-center">${btnVer}</td>
-            </tr>${detalheHtml}${vinculoHtml}`;
-        }).join('');
-
-        // Rodapé de paginação
-        if (totalPag > 1) {
-            pager.classList.remove('hidden');
-            pager.classList.add('flex');
-            $('compPagInfo').textContent = `${ini + 1}–${fim} de ${notas.length} · pág. ${comparacaoPagina + 1}/${totalPag}`;
-            $('compPagPrev').disabled = comparacaoPagina === 0;
-            $('compPagNext').disabled = comparacaoPagina >= totalPag - 1;
-            $('compPagPrev').style.opacity = comparacaoPagina === 0 ? '.4' : '1';
-            $('compPagNext').style.opacity = comparacaoPagina >= totalPag - 1 ? '.4' : '1';
-        } else {
-            pager.classList.add('hidden');
-            pager.classList.remove('flex');
-        }
-    }
-
-    $('compPagPrev').addEventListener('click', () => { if (comparacaoPagina > 0) { comparacaoPagina--; renderComparacao(false); $('comparacaoBody').scrollIntoView({ block: 'nearest' }); } });
-    $('compPagNext').addEventListener('click', () => { comparacaoPagina++; renderComparacao(false); $('comparacaoBody').scrollIntoView({ block: 'nearest' }); });
-
-    $('comparacaoBody').addEventListener('click', e => {
-        const toggle = e.target.closest('[data-comp-toggle]');
-        if (toggle) {
-            const chave = toggle.dataset.compToggle;
-            if (alertasAbertos.has(chave)) alertasAbertos.delete(chave);
-            else alertasAbertos.add(chave);
-            renderComparacao(false);
-            return;
-        }
-
-        const confirmBtn = e.target.closest('[data-alerta-confirm]');
-        if (confirmBtn) {
-            const chave = confirmBtn.dataset.alertaConfirm;
-            const tbody = $('comparacaoBody');
-            const tipoSel  = tbody.querySelector(`[data-alerta-tipo="${chave}"]`);
-            const valorInp = tbody.querySelector(`[data-alerta-valor="${chave}"]`);
-            const obsInp   = tbody.querySelector(`[data-alerta-obs="${chave}"]`);
-            // Monta motivo automaticamente a partir dos campos preenchidos
-            const partesMot = [];
-            if (tipoSel  && tipoSel.value)        partesMot.push(`Tipo alterado para ${tipoSel.value}`);
-            if (valorInp && valorInp.value.trim()) partesMot.push(`Valor corrigido para ${valorInp.value.trim()}`);
-            const motivo = partesMot.join(' · ') || 'Alerta falso confirmado';
-            const dados = { motivo, obs: obsInp ? obsInp.value.trim() : '' };
-            alertasFalsos.set(chave, dados);
-            alertasAbertos.delete(chave);
-            renderResumoComparacao();
-            renderComparacao(false);
-            _syncAlertaFalso('POST', chave, dados);
-            return;
-        }
-
-        const removeBtn = e.target.closest('[data-alerta-remove]');
-        if (removeBtn) {
-            const chave = removeBtn.dataset.alertaRemove;
-            alertasFalsos.delete(chave);
-            alertasAbertos.delete(chave);
-            renderResumoComparacao();
-            renderComparacao(false);
-            _syncAlertaFalso('DELETE', chave);
-            return;
-        }
-
-        const vinculoToggle = e.target.closest('[data-vinculo-toggle]');
-        if (vinculoToggle) {
-            const chave = vinculoToggle.dataset.vinculoToggle;
-            if (vinculosAbertos.has(chave)) vinculosAbertos.delete(chave);
-            else vinculosAbertos.add(chave);
-            renderComparacao(false);
-            return;
-        }
-
-        const vinculoConfirm = e.target.closest('[data-vinculo-confirm]');
-        if (vinculoConfirm) {
-            const chave = vinculoConfirm.dataset.vinculoConfirm;
-            const entradaInp = $('comparacaoBody').querySelector(`[data-vinculo-entrada="${chave}"]`);
-            const obsInp     = $('comparacaoBody').querySelector(`[data-vinculo-obs="${chave}"]`);
-            const entrada = entradaInp ? entradaInp.value.trim() : '';
-            if (!entrada) { showToast('Informe a entrada a vincular.', 'warning', 3000); return; }
-            const dados = { entrada, obs: obsInp ? obsInp.value.trim() : '' };
-            vinculosNotas.set(chave, dados);
-            vinculosAbertos.delete(chave);
-            renderComparacao(false);
-            _syncVinculo('POST', chave, dados);
-            return;
-        }
-
-        const vinculoRemove = e.target.closest('[data-vinculo-remove]');
-        if (vinculoRemove) {
-            const chave = vinculoRemove.dataset.vinculoRemove;
-            vinculosNotas.delete(chave);
-            vinculosAbertos.delete(chave);
-            renderComparacao(false);
-            _syncVinculo('DELETE', chave);
-            return;
-        }
-
-        const btn = e.target.closest('[data-comp-view]');
-        if (!btn || btn.disabled) return;
-        const nota = comparacaoNotasAtuais[+btn.dataset.compView];
-        if (nota && nota.arquivo) {
-            openViewer({ name: nota.arquivo.replace(/#p\d+$/i, ''), folder: nota.pasta || '' });
-        }
-    });
 }
 
 </script>

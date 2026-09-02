@@ -48,3 +48,6 @@ teste/
 
 # Memória persistente do Claude Code (fora do repo)
 .claude/
+
+# Cache do harness de medição (_medir/) — dados reais, não versionar
+_medir/.cache/
