@@ -51,3 +51,6 @@ teste/
 
 # Cache do harness de medição (_medir/) — dados reais, não versionar
 _medir/.cache/
+
+# Saída da amostra (contém dados de fornecedor) — gerar com node _medir/amostra.js
+_medir/amostra-sem-documento.*
