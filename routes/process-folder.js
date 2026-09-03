@@ -13,7 +13,8 @@ const path = require('path');
 const fs = require('fs').promises;
 const { PDFParse } = require('pdf-parse');
 const { getConnection, sql } = require('../config');
-const { classify, mk, norm, extrairCnpj, extrairEmitente, CTE_STRONG_RE, TRANSPORT_HINT_RE } = require('./_nf-parsers');
+const { classify, mk, norm, extrairCnpj, extrairEmitente, CTE_STRONG_RE, TRANSPORT_HINT_RE,
+        enriquecerComChaveAcesso, enriquecerComBoleto } = require('./_nf-parsers');
 const { extrairBoletosAI } = require('./_boletos-ai');
 const { extrairNotaAI, TIPOS_VALIDOS } = require('./_nf-ai-full');
 
@@ -102,6 +103,46 @@ function filenameToDay(name) {
     if (mOld) return `${mOld[1]}.${mOld[2]}.${mOld[3]}`;
     return null;
 }
+// ── Conserto da data do nome pela subpasta ───────────────────────────────────
+// O nome do arquivo é digitado à mão e às vezes erra a data. A subpasta
+// (".../SANTANDER/2026.02.09/") é criada pelo processo de arquivamento e não tem
+// esse erro. Medido em 03/09/2026 sobre os 4.238 PDFs do arquivo permanente
+// (_medir/classificar-divergencia.js), nas 144 divergências de mês entre os dois:
+//
+//   causa                                       n   veredito
+//   dia/mês trocado (2026.09.02 na pasta 02.09) 10   erro de digitação -> corrigir
+//   ANO errado, dia e mês idênticos             33   erro de digitação -> corrigir
+//   ano errado, mesmo mês, dia difere            1   erro de digitação -> corrigir
+//   documento de mês anterior, até 3 meses      63   LEGÍTIMO -> não mexer
+//   resto (vencimento futuro, conta antiga)     37   ambíguo   -> não mexer
+//
+// Por isso o conserto é CIRÚRGICO, e não "a pasta sempre ganha": 63 dos 144 são
+// conta antiga paga agora, em que o nome está certo e a pasta é a data de
+// arquivamento. Trocar tudo pela pasta também perderia o DIA correto de 644
+// arquivos cujo nome diverge só no dia, com o mês concordando.
+//
+// Só as duas assinaturas inequívocas são corrigidas:
+//   (a) desinverter dia/mês no nome dá exatamente a data da pasta;
+//   (b) o MÊS do nome bate com o da pasta e só o ano difere — aí o ano é engano de
+//       digitação e o resto do nome está certo, então preserva-se o DIA DO NOME
+//       (que é a data do documento) e troca-se só o ano.
+// Em ambos os casos existe prova de que foi erro de digitação, não data real.
+//
+// A regra (b) não exige o dia igual porque a assinatura do erro é o ano: a ESSOR
+// 2505 é uma parcela mensal arquivada com "2025." em janeiro a maio de 2026 e com
+// "2026." em junho — em março o nome diz dia 06 e a pasta é dia 05 (arquivado um
+// dia antes). Exigir o dia idêntico deixaria justamente esse caso passar.
+function consertarDataPelaPasta(diaNome, diaPasta) {
+    if (!diaNome || !diaPasta || diaNome === diaPasta) return diaNome;
+    const [dn, mn, yn] = diaNome.split('.');
+    const [dp, mp, yp] = diaPasta.split('.');
+    // (a) dia/mês trocado na digitação
+    if (dn === mp && mn === dp && yn === yp) return diaPasta;
+    // (b) ano errado, mês correto — corrige só o ano, preservando o dia do nome
+    if (mn === mp && yn !== yp) return `${dn}.${mn}.${yp}`;
+    return diaNome;
+}
+
 function todayStr() {
     const d = new Date();
     const p = n => String(n).padStart(2, '0');
@@ -209,7 +250,10 @@ async function analyzeViaAI(pdf, text, pages, ocrUsed, isImage) {
     const tipo = TIPOS_VALIDOS.includes(r.tipo) ? r.tipo : 'Não identificado';
     const numKey = chaveNumeroPorTipo(tipo);
 
-    const pdComum = {};
+    // Do texto, sempre e antes da IA: a chave de acesso (a IA lê campos de boleto e não
+    // olha a DANFE anexa, onde a chave está) e a linha digitável (valor e vencimento são
+    // aritmética do código, não leitura). Nenhum sobrescreve o que a IA leu direto.
+    const pdComum = enriquecerComBoleto(enriquecerComChaveAcesso({}, text), text);
     if (r.numero)      pdComum[numKey] = r.numero;
     if (r.ordemCompra) pdComum['Ordem de Compra'] = r.ordemCompra;
     if (r.emitente)    pdComum['Emitente'] = r.emitente;
@@ -232,9 +276,17 @@ async function analyzeViaAI(pdf, text, pages, ocrUsed, isImage) {
     // Carnê confirmado pela IA (Nosso Número distintos) → uma row por parcela.
     if (r.parcelas.length > 1) {
         console.log(`[process-folder] IA: carnê em ${pdf.name} — ${r.parcelas.length} parcelas`);
+        // Os campos do boleto saem: extraímos UMA linha digitável, e num carnê ela é de
+        // uma parcela só — replicá-la em todas daria o mesmo valor/vencimento para N
+        // parcelas diferentes. Aqui quem sabe separar as parcelas é a IA.
+        const semBoleto = { ...pdComum };
+        delete semBoleto['Linha digitável'];
+        delete semBoleto['Valor do boleto'];
+        delete semBoleto['Banco do boleto'];
+        delete semBoleto['Data de vencimento'];
         return r.parcelas.map((b, i) => {
             const pd = {
-                ...pdComum,
+                ...semBoleto,
                 'Data de vencimento': b.vencimento,
                 'Valor total':        b.valor > 0 ? String(b.valor).replace('.', ',')
                                                   : (r.valorTotal > 0 ? String(r.valorTotal).replace('.', ',') : ''),
@@ -249,8 +301,10 @@ async function analyzeViaAI(pdf, text, pages, ocrUsed, isImage) {
     // Boleto/documento único. Captura o vencimento (campo próprio ou a única parcela)
     // para alimentar o alerta de data do comparar-notas.
     const pd = { ...pdComum, 'Valor total': r.valorTotal > 0 ? String(r.valorTotal).replace('.', ',') : '' };
+    // O vencimento do fator de vencimento tem precedência sobre o lido: é aritmética do
+    // código de barras, e o campo lido costuma vir vazio. Só cai para a IA se não houver.
     const vencUnico = r.dataVencimento || (r.parcelas.length === 1 ? r.parcelas[0].vencimento : '');
-    if (vencUnico) pd['Data de vencimento'] = vencUnico;
+    if (vencUnico && !pd['Data de vencimento']) pd['Data de vencimento'] = vencUnico;
     return [{ ...baseRow, dados_parser: JSON.stringify(pd) }];
 }
 
@@ -310,7 +364,9 @@ async function analyzePdf(pdf, opts = {}) {
         } catch (_) {}
     }
 
-    let parserData = c.parser ? c.parser(text) : null;
+    // Vale para todo tipo, não só NF/CTE: RECIBO e FATURA com DANFE anexa também têm chave.
+    let parserData = enriquecerComBoleto(enriquecerComChaveAcesso(c.parser ? c.parser(text) : null, text), text);
+    if (parserData && !Object.keys(parserData).length) parserData = null;
     let cnpjRaw = parserData ? (parserData['CNPJ emitente'] || parserData['CNPJ / CPF'] || '') : '';
     if (!cnpjRaw || cnpjRaw === '—') cnpjRaw = extrairCnpj(text);
 
@@ -474,11 +530,25 @@ async function processFolderAuto(folderPath, onProgress, isPaused, isStopped, op
         // caem no mês predominante do lote (dia 01); se o lote inteiro for sem data,
         // em hoje. Os sem data são registrados em log de aviso.
         const semData = [];
+        let consertados = 0;
         for (const pdf of pdfs) {
-            const d = filenameToDay(pdf.name) || folderToDay(pdf.folder);
-            if (d) { pdf.day = d; }
-            else   { semData.push(pdf); }
+            const dNome = filenameToDay(pdf.name);
+            const dPasta = folderToDay(pdf.folder);
+            // O nome continua tendo precedência (é a data do DOCUMENTO, e a pasta é
+            // a de arquivamento), mas passa pelo conserto quando a subpasta prova
+            // que houve erro de digitação — ver consertarDataPelaPasta.
+            const d = dNome ? consertarDataPelaPasta(dNome, dPasta) : dPasta;
+            if (d) {
+                if (dNome && d !== dNome) {
+                    consertados++;
+                    console.warn(`[process-folder] data corrigida pela subpasta: ` +
+                        `"${pdf.name}" ${dNome} → ${d}`);
+                }
+                pdf.day = d;
+            }
+            else { semData.push(pdf); }
         }
+        if (consertados) console.log(`[process-folder] ${consertados} data(s) corrigida(s) pela subpasta`);
 
         // Mês predominante entre os arquivos datados
         const monthCount = new Map();
