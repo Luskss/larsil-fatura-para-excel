@@ -55,3 +55,12 @@ _medir/.cache/
 # Saída da amostra (contém dados de fornecedor) — gerar com node _medir/amostra.js
 _medir/amostra-sem-documento.*
 _medir/conferir-maiores.*
+# Saídas das auditorias de 03/09/2026 (§14-§19) — mesmo motivo: nome de
+# fornecedor, valor e número de nota. Regeráveis pelos scripts do próprio _medir/.
+_medir/auditoria-*.txt
+_medir/grupo-b.txt
+_medir/dia-divergente.txt
+
+# Planilha de produção — dado real, nunca versionar
+Consulta Delsoft.xlsx
+.env.bak-*

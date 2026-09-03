@@ -15,10 +15,44 @@ const TOL_VALOR = 0.005;
 const MIN_DIGITOS_NUM = 3;
 
 // ── Documento enriquecido: nome do arquivo + o que o OCR extraiu do miolo ────
-function enriquecer(doc, o) {
+// `opt.ocrPrimeiro` inverte a precedência: o EXTRATOR passa a ser a fonte primária
+// de número, valor e emitente, e o nome do arquivo vira o fallback. A DATA fica de
+// fora da inversão — a data do nome/pasta é a de arquivamento e é a que posiciona o
+// documento no mês certo (§15/§16), enquanto `dtEmissao` do OCR é outra coisa.
+// O campo preterido não é jogado fora: continua como chave alternativa (numeroAlt)
+// ou somado aos tokens, para nenhum par existente se perder.
+function enriquecer(doc, o, opt) {
     if (!o) return doc;
+    const ocrPrimeiro = !!(opt && opt.ocrPrimeiro);
     const d = { ...doc };
     d.ocr = true;
+    if (ocrPrimeiro) {
+        const nomeNum = d.numeroDig;
+        if (o.numero && o.numero.length >= MIN_DIGITOS_NUM) {
+            d.numeroDig = o.numero;
+            d.numeroDeOcr = true;
+            // o número do nome vira a chave alternativa
+            if (nomeNum && nomeNum !== o.numero) d.numeroAlt = nomeNum;
+        }
+        // `valorNomeTambem`: mantém o valor do NOME como alternativa quando o
+        // extrator traz outro. O valor do nome é o valor PAGO (o arquivista copia
+        // do comprovante) e o do extrator é o da nota — numa parcela eles diferem
+        // legitimamente, e descartar um dos dois perde par bom.
+        if (o.valor != null) {
+            if (opt.valorNomeTambem && d.valor != null && d.valor !== o.valor)
+                d.valorAlt = d.valor;
+            d.valor = o.valor;
+            d.valorDeOcr = true;
+        }
+        if (d.data == null && o.dtEmissao != null) d.data = o.dtEmissao;
+        if (o.emitente && !/LARSIL/i.test(o.emitente)) {
+            d.tokens = new Set([...d.tokens, ...par.tokens(o.emitente)]);
+            d.tokensDeOcr = true;
+        }
+        if (o.cnpj) d.cnpj = o.cnpj;
+        if (o.emitente) d.emitenteOcr = o.emitente;
+        return d;
+    }
     // O nome tem prioridade (foi digitado por quem arquivou e é o que o motor
     // atual usa); o OCR só PREENCHE o que falta.
     if (!d.numeroDig && o.numero && o.numero.length >= MIN_DIGITOS_NUM) {
@@ -45,7 +79,9 @@ function enriquecer(doc, o) {
 
 // ── Os sinais ────────────────────────────────────────────────────────────────
 const valorBate = (l, d) =>
-    d.valor != null && l.valor > 0 && Math.abs(l.valor - d.valor) < TOL_VALOR;
+    l.valor > 0 && (
+        (d.valor != null && Math.abs(l.valor - d.valor) < TOL_VALOR) ||
+        (d.valorAlt != null && Math.abs(l.valor - d.valorAlt) < TOL_VALOR));
 
 // `minDigitos` parametrizável para medir o piso. O piso existe porque um número
 // de 1-2 dígitos casaria com muita coisa — mas isso vale para o número SOZINHO, e
@@ -135,6 +171,26 @@ function fazerCasa(opt) {
         if (opt.vetoCnpj && cnpjDiverge(l, d)) return null;
         if (numeroBate(l, d) && entidadeBate(l, d))
             return valorBate(l, d) ? 'numero+entidade+valor' : 'numero+entidade';
+        // (número E valor) como caminho próprio: dois sinais fortes concordando,
+        // sem exigir o fornecedor e SEM o veto de janela (que só existe para o
+        // caminho de valor sozinho).
+        //
+        // Em PRODUÇÃO desde §17, então é o padrão aqui também — senão toda medição
+        // nova compara contra um baseline que não existe mais. `semNumeroEValor`
+        // desliga, para quem quiser remedir a decisão de §14.3.
+        if (!opt.semNumeroEValor && numeroBate(l, d) && valorBate(l, d))
+            return 'numero+valor';
+        // (A) número TRUNCADO no nome: o do documento é prefixo do da planilha,
+        // faltando o último dígito. Só vale com ENTIDADE E VALOR confirmando —
+        // sozinho um prefixo casaria com dezenas de notas.
+        if (opt.prefixoNum && entidadeBate(l, d) && valorBate(l, d)) {
+            const longo = l.nfDig;
+            for (const curto of [d.numeroDig, d.numeroAlt]) {
+                if (!curto || curto.length < 4) continue;
+                if (longo.length - curto.length === 1 && longo.startsWith(curto))
+                    return 'numero-truncado+entidade+valor';
+            }
+        }
         if (opt.viaCnpj && cnpjConhecido(l, d) && !cnpjDiverge(l, d)) {
             if (numeroBate(l, d)) return 'numero+cnpj';
             if (valorBate(l, d) && dentroDaJanela(l, d, janela)) return 'valor+cnpj';
@@ -232,7 +288,7 @@ function rodar(c, idxOcr, opt) {
             const alvo = par.deslocarPeriodo(periodo, off);
             documentosPorMes[alvo] = (c.pasta.arquivosPorMes[alvo] || []).map(a => {
                 const d = par.documentoDoArquivo(a.nome, a.rel);
-                return usarOcr ? enriquecer(d, idxOcr[a.nome]) : d;
+                return usarOcr ? enriquecer(d, idxOcr[a.nome], opt) : d;
             });
         }
         const r = conferirPeriodo(lancamentos, documentosPorMes, periodo, casa, vizinhanca);

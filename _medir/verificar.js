@@ -42,6 +42,8 @@ const par = require('../routes/_pareamento');
     }
     console.log(`\nTOTAL  lançamentos ${tot.lanc}  conferidos ${tot.conf}` +
         ` (${(tot.conf / tot.lanc * 100).toFixed(1)}%)  semDoc ${tot.sem}  fracos ${tot.fracos}`);
-    console.log('\nEsperado da medição: conferidos 1982, semDoc 1121, fracos 177');
+    // Atualizado em 03/09/2026 com a janela [-1,+1,+2,+3] (§14). O valor anterior
+    // (1982/1121/177) era de §12, antes do piso de 2 dígitos e da janela nova.
+    console.log('\nEsperado da medição: conferidos 2068, semDoc 989, fracos 176');
     process.exit(0);
 })().catch(e => { console.error('ERRO', e.stack); process.exit(1); });

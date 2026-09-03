@@ -36,7 +36,7 @@ function internasDaRota() {
     const f = new Function('require', 'module', 'exports', '__dirname', `
         ${corpo}
         return { contarNaPasta, contarNaPlanilha, contarNoCsv, camposOcr,
-                 categoriaNaoFiscal, ehDoc, mesDoNome, mesDaPasta,
+                 categoriaNaoFiscal, ehDoc, mesDoNome, mesDaPasta, mesDoDocumento,
                  ORIG_ESCOPO, FILIAL_ESCOPO, CONTAS_SEM_DOCUMENTO };
     `);
     return f(requireRotas, { exports: {} }, {}, path.join(RAIZ, 'routes'));

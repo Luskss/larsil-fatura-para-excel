@@ -1008,3 +1008,559 @@ era um par que qualquer pessoa casaria de olho.
 
 Vale para a próxima rodada: **listar exemplos concretos acha defeito que média
 esconde.** A amostra pagou o custo dela antes mesmo de alguém conferir.
+
+## 14. Auditoria manual da pasta de março (03/09/2026)
+
+**Gatilho:** o usuário perguntou se os 248 "sem documento" de 03/2026 no painel são
+reais ou erro de comparação. Diferente de todas as medições anteriores, esta foi
+feita indo à pasta: varredura de `\larsil-dell\LA26.EXT.BANC` inteiro — 6.209 PDFs,
+4.238 fiscais em 21 meses (`_medir/auditar-marco.js`).
+
+Para cada um dos 248, busca em **todos os meses** com regra deliberadamente mais
+frouxa que a do motor (bastam 2 sinais). Se essa busca não acha nada, não há papel.
+
+### 14.1. Os 248 são majoritariamente reais
+
+| | |
+|---|---|
+| sem documento (painel) | 248 |
+| **sem candidato em 4.238 PDFs** | **229 (92,3%)** |
+| com candidato de 2+ sinais | 19 |
+| ...destes, erro real (valor **e** número exatos) | **10** |
+| ...coincidência de valor, fornecedor diferente | 9 |
+
+Os 9 restantes o motor acertou em recusar (RAFAEL HAAS × MARANHAO, LUIZ EVALDO ×
+LUIZ FELIPE — valor redondo colidindo, o erro que §10.4 mediu).
+
+O número correto de março é **~238, não 248**. Os 229 sem candidato são consistentes
+com PROGRESSO §8: a pasta tem 924 arquivos `NNN.DOC` para 628 lançamentos fiscais, e
+boa parte do que a planilha lança nunca vira papel arquivado.
+
+### 14.2. Causa (a) — a janela era curta. **Aplicado**
+
+4 documentos da MAQNELSON de março estavam arquivados em **junho** (+3), e 3 casos
+em agosto (+5). A janela `[-1,+1,+2]` de §10.9 foi escolhida sobre uma distribuição
+que só olhou até +2 — esses casos estavam fora da amostra.
+
+Remedido em jan–jun/2026, com o critério de sempre:
+
+| janela | pares | cobertura | 2º campo | veredito |
+|---|---|---|---|---|
+| `[-1,+1,+2]` (era) | 2.014 | 65,9% | 91,3% | — |
+| **`[-1,+1..+3]`** | **2.026** | **66,3%** | **91,3%** | ✅ aplicada |
+| `[-1,+1..+4]` | 2.030 | 66,4% | 91,1% | precisão cai |
+| `[-1,+1..+5]` | 2.034 | 66,5% | 91,0% | precisão cai |
+| `[-2,-1,+1..+3]` | 2.029 | 66,4% | 91,2% | precisão cai |
+
+**+3 rende 12 pares com a confirmação por 2º campo intacta.** De +4 em diante cada
+offset rende ~4 pares e custa 0,18pp — cobertura comprada com par errado, que o
+critério de §10 rejeita. Ampliar para trás (−2) também custa: o papel é arquivado
+**depois** do lançamento, não antes (a mesma assimetria de §10.9).
+
+Confirmado na rota de produção (`_medir/verificar.js`): 2.026 conferidos, 1.031 sem
+documento.
+
+### 14.3. Causa (b) — relatório: um sinal errado anula dois certos
+
+O outro grupo tem **valor exato e número exato**, mas o nome do arquivo traz outro
+fornecedor:
+
+    KUHNEN E CHAVES  NF 12040  R$ 1.721,40  ×  017.DOC- 1721,40 ... TORNEARIA . NF 12040
+    V M CARNEIRO     NF 1639   R$ 2.331,20  ×  033.DOC- 2331,20 ... VERIDYANA. NFS 1639
+    C & F COMERCIO   NF 11027  R$   234,90  ×  003.DOC- 234,90 ... CEF . NF 11027
+
+**Tamanho:** 27 casos em jan–jun/2026 (1 / 3 / 7 / 6 / 6 / 4). Nenhum deles disputa
+documento com outro lançamento — os 27 documentos estão livres.
+
+**Por que falha.** `casa()` tem dois caminhos: (número **E** entidade), ou valor
+sozinho com veto de janela de 15 dias. Um par com número e valor exatos não se
+encaixa no primeiro (a entidade não bate) e cai no segundo, onde o veto de data o
+mata — o documento costuma estar na pasta do mês seguinte, >15 dias depois. Ou seja:
+**o sinal que falta invalida os dois que sobram.** É o mesmo modo de falha de §13
+(piso de dígitos) por outro caminho.
+
+#### A coluna FANTASIA não resolve — medido
+
+A planilha tem `FANTASIA` e ela **já está em uso**: `lancamentoDaPlanilha` funde os
+tokens dela com os de `ENTIDADE` desde §10. A cobertura é ótima — 3.011 de 3.057
+lançamentos (98,5%), 2.687 deles com fantasia diferente da razão social.
+
+Mas nos 27 casos do grupo (b):
+
+| | |
+|---|---|
+| FANTASIA vazia | 0 |
+| FANTASIA idêntica à ENTIDADE | 2 |
+| **FANTASIA diferente, mas não casa com o arquivo** | **25** |
+| FANTASIA resolveria (estaria em uso e falhou) | **0** |
+
+A fantasia é o nome comercial do **fornecedor**; o nome no arquivo é outra coisa:
+
+    KUHNEN E CHAVES  fant "KUHNEN E CHAVES LTDA"   arq "TORNEARIA ZAFENATE"
+    V M CARNEIRO     fant "FR GUINCHO"             arq "VERIDYANA MARGRAF"
+    CELIA CORREIA    fant "HOTEL MENEZES"          arq "GOMES E SAVACINSK"
+    INOVA AGRICOLA   fant "INOVA AGRICOLA PECAS"   arq "THYAGO FAUSTINO"
+    WERNER & CIA     fant "COMETA PECAS AGRICOLAS" arq "WENER"
+
+São nome do sócio, nome do estabelecimento, ou o nome de quem emitiu o boleto — o
+arquivista escreve quem ele reconhece no papel, que não é nenhuma das duas colunas.
+**Nenhuma coluna da planilha cobre isso**, porque a informação não está na planilha.
+
+#### A correção que funciona: (número E valor) como terceiro caminho
+
+Se a entidade não pode ser suprida, a saída é não depender dela quando os outros
+dois sinais concordam:
+
+| variante | pares | cobertura | sem doc. | 2º campo | contraditos |
+|---|---|---|---|---|---|
+| produção — (nº E ent) OU valor | 2.026 | 66,3% | 1.031 | 91,3% | 130 |
+| **+ (nº E valor) como 3º caminho** | **2.053** | **67,2%** | **1.004** | **91,5%** | 131 |
+
+Sobe cobertura **e** precisão junto — o mesmo padrão sem trade-off de §12 e §13.
+
+Par a par: **27 ganhos, 0 perdas, 1 troca** — e a troca é uma melhora (GM MANUTENÇÃO
+NF 28 sai de um recibo do SIDNEY para `031.DOC- ... MUNDI SECURITIZADORA. NFS 28`).
+Estável em 4 sementes de embaralhamento (2.053 em todas). A nova via responde por 84
+pares, absorvendo 57 que antes vinham do caminho fraco (`valor` cai de 232 para 175)
+— ou seja, além dos 27 novos, ela **troca 57 pares frágeis por pares de dois sinais**.
+
+O veto de janela não se aplica a essa via, e é o ponto: ele existe para o par
+sustentado só por valor. Com o número junto, a data deixa de ser a única defesa.
+
+**Status: medido e aprovado, não aplicado** — aguardando decisão, já que muda a
+regra de casamento e não só uma constante.
+
+## 15. Auditoria de fevereiro (03/09/2026) — e um defeito de indexação
+
+Mesmo método de §14, agora sobre 02/2026 (`_medir/auditar-marco.js 02.2026`), já com
+a janela `[-1,+1..+3]` aplicada.
+
+### 15.1. Resultado
+
+| | |
+|---|---|
+| lançamentos que deveriam ter documento | 479 |
+| com documento nesta pasta | 198 |
+| com documento em pasta vizinha | 118 |
+| **sem documento** | **163** |
+| **sem candidato em 4.238 PDFs** | **154 (94,5%)** |
+| com candidato de 2+ sinais | 9 |
+
+A proporção repete março (92,3%): **o painel está certo na esmagadora maioria**.
+Dos 9 candidatos, 4 são do grupo (b) já descrito (CELIA/GOMES E SAVACINSK NF 157,
+INOVA/THYAGO FAUSTINO NF 14555 e 14474), 4 são coincidência de valor que o motor
+acertou em recusar (J A FERREIRA × CEST, VINICIUS RC 902671 × RC 901745 — número
+diferente, MACPONTA NF 2391 × um *Pedido/Proposta*, que não é a nota), e 1 revelou
+um defeito novo.
+
+### 15.2. O defeito: dia/mês trocado no nome joga o documento para outro mês
+
+    .../2026.02.EXTRATOS CONTABILIDADE/SANTANDER/2026.02.09/
+        045.DOC- 1824,00-2026.09.02.ARPSEG . RC 902308+ AUT.pdf
+
+O arquivo está **fisicamente na pasta de fevereiro, dia 09**. O nome traz
+"2026.09.02" — dia e mês trocados na digitação. Como `contarNaPasta` decidia o mês
+por `mesDoNome(e.name) || mesDaPasta(rel)`, **o nome ganhava** e o documento era
+indexado em SETEMBRO: 7 meses de distância, fora de qualquer janela. O lançamento
+de fevereiro (ARPSEG, R$ 1.824,00, RC 902308 — valor, número **e** fornecedor
+batendo) aparecia como "sem documento" com o papel arquivado no lugar certo.
+
+Tamanho do problema em todo o arquivo permanente:
+
+| | |
+|---|---|
+| arquivos fiscais indexados | 4.238 |
+| **mês do nome ≠ mês da pasta** | **144** |
+| ...com dia/mês visivelmente trocado | 10 |
+| ...a mais de 3 meses de distância (fora de qualquer janela) | **37** |
+
+A cauda é longa: 34 arquivos a −12 meses (ano digitado errado), 5 a +7, 2 a +10.
+
+### 15.3. Correção aplicada — a pasta tem precedência
+
+A subpasta é criada pelo **processo de arquivamento**; o nome é digitado à mão pelo
+arquivista — a mesma fonte de erro que §12 mediu no emitente e §13 no número. Quando
+discordam, a pasta é a evidência mais forte.
+
+`mesDoDocumento(nome, rel)` = `mesDaPasta(rel) || mesDoNome(nome)`, usada nos **dois**
+pontos de decisão de `comparar-notas.js` (varredura do disco e leitura do relatório).
+
+| variante | pares | cobertura | 2º campo |
+|---|---|---|---|
+| nome tem precedência (era) | 2.026 | 66,3% | 91,3% |
+| **pasta tem precedência** | **2.031** | **66,4%** | **91,3%** |
+| nome + (nº E valor) de §14.3 | 2.053 | 67,2% | 91,5% |
+| pasta + (nº E valor) | 2.058 | 67,3% | 91,5% |
+
++5 pares com a confirmação por 2º campo **inalterada**. Confirmado na rota de
+produção (`_medir/verificar.js`): 2.031 conferidos, 1.026 sem documento. Fevereiro:
+163 → 162; junho: 176 → 172.
+
+Os dois ganhos são independentes e somam: com a via (nº E valor) de §14.3 ainda
+pendente de decisão, o total iria a 2.058 (67,3%).
+
+> **Nota para quem for reprocessar:** `process-folder.js` continua decidindo o mês
+> pelo nome na hora de GRAVAR. Esta correção age na leitura, então vale para os
+> relatórios já gravados; alinhar o gravador é trabalho separado e ainda em aberto.
+
+## 16. A correção da data na EXTRAÇÃO (03/09/2026)
+
+§15 corrigiu a **leitura** (`comparar-notas.js`), mas o gravador continuava
+decidindo a data pelo nome — os relatórios novos nasceriam com o mesmo defeito.
+Esta seção fecha a outra ponta.
+
+### 16.1. Por que "a pasta sempre ganha" seria errado aqui
+
+A leitura só precisa do MÊS; o gravador precisa do DIA, e aí a resposta muda.
+Medido em `_medir/dia-nome-vs-pasta.js` sobre os 3.997 PDFs que têm data no nome
+**e** na subpasta:
+
+| | |
+|---|---|
+| data idêntica nos dois | 3.209 |
+| **dia difere, mês igual** | **644** |
+| mês difere | 144 |
+
+Os 644 são o caso comum: o documento é de dia 06 e foi arquivado dia 05. **O nome
+tem o dia certo** — é a data do documento, que é o que a conferência quer; a pasta
+é a data de arquivamento. Trocar tudo pela pasta perderia esses 644 dias.
+
+### 16.2. As 144 divergências de mês, por causa
+
+`_medir/classificar-divergencia.js`:
+
+| causa | n | veredito |
+|---|---|---|
+| dia/mês trocado (`2026.09.02` na pasta `02.09`) | 10 | erro de digitação → corrigir |
+| **ano errado**, mês igual | 34 | erro de digitação → corrigir |
+| documento de mês anterior, ≤3 meses | 63 | **legítimo** → não mexer |
+| resto (vencimento futuro, conta antiga) | 37 | ambíguo → não mexer |
+
+**63 dos 144 são conta antiga paga agora** — CEMIG de dezembro arquivada em
+janeiro, apólice HDI de outubro arquivada em janeiro. Nesses o nome está certo e a
+pasta é só quando o papel chegou. Uma regra cega estragaria os 63 para consertar 44.
+
+### 16.3. A correção: cirúrgica, só sobre assinatura de erro
+
+`consertarDataPelaPasta(diaNome, diaPasta)` em `process-folder.js`. O nome mantém a
+precedência; a subpasta só intervém quando **prova** que houve engano de digitação:
+
+- **(a)** desinverter dia/mês no nome dá exatamente a data da pasta → usa a pasta;
+- **(b)** o mês do nome bate com o da pasta e só o **ano** difere → corrige só o ano,
+  **preservando o dia do nome**.
+
+A regra (b) não exige o dia idêntico, e isso importa: a ESSOR `2505` é uma parcela
+mensal arquivada com "2025." de janeiro a maio de 2026 e com "2026." em junho — em
+março o nome diz dia 06 e a pasta é dia 05. Exigir dia igual deixaria esse caso
+escapar (foi o que a primeira versão fez: 43 de 44).
+
+Toda correção sai em log (`data corrigida pela subpasta: "..." 02.09.2026 →
+09.02.2026`), para o erro de digitação ficar visível a quem arquiva.
+
+### 16.4. Verificação
+
+`_medir/testar-conserto.js` roda a função extraída do `process-folder.js` real
+(não uma cópia) contra os 4.238 PDFs:
+
+| | |
+|---|---|
+| **corrigidos** | **44** |
+| intocados, mês difere (legítimos) | 100 |
+| intocados, só o dia difere | 644 |
+
+As duas garantias valem: corrige as 44 com assinatura de erro, e não toca em
+nenhum dos 744 casos em que o nome está certo.
+
+> **Efeito prático:** vale para o que for processado daqui em diante. Os relatórios
+> já gravados continuam com a data antiga — a correção de §15, que age na leitura,
+> é que cobre esses. As duas juntas fecham as duas pontas.
+
+### 16.5. As duas garantias, verificadas
+
+Pedido explícito do usuário: corrigir **sem renomear arquivo** e **sem prejudicar a
+acurácia geral**. As duas foram verificadas, não presumidas.
+
+**(1) Nenhum arquivo é tocado.** `process-folder.js` não tem nenhuma chamada de
+escrita no sistema de arquivos — nada de `rename`, `unlink`, `writeFile` ou
+`copyFile`. O conserto age só sobre a variável `pdf.day` em memória, que decide sob
+qual PERIODO a linha é gravada no banco. O PDF no arquivo permanente continua com o
+nome que o arquivista deu, inclusive a data errada; quem foi ao disco procurar o
+papel encontra exatamente o que sempre esteve lá.
+
+**(2) A acurácia não muda.** `_medir/acuracia-conserto.js` reindexa os 4.238 PDFs
+com a data já consertada e roda o pareamento completo:
+
+| | pares | cobertura | sem doc. | 2º campo | contraditos |
+|---|---|---|---|---|---|
+| hoje (leitura §15 aplicada) | 2.031 | 66,4% | 1.026 | 91,3% | 130 |
+| com o conserto do gravador | 2.031 | 66,4% | 1.026 | 91,3% | 130 |
+
+**Idêntico, período a período.** E é o resultado correto: os 100 documentos que
+mudam de mês são exatamente aqueles que §15 já estava reposicionando na leitura. As
+duas correções concordam — a de §15 conserta o que está gravado, a de §16 evita que
+o defeito volte a nascer. Nenhuma das duas inventa casamento novo.
+
+O ganho de §16 não aparece nesta tabela por construção: ele é sobre os relatórios
+**futuros**, que sem ele nasceriam com o PERIODO errado e dependeriam da correção de
+leitura para sempre.
+
+## 17. A via (número E valor) — aplicada (03/09/2026)
+
+A regra medida em §14.3 entrou em produção, em `routes/_pareamento.js` → `casa()`.
+
+```js
+if (numeroBate(l, d) && entidadeBate(l, d))
+    return valorBate(l, d) ? 'numero+entidade+valor' : 'numero+entidade';
+if (numeroBate(l, d) && valorBate(l, d))       // <- a via nova
+    return 'numero+valor';
+if (valorBate(l, d) && dentroDaJanela(l, d))
+    return entidadeBate(l, d) ? 'valor+entidade' : 'valor';
+```
+
+O veto de janela não se aplica a ela de propósito: `JANELA_DIAS` existe para o par
+sustentado **só** por valor. Com o número junto, a data deixa de ser a única defesa.
+
+### Confirmado na rota de produção
+
+`_medir/verificar.js` (caminho real, não a reimplementação do harness):
+
+| período | conferidos | sem documento |
+|---|---|---|
+| 01/2026 | 329 | 147 |
+| 02/2026 | 320 | 159 |
+| 03/2026 | 391 | 237 |
+| 04/2026 | 316 | 166 |
+| 05/2026 | 374 | 122 |
+| 06/2026 | 328 | 168 |
+| **total** | **2.058 (67,3%)** | **999** |
+
+Estável em 4 sementes de embaralhamento (2.058 em todas), 27 ganhos e **0 perdas**.
+
+### O efeito acumulado das quatro correções desta rodada
+
+| estado | pares | cobertura | 2º campo |
+|---|---|---|---|
+| antes de §14 (janela `[-1,+1,+2]`) | 2.014 | 65,9% | 91,3% |
+| §14 — janela `[-1,+1..+3]` | 2.026 | 66,3% | 91,3% |
+| §15 — pasta decide o mês na leitura | 2.031 | 66,4% | 91,3% |
+| §16 — conserto da data na extração | 2.031 | 66,4% | 91,3% |
+| **§17 — via (número E valor)** | **2.058** | **67,3%** | **91,5%** |
+
+**+44 pares e +0,2pp de precisão**, sem uma única perda. Todas as quatro passaram no
+mesmo critério: cobertura sobe e a confirmação por 2º campo não cai.
+
+### Reauditoria de março
+
+Rodando `_medir/auditar-marco.js 03.2026` de novo, agora com tudo aplicado:
+
+| | antes | depois |
+|---|---|---|
+| sem documento | 248 | **237** |
+| ...com candidato na pasta (suspeitos) | 19 | **8** |
+
+Os 8 restantes são coincidência de valor com fornecedor diferente — o motor está
+certo em recusá-los. **Março não tem mais nenhum falso "sem documento" conhecido.**
+
+## 18. O que ainda dá para ganhar — medido (03/09/2026)
+
+Pergunta do usuário depois de §17: existe mais alguma coisa que aumente a acurácia?
+Medido, não estimado. O diagnóstico pós-§17 (`_medir/diagnostico.js`) divide os 999
+"sem documento" em:
+
+| causa | n |
+|---|---|
+| a regra recusou, tendo candidato óbvio | 22 |
+| perdeu a disputa pelo documento | 1 |
+| **sem candidato óbvio** | **976** |
+
+### 18.1. As 22 recusas rendem quase nada
+
+Lendo caso a caso aparecem dois padrões novos, ambos medidos
+(`_medir/proximos-ganhos.js`):
+
+**(A) número truncado no nome** — o arquivista corta o último dígito:
+
+    BOBIG    planilha NF 21650  × arquivo "NF 2165"
+    ELEKTRO  planilha NF 445181 × arquivo "FAT 44518"
+    LOCALIZA planilha NF 104788 × arquivo "FAT 10478"
+
+**(B) NF de 1 dígito**, ainda barrada por `MIN_DIGITOS_NUM = 2` (DARCI, "NFS 2").
+
+| variante | pares | cobertura | 2º campo | Δ |
+|---|---|---|---|---|
+| produção (§17) | 2.058 | 67,3% | 91,5% | — |
+| (A) prefixo truncado | 2.059 | 67,4% | 91,5% | +1 |
+| (B) piso de 1 dígito | 2.060 | 67,4% | 91,5% | +2 |
+| (A)+(B) | 2.061 | 67,4% | 91,5% | +3 |
+
+**+3 pares no total.** Passam no critério (a precisão não cai), mas o ganho não paga
+a superfície de colisão que um prefixo de número abre. Ficam registradas como
+medidas e **não aplicadas** — o oposto de §13, onde o mesmo tipo de mudança rendia
++32.
+
+**(C) abrir a janela do caminho fraco** foi remedida e continua reprovada, agora com
+margem maior: 30 dias traz +69 pares mas derruba a precisão 2,36pp; 60 dias, +135
+pares por −4,95pp. É cobertura comprada com par errado.
+
+### 18.2. O teto é estrutural, não de regra
+
+`_medir/teto.js` pergunta, para cada um dos 999, se existe **algum** PDF no arquivo
+inteiro (4.238 documentos, todos os meses) com sinal concordante:
+
+| | n | % |
+|---|---|---|
+| com 2+ sinais em algum PDF | 32 | 3,2% |
+| ...documento livre | 30 | |
+| ...documento já usado por outro lançamento | 2 | |
+| com 1 sinal só (fraco demais para casar) | 833 | 83,4% |
+| **nenhum sinal em 4.238 PDFs** | **134** | 13,4% |
+
+**Só 30 lançamentos têm documento livre com dois sinais concordando.** Esse é o teto
+real do que qualquer regra nova poderia recuperar: 30 pares, 1,0 pp de cobertura.
+
+Os 833 de um sinal só são o caso que §10.4 já mediu: casar por valor sozinho erra em
+25% das vezes. Recuperá-los exigiria aceitar o caminho que a medição reprovou.
+
+### 18.3. Onde está o ganho de verdade
+
+Não é no motor. As três frentes, em ordem de tamanho:
+
+1. **O papel não está no arquivo** (§8): a pasta tem 924 `NNN.DOC` para 628
+   lançamentos fiscais em março. Nenhuma regra inventa documento que não existe.
+   Os 134 sem sinal nenhum somam R$ 150.758 — e 84 deles são de menos de R$ 100,
+   coerente com "despesa miúda não é arquivada".
+2. **A qualidade do nome do arquivo** — número truncado, fornecedor trocado
+   ("TORNEARIA" por KUHNEN), data com dia/mês invertido (§16). Todos os defeitos
+   desta rodada nasceram de digitação manual. Um campo obrigatório de NF no momento
+   do arquivamento vale mais que qualquer heurística.
+3. **Reprocessar os períodos** para a chave de acesso e a linha digitável (§10, §11)
+   passarem a existir nos relatórios. Continua pendente desde 14/08 — é a única
+   frente que traz evidência *nova* em vez de espremer a existente.
+
+> **Conclusão honesta:** o motor está perto do teto do que os dados atuais permitem.
+> Foram +44 pares nesta rodada (2.014 → 2.058) sem perder precisão; o que resta
+> mensurável são 30 pares. O próximo salto real depende de dado novo — reprocessamento
+> ou disciplina de arquivamento —, não de regra nova.
+
+## 19. O extrator como fonte primária (03/09/2026)
+
+**Correção de premissa, apontada pelo usuário:** todas as informações do documento
+(exceto a data) deviam sair primariamente do EXTRATOR, e só depois do nome do
+arquivo. O código fazia o contrário — `enriquecerComOcr` deixava o nome mandar e o
+extrator só preenchia buraco.
+
+Isso reenquadra §18: eu havia concluído "o teto é estrutural", mas medindo a fonte
+errada. O piso de 1 dígito (§18.1, a variante B) também foi aplicado aqui.
+
+### 19.1. Com que frequência as duas fontes discordam
+
+Nos 4.228 documentos dos 6 períodos:
+
+| | |
+|---|---|
+| número no nome | 3.681 |
+| número no extrator | 2.414 |
+| nos dois | 2.149 |
+| ...idênticos | 1.626 |
+| **...diferentes** | **523** |
+| só no extrator | 265 |
+
+523 documentos com duas respostas para "qual é o número da nota".
+
+### 19.2. Quem acerta quando discordam
+
+Contando, nos pares já casados, qual dos dois números bate com a planilha:
+
+| | |
+|---|---|
+| o número do NOME acerta | 231 |
+| o número do EXTRATOR acerta | 44 |
+
+À primeira vista o nome ganha — mas essa contagem é **enviesada**: ela só enxerga os
+pares que o motor atual conseguiu casar, e o motor atual casa pelo nome. É a
+pergunta errada. A pergunta certa é o que muda quando se inverte.
+
+### 19.3. O que a inversão faz, par a par
+
+| | nome primeiro | extrator primeiro |
+|---|---|---|
+| pares | 2.060 | 2.059 |
+| 2º campo | 91,50% | **91,84%** |
+| contraditos por CNPJ | 131 | **125** |
+| pares fracos | 172 | **164** |
+
+−1 par líquido, mas **10 ganhos, 11 perdas e 50 trocas**. As trocas são o que
+importa, e elas são majoritariamente melhora — medindo cada uma pela força do par
+com evidência bruta (`_medir/qualidade-trocas.js`):
+
+| | |
+|---|---|
+| documento novo é MAIS forte | **32** |
+| documento novo é MENOS forte | 4 |
+| empate | 14 |
+
+O caso limpo é o **BIOS NETWORKS**: uma série de faturas de valor idêntico
+(R$ 75, R$ 95, R$ 125) em que só o número distingue uma da outra.
+
+    planilha NF 245924  nome "FT 245923"  extrator 245924   <- nome erra por 1
+    planilha NF 252287  nome "FT 245650"  extrator 252287   <- nome traz outra nota
+    planilha NF 252302  nome "FT 245719"  extrator 252302
+
+O motor casava a fatura errada, com fornecedor e valor certos — erro invisível para
+qualquer métrica agregada. Com o extrator na frente, cada uma cai na sua.
+
+### 19.4. As perdas, e como foram recuperadas
+
+Das 11 perdas, 6 eram pares fracos (1 sinal) e 5 eram fortes. As fortes tinham causa
+comum: **DARCI FERREIRA "NFS 2"**, **NASCIMENTO** — o extrator sobrescrevia com um
+número pior e o do nome, que acertava, era descartado.
+
+A correção não foi escolher uma fonte, foi **parar de descartar a outra**:
+
+- o número do nome vira `numeroAlt`, que `numeroBate` já testava;
+- o valor do nome vira `valorAlt`, e `valorBate` passa a aceitar os dois. As duas
+  leituras divergem **legitimamente** numa parcela: o nome traz o valor PAGO
+  (copiado do comprovante) e o extrator o valor da NOTA.
+
+| variante | pares | cobertura | 2º campo |
+|---|---|---|---|
+| nome primeiro (era) | 2.060 | 67,4% | 91,50% |
+| extrator primeiro, descartando o nome | 2.059 | 67,4% | 91,84% |
+| **extrator primeiro + nome como alternativa** | **2.066** | **67,6%** | 91,48% |
+
+### 19.5. Resultado na rota de produção
+
+`_medir/verificar.js`: **2.068 conferidos (67,6%), 989 sem documento.**
+
+| período | conferidos | sem documento |
+|---|---|---|
+| 01/2026 | 330 | 146 |
+| 02/2026 | 322 | 157 |
+| 03/2026 | 391 | 237 |
+| 04/2026 | 321 | 161 |
+| 05/2026 | 376 | 120 |
+| 06/2026 | 328 | 168 |
+
+Estável em 4 sementes de embaralhamento. **A data ficou de fora da inversão** de
+propósito: ela não descreve o documento, posiciona-o no mês certo para a busca
+(§15/§16) — `dtEmissao` do OCR é a data de emissão, que é outra coisa.
+
+### 19.6. Acumulado da rodada
+
+| estado | pares | cobertura | 2º campo |
+|---|---|---|---|
+| início (janela `[-1,+1,+2]`) | 2.014 | 65,9% | 91,3% |
+| §14 janela `[-1,+1..+3]` | 2.026 | 66,3% | 91,3% |
+| §15 pasta decide o mês | 2.031 | 66,4% | 91,3% |
+| §17 via (número E valor) | 2.058 | 67,3% | 91,5% |
+| §18 piso de 1 dígito | 2.060 | 67,4% | 91,5% |
+| **§19 extrator como fonte primária** | **2.068** | **67,6%** | 91,5% |
+
+**+54 pares na rodada**, e — o que não aparece na tabela — 32 pares que já existiam
+passaram a apontar para o documento certo.
+
+> **Correção ao §18:** a conclusão "o motor está perto do teto, restam 30 pares"
+> estava certa para a fonte que ele lia. Com o extrator na frente, o teto medido
+> subiu para 49 lançamentos com documento livre e 2+ sinais. A lição de §13 se
+> repete: a métrica agregada não viu o erro do BIOS NETWORKS porque ele não muda
+> contagem nenhuma — troca o documento, não o número de pares.
