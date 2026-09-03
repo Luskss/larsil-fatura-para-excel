@@ -70,9 +70,14 @@ const TOL_VALOR = 0.005;
 // Medido em 02/09/2026 baixando o piso para 2: +32 pares (1.982 → 2.014) e
 // precisão SUBINDO junto (90,9% → 91,3%). Os 34 pares ganhos são todos de força
 // 3 ou 4; os 2 perdidos eram colisão por valor (MONT KOYA casada com documento da
-// BRV). Piso 1 rende só +2 sobre o piso 2 e é mais arriscado — parou em 2.
-// Ver TIPOS-IGNORADOS-COMPARADOR.md §13.
-const MIN_DIGITOS_NUM = 2;
+// BRV). Ver TIPOS-IGNORADOS-COMPARADOR.md §13.
+//
+// Baixado para 1 em 03/09/2026 (§19): +2 pares e a precisão se mantém em 91,5%.
+// O ganho é pequeno porque NF de 1 dígito é rara, mas o piso não tem defesa
+// própria — quem protege da colisão é `casa()`, que nunca usa o número sozinho
+// (exige entidade OU valor junto). DARCI FERREIRA "NFS 2" era o caso típico:
+// número idêntico no papel e na planilha, descartado por ter um dígito só.
+const MIN_DIGITOS_NUM = 1;
 
 // Mínimo de letras para um token de entidade valer. Com 4, "ROSA" vira prefixo de
 // "ROSANE" e casa todo sobrenome da base (medido em PROGRESSO §4).
@@ -194,18 +199,47 @@ const ehEmitenteProprio = t => /LARSIL/i.test(String(t || ''));
 function enriquecerComOcr(doc, ocr) {
     if (!ocr) return doc;
     const d = { ...doc };
-    if (!d.numeroDig && ocr.numero) {
-        const n = soDigitos(ocr.numero);
-        if (n.length >= MIN_DIGITOS_NUM) { d.numeroDig = n; d.numero = n; }
-    }
-    // Segundo número: o nome às vezes traz o "nosso número" do boleto em vez da
-    // NF, e aí o número do OCR é o que casa com a planilha.
+
+    // O EXTRATOR é a fonte primária do número (03/09/2026, §19). Antes o nome tinha
+    // precedência e o número do OCR só entrava se o nome não trouxesse nenhum.
+    //
+    // O nome do arquivo é digitado à mão a partir do papel, e erra: nos 523
+    // documentos em que as duas fontes discordam, a inversão troca 50 pares de
+    // documento e 32 deles ficam MAIS fortes contra 4 mais fracos. O caso limpo é o
+    // BIOS NETWORKS, uma série de faturas de valor igual (R$ 75, R$ 95, R$ 125) em
+    // que só o número distingue uma da outra: o nome traz `FT 245923` para a nota
+    // 245924, `FT 245650` para a 252287 — e o motor casava a fatura errada, com
+    // valor e fornecedor certos. Com o extrator na frente, cada uma cai na sua.
+    //
+    // O número do nome NÃO é descartado: vira `numeroAlt`, que `numeroBate` testa
+    // igual. Assim nenhum par sustentado pelo nome se perde por conflito.
+    const nNome = d.numeroDig;
     if (ocr.numero) {
         const n = soDigitos(ocr.numero);
-        if (n.length >= MIN_DIGITOS_NUM && n !== d.numeroDig) d.numeroAlt = n;
+        if (n.length >= MIN_DIGITOS_NUM) {
+            d.numeroDig = n;
+            d.numero = n;
+            if (nNome && nNome !== n) d.numeroAlt = nNome;
+        } else if (nNome) {
+            d.numeroAlt = d.numeroAlt || null;
+        }
     }
-    if (d.valor == null && ocr.valor != null && ocr.valor > 0) d.valor = ocr.valor;
+
+    // VALOR e EMITENTE: o extrator também vem antes, pelo mesmo motivo — são lidos
+    // do documento, não digitados. O valor do nome fica como `valorAlt` porque as
+    // duas leituras divergem LEGITIMAMENTE numa parcela: o nome traz o valor PAGO
+    // (copiado do comprovante) e o extrator o valor da NOTA. Descartar um dos dois
+    // custa 7 pares; manter os dois preserva a cobertura.
+    if (ocr.valor != null && ocr.valor > 0) {
+        if (d.valor != null && d.valor !== ocr.valor) d.valorAlt = d.valor;
+        d.valor = ocr.valor;
+    }
+
+    // A DATA é a exceção: continua vindo do nome/pasta. Ela não descreve o
+    // documento, posiciona-o no mês certo para a busca (§15/§16) — `dtEmissao` do
+    // OCR é a data de emissão da nota, que é outra coisa.
     if (d.data == null && ocr.dtEmissao != null) d.data = ocr.dtEmissao;
+
     if (ocr.emitente && !ehEmitenteProprio(ocr.emitente))
         d.tokens = new Set([...d.tokens, ...tokens(ocr.emitente)]);
     return d;
@@ -230,8 +264,13 @@ function lancamentoDaPlanilha(l) {
 }
 
 // ── Os três sinais ──────────────────────────────────────────────────────────
+// `valorAlt` é o valor do NOME do arquivo quando o extrator leu outro: o nome traz
+// o valor PAGO e o extrator o da NOTA, que numa parcela diferem legitimamente.
+// Os dois valem como evidência — ver `enriquecerComOcr`.
 const valorBate = (l, d) =>
-    d.valor != null && l.valor > 0 && Math.abs(l.valor - d.valor) < TOL_VALOR;
+    l.valor > 0 && (
+        (d.valor != null && Math.abs(l.valor - d.valor) < TOL_VALOR) ||
+        (d.valorAlt != null && Math.abs(l.valor - d.valorAlt) < TOL_VALOR));
 
 const numeroBate = (l, d) => {
     if (l.nfDig.length < MIN_DIGITOS_NUM) return false;
@@ -265,12 +304,46 @@ function dentroDaJanela(l, d) {
 }
 
 /**
- * A regra medida: casa por (número E entidade), ou por valor com veto de data.
- * Devolve null se não casa, ou o motivo do casamento.
+ * A regra medida: casa por (número E entidade), por (número E valor), ou por valor
+ * sozinho com veto de data. Devolve null se não casa, ou o motivo do casamento.
+ *
+ * O caminho (número E valor) entrou em 03/09/2026 (§14.3), depois que a auditoria
+ * manual da pasta de março achou 27 lançamentos (jan–jun/2026) com número E valor
+ * idênticos ao documento, declarados "sem documento" porque o nome do arquivo traz
+ * outro fornecedor:
+ *
+ *   KUHNEN E CHAVES NF 12040 R$ 1.721,40 × 017.DOC- 1721,40 ... TORNEARIA . NF 12040
+ *   V M CARNEIRO    NF 1639  R$ 2.331,20 × 033.DOC- 2331,20 ... VERIDYANA. NFS 1639
+ *   C & F COMERCIO  NF 11027 R$   234,90 × 003.DOC- 234,90 ... CEF . NF 11027
+ *
+ * Sem esta via o par não se encaixa em (número E entidade) — a entidade não bate —
+ * e cai no caminho por valor, onde o veto de 15 dias o mata (o papel costuma estar
+ * na pasta do mês seguinte). Ou seja: o sinal que FALTA invalidava os dois que
+ * concordam. É o mesmo modo de falha de §13 (piso de dígitos) por outro caminho.
+ *
+ * A coluna FANTASIA da planilha NÃO resolve esses casos, e isso foi medido: ela já
+ * entra em `lancamentoDaPlanilha`, está preenchida em 98,5% dos lançamentos, e
+ * mesmo assim nos 27 casos resolve ZERO. O nome no arquivo não é a razão social nem
+ * o nome fantasia — é o sócio, o estabelecimento ou quem emitiu o boleto
+ * ("FR GUINCHO" na planilha × "VERIDYANA MARGRAF" no papel).
+ *
+ *   variante                  pares  cobertura  2º campo
+ *   (nº E ent) OU valor       2.031    66,4%     91,3%
+ *   + (nº E valor)            2.058    67,3%     91,5%   <- aplicada
+ *
+ * 27 ganhos, 0 perdas, 1 troca (e a troca é melhora: GM MANUTENÇÃO NF 28 sai de um
+ * recibo do SIDNEY para `031.DOC- ... MUNDI SECURITIZADORA. NFS 28`). Além dos 27
+ * novos, a via converte 57 pares que vinham do caminho fraco em pares de dois
+ * sinais. Estável em 4 sementes de embaralhamento.
+ *
+ * O veto de janela NÃO se aplica a esta via, e é o ponto: ele existe para o par
+ * sustentado só por valor. Com o número junto, a data deixa de ser a única defesa.
  */
 function casa(l, d) {
     if (numeroBate(l, d) && entidadeBate(l, d))
         return valorBate(l, d) ? 'numero+entidade+valor' : 'numero+entidade';
+    if (numeroBate(l, d) && valorBate(l, d))
+        return 'numero+valor';
     if (valorBate(l, d) && dentroDaJanela(l, d))
         return entidadeBate(l, d) ? 'valor+entidade' : 'valor';
     return null;
@@ -362,9 +435,21 @@ function parear(lancamentos, documentos) {
 // mês corrente (122 pares em 01/2026 vindos de +1 contra 0 de −1). É a mesma simetria
 // que PROGRESSO §12 descreveu ("a pasta de Abril guarda os documentos de Março").
 //
-// Depois de +2 o retorno morre (62,3% → 62,5% custando duas leituras de pasta a mais),
-// então a janela para em +2.
-const VIZINHANCA = [-1, 1, 2];
+// Até onde ampliar foi remedido em 03/09/2026, depois que a auditoria de 03/2026
+// (_medir/auditar-marco.js) achou 4 documentos da MAQNELSON arquivados em JUNHO
+// para lançamento de março — +3, fora da janela de então:
+//
+//   janela              pares  cobertura  2º campo
+//   [-1,+1,+2]          2.014    65,9%     91,3%
+//   [-1,+1..+3]         2.026    66,3%     91,3%   <- aplicada
+//   [-1,+1..+4]         2.030    66,4%     91,1%
+//   [-1,+1..+5]         2.034    66,5%     91,0%
+//
+// +3 rende 12 pares com a confirmação por 2º campo INTACTA. De +4 em diante cada
+// offset rende ~4 pares e custa precisão (−0,18pp cada), que é cobertura comprada
+// com par errado — o critério de §10 rejeita. Ampliar para trás (−2) rende 15 mas
+// já custa 0,1pp: o papel é arquivado DEPOIS do lançamento, não antes.
+const VIZINHANCA = [-1, 1, 2, 3];
 
 /**
  * Confere um período inteiro: casa primeiro no próprio mês, depois nas pastas

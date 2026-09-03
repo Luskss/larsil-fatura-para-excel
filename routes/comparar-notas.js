@@ -150,9 +150,16 @@ function norm(s) {
 }
 
 // ── Data ─────────────────────────────────────────────────────────────────────
-// Mesmas regras de process-folder.js, para o mês de um PDF ser decidido aqui
-// exatamente como foi decidido na hora de gravar: 1º a data no nome do arquivo,
-// 2º a subpasta (YYYY.MM.DD ou DD.MM.YYYY).
+// O mês de um PDF sai da SUBPASTA primeiro, do nome do arquivo só como fallback
+// (`mesDoDocumento`). A ordem era a inversa — o nome ganhava, como em
+// process-folder.js — e foi trocada em 03/09/2026 (§15) depois que a auditoria de
+// 02/2026 achou o documento
+//
+//   .../2026.02.../SANTANDER/2026.02.09/045.DOC- 1824,00-2026.09.02.ARPSEG ...
+//
+// arquivado em fevereiro, indexado em SETEMBRO por causa do dia/mês trocado no
+// nome digitado à mão. Medido: 144 dos 4.238 arquivos têm nome e pasta
+// discordando, 37 deles a mais de 3 meses — fora de qualquer janela.
 function mesDoNome(nome) {
     const n = String(nome || '');
     const a = n.match(/(?<!\d)(20\d{2})\.(\d{2})\.(\d{2})(?!\d)/);
@@ -168,6 +175,14 @@ function mesDaPasta(rel) {
     const b = r.match(/(?:^|[\/\\])(\d{2})\.(\d{2})\.(20\d{2})(?:[\/\\]|$)/);
     if (b) return `${b[2]}.${b[3]}`;
     return null;
+}
+
+// A pasta é criada pelo processo de arquivamento; o nome é digitado à mão — a
+// mesma fonte de erro que §12 mediu no emitente. Quando discordam, a pasta vale.
+// Medido em jan–jun/2026: +5 pares (2.026 → 2.031) com a confirmação por 2º campo
+// inalterada em 91,3%.
+function mesDoDocumento(nome, rel) {
+    return mesDaPasta(rel) || mesDoNome(nome);
 }
 
 // Serial do Excel → { mes, ano }
@@ -214,7 +229,7 @@ function contarNaPasta(raiz) {
             if (!/\.pdf$/i.test(e.name)) continue;
             if (!ehDoc(e.name)) { ignorados++; continue; }
             docs++;
-            const mes = mesDoNome(e.name) || mesDaPasta(rel);
+            const mes = mesDoDocumento(e.name, rel);
             if (!mes) { pdfsSemData++; continue; }
 
             const categoria = categoriaNaoFiscal(e.name);
@@ -320,7 +335,7 @@ function contarNoCsv(csvs) {
             }
 
             const pastaRel = iPasta >= 0 ? (campos[iPasta] || '') : '';
-            const mes = mesDoNome(arq) || mesDaPasta(pastaRel);
+            const mes = mesDoDocumento(arq, pastaRel);
             if (!mes) { semData++; continue; }
 
             const chave = `${arq}|${pastaRel}`;
