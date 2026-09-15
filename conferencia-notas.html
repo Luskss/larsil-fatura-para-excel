@@ -2740,9 +2740,33 @@ document.addEventListener('wheel', e => {
             2: { rot: '2 sinais', cls: 'sit-neu',  dica: 'Dois dos três campos batem; o terceiro difere.' },
             1: { rot: 'só valor', cls: 'sit-warn', dica: 'Apoiado só no valor — o fornecedor do arquivo não bate com o da planilha. Vale conferir: valores redondos colidem.' },
         };
+        // A EMISSÃO como agravante do par fraco — só no cruzamento, nunca sozinha.
+        //
+        // MEDIDO em 15/09/2026 (`_medir/_data-como-sinal.js`, jan–jun, 2.108 pares): a
+        // emissão da planilha e a lida da nota coincidem em 70,7% dos pares de força 3
+        // e em 3,3% dos de força 1. Razão de 20× — separa par bom de duvidoso melhor
+        // que qualquer outro campo disponível.
+        //
+        // Mas marcar TODA divergência seria ruído: 514 pares (24,4%) divergem, e a
+        // maioria é de força 3, onde a diferença é legítima (prazo de faturamento, a
+        // planilha registra competência, o extrator lê mal). O recorte que informa é o
+        // CRUZAMENTO: força 1 + emissão divergente = 118 pares com DOIS motivos
+        // independentes de desconfiança, contra só 4 que a emissão inocenta.
+        const emissaoAgrava = l => l.forca === 1 && l.emissaoDiverge === true;
         const seloForca = l => {
             const s = CONFIRMACAO[l.forca];
             if (!s) return '—';
+            // Agravante: o par já é fraco E a data de emissão desmente o casamento.
+            // Some ao title em vez de virar pílula própria — é qualificador do fraco,
+            // não um quarto nível de confiança.
+            const agrava = emissaoAgrava(l)
+                ? `\n\n⚠ A data de emissão da nota NÃO bate com a da planilha — evidência`
+                  + ` independente de que este par por valor é colisão. Dos 122 pares fracos`
+                  + ` com as duas datas, 118 divergem assim.`
+                : (l.forca === 1 && l.emissaoDiverge === false
+                    ? `\n\n✓ A data de emissão da nota BATE com a da planilha — apesar de só o`
+                      + ` valor ter casado, um campo independente confirma o par.`
+                    : '');
             // O empate é um eixo SEPARADO da força: acontece também em par de dois e
             // de três sinais. Por isso entra como sufixo da mesma pílula, e não como
             // um quarto nível — que exigiria mais uma coluna para dizer a mesma coisa.
@@ -2752,7 +2776,8 @@ document.addEventListener('wheel', e => {
                 : '';
             // O glifo vai TAMBÉM para o title: sozinho ele não é lido por leitor de
             // tela nem sobrevive a uma cópia da tabela para o Excel.
-            return `<span class="cf-sit ${s.cls}" title="${esc(s.dica + emp)}">${s.rot}${l.empatado ? ' ⚖' : ''}</span>`;
+            return `<span class="cf-sit ${s.cls}" title="${esc(s.dica + agrava + emp)}">${s.rot}${
+                emissaoAgrava(l) ? ' ⚠' : ''}${l.empatado ? ' ⚖' : ''}</span>`;
         };
         const resumoLocal = (cc) => {
             const ps = cc.porSituacao || {};
@@ -2784,6 +2809,9 @@ document.addEventListener('wheel', e => {
             if (!enc.length) return '';
             const n = f => enc.filter(l => l.forca === f).length;
             const emp = enc.filter(l => l.empatado).length;
+            // O cruzamento força 1 + emissão divergente — o subconjunto dos "só por
+            // valor" que tem evidência independente de estar errado. Ver `emissaoAgrava`.
+            const emisDiv = enc.filter(l => l.forca === 1 && l.emissaoDiverge === true).length;
             const conferir = enc.filter(l => l.forca === 1 || l.empatado).length;
             const pilula = (cls, txt, filtro) =>
                 `<span class="cf-sit ${cls} cf-filtra" data-conf="${filtro}" role="button" tabindex="0"
@@ -2792,6 +2820,7 @@ document.addEventListener('wheel', e => {
                 ${pilula('sit-ok',  `${n(3)} com 3 sinais`, '3')}
                 ${pilula('sit-neu', `${n(2)} com 2 sinais`, '2')}
                 ${n(1) ? pilula('sit-warn', `${n(1)} só por valor`, '1') : ''}
+                ${emisDiv ? pilula('sit-warn', `${emisDiv} com emissão divergente ⚠`, 'emissao_diverge') : ''}
                 ${emp ? pilula('sit-neu', `${emp} com concorrente ⚖`, 'empatado') : ''}
                 ${conferir ? `<span class="cf-sit-acao cf-filtra" data-conf="conferir" role="button" tabindex="0"
                                     title="Clique para ver só estes">${conferir} merece${conferir > 1 ? 'm' : ''} conferência</span>`
@@ -2831,6 +2860,7 @@ document.addEventListener('wheel', e => {
                             <option value="3">3 sinais (confirmado)</option>
                             <option value="2">2 sinais</option>
                             <option value="1">Só valor</option>
+                            <option value="emissao_diverge">⚠ Só valor + emissão não bate</option>
                             <option value="empatado">Com documento concorrente</option>
                         </select>
                     </div>
@@ -2850,6 +2880,7 @@ document.addEventListener('wheel', e => {
                                         data-situacao="${esc(l.situacao || 'ok')}"
                                         data-forca="${l.forca || 0}"
                                         data-empatado="${l.empatado ? '1' : ''}"
+                                        data-emissao="${l.forca === 1 && l.emissaoDiverge === true ? 'diverge' : ''}"
                                         ${l.detalhe ? `class="cf-linha-detalhe" data-encontrada="${i}" tabindex="0" title="Clique para ver itens, valor e CFOP"` : ''}>
                                         <td>${esc(l.tipo || 'Não identificado')}</td>
                                         <td><div class="cf-ent" title="${esc(l.fornecedor)}">${esc(l.fornecedor) || '—'}</div></td>
@@ -3080,10 +3111,16 @@ document.addEventListener('wheel', e => {
                 // independentes: o par apoiado num sinal só, e o par que tinha
                 // concorrente de força igual (onde quem decidiu foi o nome do
                 // arquivo). Medido em 01–06/2026: 163 + 167 = 330 pares, 15,6%.
+                // `emissao_diverge` é o CRUZAMENTO, não um terceiro motivo solto: só
+                // vale para o par de força 1 cuja emissão desmente o casamento. O
+                // atributo já nasce assim na linha (vazio quando a força não é 1), então
+                // aqui basta testá-lo. Ver `emissaoAgrava` e a medição citada lá.
                 const f = tr.dataset.forca, emp = !!tr.dataset.empatado;
+                const emisDiv = tr.dataset.emissao === 'diverge';
                 const passaConf = !confianca
                     || (confianca === 'conferir' ? (f === '1' || emp)
                       : confianca === 'empatado' ? emp
+                      : confianca === 'emissao_diverge' ? emisDiv
                       : f === confianca);
                 const valoresLinha = valoresNormalizadosPorLinha.get(tr) || [];
                 const passaColunas = [...filtrosColuna.entries()].every(([coluna, valores]) =>

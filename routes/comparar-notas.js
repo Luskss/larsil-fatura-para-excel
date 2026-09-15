@@ -1752,6 +1752,20 @@ module.exports = async function compararNotasRoute(req, res) {
                         // `ehParcela` desconta o carnê, senão todo pagamento parcelado
                         // apareceria como ambíguo (ver a função).
                         empatado: !!p.empatado && !ehParcelamento(p),
+                        // Conferência do par por um campo que NÃO casou: a data de
+                        // emissão da planilha × a que o extrator leu da nota. Três
+                        // estados — true = divergem (suspeito), false = coincidem
+                        // (confirmado), null = falta uma das duas (sem opinião).
+                        //
+                        // MEDIDO em 15/09/2026 (`_medir/_data-como-sinal.js`): coincide
+                        // em 70,7% dos pares de força 3 e em 3,3% dos de força 1. Dos
+                        // 171 fracos, 122 têm as duas datas e 118 divergem — é a
+                        // evidência independente de que o par por valor sozinho quase
+                        // sempre é colisão de valor.
+                        //
+                        // Só ROTULA. Virar 4º sinal foi medido e reprovado
+                        // (`_medir/_data-quarto-sinal.js`): −4 pares bons, +2 duvidosos.
+                        emissaoDiverge: p.emissaoDiverge ?? null,
                         // Só os nomes, e no mesmo teto de 6 da lista de empates: quem
                         // precisa abrir o PDF usa aquela lista, que leva `caminho` e o
                         // botão. Levar caminho em ~2.100 linhas incharia o JSON à toa.

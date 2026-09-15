@@ -403,6 +403,21 @@ function enriquecerComOcr(doc, ocr) {
     // OCR é a data de emissão da nota, que é outra coisa.
     if (d.data == null && ocr.dtEmissao != null) d.data = ocr.dtEmissao;
 
+    // A emissão LIDA DA NOTA, em campo próprio. Não entra em `d.data` (que é a data
+    // de ARQUIVAMENTO e posiciona o documento no mês) nem em sinal de casamento
+    // nenhum: serve só para CONFERIR o par depois de feito.
+    //
+    // MEDIDO em 15/09/2026 (`_medir/_data-como-sinal.js`), jan–jun, 2.108 pares: a
+    // emissão do documento e a da planilha coincidem em 70,7% dos pares de força 3 e
+    // em 3,3% dos de força 1 — razão de 20×. Ela separa par bom de par duvidoso
+    // melhor que qualquer outro campo disponível.
+    //
+    // NÃO vira 4º sinal: isso foi medido em `_medir/_data-quarto-sinal.js` e
+    // REPROVADO (−4 pares bons, +2 duvidosos). Somar força a quem TEM o campo
+    // penaliza o documento cuja emissão não foi lida, e a ausência de dado virava
+    // desvantagem competitiva — o par de força 3 perdia para o de força 2.
+    if (ocr.dtEmissao != null) d.dtEmissaoDoc = ocr.dtEmissao;
+
     if (ocr.emitente && !ehEmitenteProprio(ocr.emitente))
         d.tokens = new Set([...d.tokens, ...tokens(ocr.emitente)]);
     if (ocr.tipo) d.tipo = String(ocr.tipo);
@@ -469,6 +484,28 @@ function distanciaDias(l, d) {
     const alvos = [l.dtLancamento, l.dtEmissao].filter(x => x != null);
     if (!alvos.length) return null;
     return Math.min(...alvos.map(t => Math.abs(t - d.data) / DIA_MS));
+}
+
+// A EMISSÃO como conferência do par JÁ FEITO — nunca como sinal de casamento.
+//
+// Compara a emissão que a planilha registra (`dtEmissao` do lançamento) com a que o
+// extrator leu da nota (`dtEmissaoDoc`, posto por `enriquecerComOcr`). Devolve:
+//   true  → as duas existem e divergem  → par SUSPEITO
+//   false → as duas existem e coincidem → par confirmado por um campo que não casou
+//   null  → falta uma delas             → o sinal se cala
+//
+// Tolerância de 1 dia: as duas datas vêm de fontes diferentes (planilha digitada ×
+// leitura do papel) e fuso/arredondamento não podem virar divergência.
+//
+// MEDIDO em 15/09/2026 (`_medir/_data-como-sinal.js`), jan–jun/2026, 2.108 pares:
+//   força 3 → 70,7% coincidem     força 2 → 56,6%     força 1 → 3,3%
+// Dos 171 pares fracos (força 1), 122 têm as duas emissões e 118 DIVERGEM — a
+// evidência independente de que o par por valor sozinho é, quase sempre, colisão.
+const TOLERANCIA_EMISSAO_MS = DIA_MS;
+function emissaoDiverge(l, d) {
+    const eL = l.dtEmissao, eD = d.dtEmissaoDoc;
+    if (eL == null || eD == null) return null;
+    return Math.abs(eL - eD) >= TOLERANCIA_EMISSAO_MS;
 }
 
 // Sem data em algum dos lados o veto não se aplica: ausência de evidência não é
@@ -600,6 +637,12 @@ function parear(lancamentos, documentos, entidadeDispensaJanela) {
             via: c.via,
             forca: c.forca,
             distanciaDias: distanciaDias(lancamentos[c.i], documentos[c.j]),
+            // Conferência independente do par, pela EMISSÃO (ver `enriquecerComOcr`).
+            // Não participou do casamento: é evidência de fora, calculada depois.
+            //   true  → as duas emissões existem e DIVERGEM (par suspeito)
+            //   false → as duas existem e batem (par confirmado por 4º campo)
+            //   null  → falta a emissão de um dos lados; o sinal se cala
+            emissaoDiverge: emissaoDiverge(lancamentos[c.i], documentos[c.j]),
         };
         pares.push(par);
         parPorLanc.set(c.i, par);
