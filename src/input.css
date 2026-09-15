@@ -27,7 +27,7 @@
     opacity: .28;
     pointer-events: none;
     z-index: 0;
-    animation: blobDrift 20s ease-in-out infinite alternate;
+    animation: blobDrift 6s ease-out both;
   }
 
   /* blob bottom-right */
@@ -42,12 +42,25 @@
     opacity: .22;
     pointer-events: none;
     z-index: 0;
-    animation: blobDrift 26s ease-in-out infinite alternate-reverse;
+    animation: blobDriftReverse 7s ease-out both;
   }
 
+  /* Os blobs assentam numa posição final em vez de ficar em loop infinito:
+     numa tela parada (login) o movimento perpétuo parece que a página está
+     recarregando a animação sem parar. */
   @keyframes blobDrift {
     from { transform: translate(0,0) scale(1); }
     to   { transform: translate(40px,30px) scale(1.1); }
+  }
+
+  @keyframes blobDriftReverse {
+    from { transform: translate(40px,30px) scale(1.1); }
+    to   { transform: translate(0,0) scale(1); }
+  }
+
+  /* Quem pediu menos movimento no SO não vê animação nenhuma. */
+  @media (prefers-reduced-motion: reduce) {
+    body::before, body::after { animation: none; }
   }
 
   @keyframes fadeUp {
@@ -67,6 +80,17 @@
   @keyframes tspin {
     to { transform: rotate(360deg); }
   }
+
+  /* Foco visível padrão em todo elemento interativo — teclado only.
+     Anel verde da marca, offset para não encostar na borda do controle. */
+  :focus-visible {
+    outline: 2px solid #6cd47e;
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  /* Campos com anel próprio (box-shadow no :focus) não precisam do outline duplo. */
+  .login-input:focus-visible,
+  .glass-input:focus-visible { outline: none; }
 }
 
 /* ── Reusable component classes ──────────────────────────────────── */
@@ -147,7 +171,7 @@
     border: 1.5px solid rgba(255,255,255,.15);
     background: rgba(255,255,255,.08);
   }
-  .glass-input::placeholder { color: rgba(255,255,255,.35); }
+  .glass-input::placeholder { color: rgba(255,255,255,.55); }
   .glass-input:focus {
     border-color: #4db55e;
     box-shadow: 0 0 0 3px rgba(77,181,94,.20);
@@ -156,10 +180,11 @@
   /* Primary button */
   .btn-primary {
     @apply flex items-center justify-center gap-2 w-full py-3.5 text-white font-black text-base uppercase tracking-wide rounded-xl cursor-pointer transition-all duration-200 font-sans border-none;
-    background: linear-gradient(135deg, #2e6b2b, #4db55e);
+    /* Verde escurecido nas duas pontas: texto branco fica ≥5:1 (WCAG AA) em toda a extensão do gradiente. */
+    background: linear-gradient(135deg, #1f5a1d, #2f7d3c);
     box-shadow: 0 6px 24px rgba(77,181,94,.25);
   }
-  .btn-primary:hover:not(:disabled) { opacity: .9; box-shadow: 0 8px 32px rgba(77,181,94,.40); }
+  .btn-primary:hover:not(:disabled) { opacity: .92; box-shadow: 0 8px 32px rgba(77,181,94,.40); }
   .btn-primary:active:not(:disabled) { transform: scale(.98); }
   .btn-primary:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
 
@@ -167,10 +192,10 @@
   .btn-export {
     @apply inline-flex items-center gap-2 text-white font-black text-sm uppercase tracking-wide rounded-lg cursor-pointer transition-all duration-200 font-sans border-none;
     padding: 12px 26px;
-    background: #4db55e;
+    background: #2f7d3c;
     box-shadow: 0 4px 16px rgba(77,181,94,.30);
   }
-  .btn-export:hover { background: #3a9e4d; box-shadow: 0 6px 24px rgba(77,181,94,.40); }
+  .btn-export:hover { background: #256b2e; box-shadow: 0 6px 24px rgba(77,181,94,.40); }
 
   /* Section heading */
   .section-title {
@@ -181,7 +206,7 @@
 
   .section-subtitle {
     @apply text-sm mb-7;
-    color: rgba(255,255,255,.50);
+    color: rgba(255,255,255,.62);
   }
 
   /* File item */
@@ -293,7 +318,7 @@
     background: rgba(255,255,255,.08);
     backdrop-filter: blur(8px);
   }
-  .login-input::placeholder { color: rgba(255,255,255,.35); }
+  .login-input::placeholder { color: rgba(255,255,255,.55); }
   .login-input:focus {
     border-color: #4db55e;
     background: rgba(255,255,255,.13);
@@ -410,6 +435,70 @@
   }
   .nav-btn-conferencia:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(77,181,94,.55); }
   .nav-btn-conferencia.active { box-shadow: 0 4px 20px rgba(77,181,94,.50), 0 0 0 2px rgba(77,181,94,.30); }
+
+  /* ── Botão hambúrguer (injetado por JS; escondido no desktop) ────────── */
+  .nav-mobile-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 10px;
+    background: rgba(255,255,255,.10);
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .nav-mobile-toggle:hover { background: rgba(255,255,255,.18); }
+}
+
+/* ── Navbar responsiva ─────────────────────────────────────────────────
+   Até 767px: a linha de ações vira um painel vertical acionado pelo
+   hambúrguer. Os dropdowns internos passam a ser blocos empilhados. */
+@media (max-width: 767px) {
+  .navbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 3.5rem;
+    padding: 10px 14px;
+    row-gap: 10px;
+  }
+  .nav-mobile-toggle { display: flex; }
+
+  .navbar > div:last-child {
+    display: none;
+    order: 3;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,.12);
+  }
+  .navbar.mobile-open > div:last-child { display: flex; }
+
+  .navbar .nav-dropdown-wrap { position: static; width: 100%; }
+  .navbar .nav-dropdown-btn { width: 100%; justify-content: space-between; }
+  .navbar .nav-dropdown-menu {
+    position: static;
+    transform: none;
+    width: 100%;
+    min-width: 0;
+    margin: 2px 0 6px;
+    box-shadow: none;
+    background: rgba(255,255,255,.05);
+  }
+  .navbar .nav-dropdown-menu.open { animation: none; }
+
+  .navbar #navUser { margin: 4px 0 0; padding: 0 4px; }
+  .navbar .btn-logout,
+  .navbar .nav-btn-conferencia { width: 100%; text-align: center; justify-content: center; }
+  .navbar .btn-theme-toggle { align-self: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-dropdown-menu.open,
+  .nav-dropdown-btn svg { animation: none !important; transition: none !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════

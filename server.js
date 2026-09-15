@@ -15,7 +15,7 @@ const session = require('express-session');
 
 require('./config'); // carrega .env (loadEnv) ao iniciar
 const { initScheduler } = require('./scheduler');
-const { PERM_POR_ARQUIVO, permTela, IAM_ADMIN_URL } = require('./iam');
+const { PERM_POR_ARQUIVO, permTela } = require('./iam');
 const { iamRefresh, revalidarPagina, requirePermissao, tem } = require('./routes/_iam-session');
 
 const app = express();
@@ -130,14 +130,17 @@ const PAGINA_PUBLICA = 'index.html';
 
 app.use('/img',  express.static(path.join(__dirname, 'img')));
 app.use('/dist', express.static(path.join(__dirname, 'dist')));
-app.get('/theme.js', (req, res) => res.sendFile(path.join(__dirname, 'theme.js')));
-app.get('/transitions.js', (req, res) => res.sendFile(path.join(__dirname, 'transitions.js')));
-app.get('/session-guard.js', (req, res) => res.sendFile(path.join(__dirname, 'session-guard.js')));
+// Scripts de front carregados por toda página. Lista explícita (não um static do
+// diretório raiz, que exporia .env, código de rotas e node_modules). Ficava uma
+// linha por arquivo e `nav.js` foi esquecido quando a navbar virou arquivo único:
+// as seis páginas pediam /nav.js e levavam 404, derrubando os menus. Um array
+// deixa o próximo acréscimo ser só um nome.
+const SCRIPTS_PUBLICOS = ['theme.js', 'transitions.js', 'session-guard.js', 'nav.js'];
+for (const arquivo of SCRIPTS_PUBLICOS) {
+  app.get('/' + arquivo, (req, res) => res.sendFile(path.join(__dirname, arquivo)));
+}
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, PAGINA_PUBLICA)));
-
-// Gestão de usuários agora é no console da TI (IAM) — nunca mais neste sistema.
-app.get('/gestao-usuarios.html', (req, res) => res.redirect(302, IAM_ADMIN_URL));
 
 app.get('/:page', wrap(async (req, res, next) => {
   const page = req.params.page;
@@ -199,6 +202,40 @@ function startOCRServer() {
 }
 
 if (process.env.OCR_DISABLED !== '1') startOCRServer();
+
+// ── REDE DE SEGURANÇA ────────────────────────────────────────────────────
+// Sem estes handlers, uma promise rejeitada em qualquer canto derruba o processo
+// INTEIRO — e, no Node 25, sem imprimir nada: o servidor simplesmente sumia com
+// "exited with code 1". Aconteceu duas vezes em 09/09/2026, sempre durante a
+// varredura do scheduler (que processa centenas de PDFs, chamando IA e OCR pela
+// rede), o que torna uma rejeição solta ocasional quase inevitável.
+//
+// Derrubar o servidor é a pior resposta possível a uma nota que falhou: mata a
+// varredura inteira e deixa a aplicação fora do ar até alguém perceber. Aqui a
+// escolha é registrar e seguir — o erro fica visível no log, com stack, e o
+// processo continua servindo as outras telas.
+process.on('unhandledRejection', (motivo, promise) => {
+  console.error('[servidor] promise rejeitada sem catch — seguindo em frente:',
+                motivo instanceof Error ? motivo.stack : motivo, promise);
+});
+process.on('uncaughtException', (err) => {
+  // Exceção síncrona sem try/catch. Também não deve matar o servidor, mas é mais
+  // grave que a de cima: o estado da operação que falhou é desconhecido.
+  //
+  // EXCEÇÃO À EXCEÇÃO: falha ao ABRIR A PORTA é fatal, e seguir em frente aqui é
+  // pior do que morrer. Sem isso (09/09/2026), subir um segundo server.js com a
+  // porta ocupada deixava um processo vivo que não servia NADA — só logava o
+  // EADDRINUSE e ficava lá, competindo pelo OCR e confundindo quem tentava
+  // entender por que a tela não respondia. Um processo que não cumpre sua função
+  // tem de sair com código de erro, para quem o chamou saber que falhou.
+  if (err && (err.code === 'EADDRINUSE' || err.code === 'EACCES') && err.syscall === 'listen') {
+    console.error(`[servidor] a porta ${err.port} já está em uso — este processo não tem o que fazer.`);
+    console.error('[servidor] provavelmente já existe um servidor rodando. Para ver quem é:');
+    console.error(`[servidor]   Get-NetTCPConnection -LocalPort ${err.port} -State Listen`);
+    process.exit(1);
+  }
+  console.error('[servidor] exceção não capturada — seguindo em frente:', err && err.stack || err);
+});
 
 // ── INICIALIZAÇÃO ────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;

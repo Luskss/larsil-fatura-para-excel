@@ -16,15 +16,6 @@
 </head>
 <body>
 
-<script>
-(function(){
-  document.querySelectorAll('.nav-dropdown-wrap').forEach(function(w){
-    var btn=w.querySelector('.nav-dropdown-btn'),menu=w.querySelector('.nav-dropdown-menu');
-    btn.addEventListener('click',function(e){e.stopPropagation();var open=menu.classList.contains('open');document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});if(!open){menu.classList.add('open');btn.classList.add('open');}});
-  });
-  document.addEventListener('click',function(){document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});});
-})();
-</script>
 
 <main class="flex-1 flex flex-col items-center justify-center px-4 py-12 relative z-10">
   <div class="mb-10 text-center">

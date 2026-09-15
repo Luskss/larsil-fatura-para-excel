@@ -37,6 +37,7 @@ function internasDaRota() {
         ${corpo}
         return { contarNaPasta, contarNaPlanilha, contarNoCsv, camposOcr,
                  categoriaNaoFiscal, ehDoc, mesDoNome, mesDaPasta, mesDoDocumento,
+                 ocrDoDocumento,
                  ORIG_ESCOPO, FILIAL_ESCOPO, CONTAS_SEM_DOCUMENTO };
     `);
     return f(requireRotas, { exports: {} }, {}, path.join(RAIZ, 'routes'));

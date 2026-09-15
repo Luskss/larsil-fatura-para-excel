@@ -167,10 +167,24 @@
 
 <script>
   const params = new URLSearchParams(window.location.search);
-  // Só volta sozinho pro menu se não chegou aqui por falta de permissão ou 1º acesso.
-  if (sessionStorage.getItem('cf_loggedIn')
+
+  /* Trava contra ping-pong index↔home: se o sessionStorage ainda marca "logado"
+     mas o servidor já não reconhece a sessão (cookie expirado/derrubado pela
+     IAM), home.html manda de volta pra cá; sem esta trava, o index tentava ir
+     pra home de novo (mesmo sessionStorage, ainda não limpo a tempo) e as duas
+     páginas ficavam se redirecionando sem parar — a "tela recarregando". */
+  const AGORA = Date.now();
+  const ultimoRedirect = Number(sessionStorage.getItem('cf_redirect_ts') || 0);
+  const redirectRecente = AGORA - ultimoRedirect < 3000;
+
+  if (sessionStorage.getItem('cf_loggedIn') && !redirectRecente
       && !params.has('sem_permissao') && !params.has('primeiro_acesso') && !params.has('sessao')) {
+    sessionStorage.setItem('cf_redirect_ts', String(AGORA));
     window.location.replace('home.html');
+  } else if (redirectRecente) {
+    // Voltamos pro login logo após tentar ir pro menu: a sessão não é válida
+    // de verdade. Limpa o resíduo para a tela de login funcionar normalmente.
+    sessionStorage.clear();
   }
   if (params.has('sem_permissao')) {
     sessionStorage.clear();

@@ -41,6 +41,14 @@ const path = require('path');
 // anexos, que não são nota e por isso nunca deveriam entrar em contagem nenhuma.
 const RE_DOC = /^\s*\d+\s*\.\s*DOC\b/i;
 const ehDoc = nome => RE_DOC.test(String(nome || ''));
+const RE_CPV = /^\s*\d+\s*[.\-]\s*CPV\b/i;
+const RE_PDF_NUMERICO = /^\s*\d+\s*\.pdf$/i;
+const ehPdfIgnoradoNaLista = nome => RE_CPV.test(String(nome || ''))
+    || RE_PDF_NUMERICO.test(String(nome || ''));
+
+// Chave para os PDFs cujo mês não se descobre (nem no nome, nem na pasta). Não é um
+// período válido, e por isso não colide com nenhum "MM.AAAA".
+const SEM_DATA = 'sem-data';
 
 // Boleto de carnê é gravado como uma linha por parcela, com sufixo #p1, #p2…
 // O PDF é UM só — para contar arquivo, o sufixo sai.
@@ -216,6 +224,14 @@ function contarNaPasta(raiz) {
     // é o que permite o pareamento (_pareamento.js) sem uma segunda varredura do
     // arquivo permanente, que é a operação mais cara desta rota.
     const arquivosPorMes = {};
+    // "MM.AAAA" → [{ nome, rel, bytes, mtime, classe, categoria }] de TODO PDF do mês,
+    // inclusive os que as contagens acima descartam. É o que a seção "PDFs na pasta"
+    // mostra: ali a pergunta não é "quantas notas há?" mas "o que existe no disco?", e
+    // para essa pergunta o CPV e o extrato do dia são resposta, não ruído. Sai desta
+    // mesma varredura porque uma segunda seria a operação mais cara da rota.
+    // Os sem data ficam sob a chave SEM_DATA — não têm mês a que pertencer, e omiti-los
+    // faria a seção contradizer o rodapé, que os conta.
+    const todosPorMes = {};
     let docs = 0, ignorados = 0, pdfsSemData = 0;
 
     const andar = (dir, rel) => {
@@ -227,24 +243,39 @@ function contarNaPasta(raiz) {
             const relFilho = rel ? `${rel}/${e.name}` : e.name;
             if (e.isDirectory()) { andar(filho, relFilho); continue; }
             if (!/\.pdf$/i.test(e.name)) continue;
-            if (!ehDoc(e.name)) { ignorados++; continue; }
-            docs++;
+
             const mes = mesDoDocumento(e.name, rel);
-            if (!mes) { pdfsSemData++; continue; }
+            // Tamanho e data NÃO são lidos aqui. Um `statSync` por PDF custa caro no
+            // compartilhamento de rede — medido em 09/09/2026: a varredura dos 15.908
+            // arquivos passa de 5,0 s para 12,7 s a frio. E seria cobrado de todo mundo
+            // que abre o painel, inclusive de quem nunca abre esta seção. Quem chama
+            // `detalharPdfsDoMes` paga o stat só do mês que está na tela (~2.200).
+            const registrar = (classe, categoria) => {
+                if (ehPdfIgnoradoNaLista(e.name)) return;
+                const chave = mes || SEM_DATA;
+                (todosPorMes[chave] || (todosPorMes[chave] = []))
+                    .push({ nome: e.name, rel: relFilho, classe, categoria: categoria || null });
+            };
+
+            if (!ehDoc(e.name)) { ignorados++; registrar('anexo'); continue; }
+            docs++;
+            if (!mes) { pdfsSemData++; registrar('sem_data'); continue; }
 
             const categoria = categoriaNaoFiscal(e.name);
             if (categoria) {
                 if (!naoFiscalPorMes[mes]) naoFiscalPorMes[mes] = { total: 0, porCategoria: {} };
                 naoFiscalPorMes[mes].total++;
                 naoFiscalPorMes[mes].porCategoria[categoria] = (naoFiscalPorMes[mes].porCategoria[categoria] || 0) + 1;
+                registrar('nao_fiscal', categoria);
                 continue;
             }
             porMes[mes] = (porMes[mes] || 0) + 1;
             (arquivosPorMes[mes] || (arquivosPorMes[mes] = [])).push({ nome: e.name, rel: relFilho });
+            registrar('fiscal');
         }
     };
     andar(raiz, '');
-    return { porMes, naoFiscalPorMes, arquivosPorMes, docs, ignorados, pdfsSemData };
+    return { porMes, naoFiscalPorMes, arquivosPorMes, todosPorMes, docs, ignorados, pdfsSemData };
 }
 
 // A varredura acima percorre o ARQUIVO PERMANENTE inteiro — todos os meses, dezenas de
@@ -273,6 +304,79 @@ function contarNaPastaCacheado(raiz) {
         `(${resultado.docs} docs, ${Object.keys(resultado.porMes).length} meses)`);
     cachePasta = { raiz, em: agora, resultado };
     return resultado;
+}
+
+// ── "PDFs na pasta": o que existe no DISCO, não o que entrou na conferência ───
+// As contagens acima respondem "quantas notas há?" e por isso descartam o que não é
+// nota. Esta seção responde outra pergunta — "o que está arquivado nesta pasta?" —, e
+// para ela o consórcio e os demais anexos são resposta, mas comprovantes CPV e PDFs
+// cujo nome é só numérico são ruído operacional. Eles ficam fora da lista; os demais
+// PDFs continuam trazendo a classe que diz por que entraram ou não na contagem fiscal.
+//
+// O `stat` sai daqui, e não da varredura, porque custa caro no compartilhamento de
+// rede e só interessa ao mês que está na tela (ver comentário em `contarNaPasta`).
+// `bytes: null` é um stat que falhou (arquivo removido entre a varredura e agora, ou
+// sem permissão) — a linha continua valendo, só sem tamanho.
+//
+// O resultado é cacheado por mês: o `stat` de 2.221 arquivos custa 24 s a FRIO no
+// compartilhamento de rede e 0,7 s a quente (medido em 09/09/2026, 03/2026). Sem
+// cache, cada troca de mês e cada F5 pagaria de novo o pior caso — e como é síncrono,
+// pagaria bloqueando o event loop, travando o servidor inteiro para todo mundo.
+const TTL_PDFS_MS = 5 * 60 * 1000;
+const cachePdfs = new Map();   // "raiz|periodo" → { em, resultado }
+async function detalharPdfsDoMesCacheado(raiz, todosPorMes, periodo) {
+    const chave = `${raiz}|${periodo}`;
+    const agora = Date.now();
+    const guardado = cachePdfs.get(chave);
+    if (guardado && (agora - guardado.em) < TTL_PDFS_MS) return guardado.resultado;
+    const resultado = await detalharPdfsDoMes(raiz, todosPorMes, periodo);
+    cachePdfs.set(chave, { em: agora, resultado });
+    // O acervo tem ~10 meses; o teto evita que o Map cresça sem limite se a raiz mudar.
+    if (cachePdfs.size > 24) cachePdfs.delete(cachePdfs.keys().next().value);
+    return resultado;
+}
+
+// `async` e em lotes de propósito. A versão síncrona (`statSync` em série) segurava o
+// event loop por 24 s no primeiro acesso a um mês — o servidor inteiro parava, para
+// todos os usuários, por causa de UMA seção da tela. Com `fs.promises.stat` em lotes
+// o disco é consultado em paralelo e o loop respira entre eles.
+const LOTE_STAT = 64;
+async function detalharPdfsDoMes(raiz, todosPorMes, periodo) {
+    const lista = (todosPorMes && todosPorMes[periodo]) || [];
+    const t0 = Date.now();
+    const arquivos = [];
+    for (let i = 0; i < lista.length; i += LOTE_STAT) {
+        const lote = await Promise.all(lista.slice(i, i + LOTE_STAT).map(async a => {
+            let bytes = null, mtime = null;
+            try { const st = await fs.promises.stat(path.join(raiz, a.rel)); bytes = st.size; mtime = st.mtimeMs; }
+            catch (_) { /* sem stat: a linha ainda vale */ }
+            const corte = a.rel.lastIndexOf('/');
+            // `caminho` NÃO vai no JSON: é `pasta + '/' + nome`, e repeti-lo em 2.221
+            // linhas custava 250 KB de resposta. A tela remonta em `caminhoDoPdf`.
+            return {
+                nome: a.nome,
+                pasta: corte >= 0 ? a.rel.slice(0, corte) : '',
+                classe: a.classe,
+                categoria: a.categoria,
+                bytes, mtime,
+            };
+        }));
+        arquivos.push(...lote);
+    }
+    // Ordenar pela subpasta (que é a pasta-dia) e depois pelo nome põe o arquivo na
+    // mesma ordem em que ele aparece no Explorer — é assim que quem confere procura.
+    arquivos.sort((a, b) => a.pasta.localeCompare(b.pasta, 'pt-BR')
+                         || a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true }));
+
+    const porClasse = {};
+    let bytesTotal = 0, semStat = 0;
+    for (const a of arquivos) {
+        porClasse[a.classe] = (porClasse[a.classe] || 0) + 1;
+        if (a.bytes == null) semStat++; else bytesTotal += a.bytes;
+    }
+    if (arquivos.length)
+        console.log(`[comparar-notas] ${periodo}: stat de ${arquivos.length} PDFs em ${Date.now() - t0} ms`);
+    return { arquivos, total: arquivos.length, porClasse, bytesTotal, semStat };
 }
 
 // ── 2) BANCO ─────────────────────────────────────────────────────────────────
@@ -304,9 +408,10 @@ function contarNoCsv(csvs) {
         const iArq = cols.indexOf('arquivo');
         const iPasta = cols.indexOf('pasta');
         const iParser = cols.indexOf('dados_parser');
+        const iTipo = cols.indexOf('tipo');
         if (iArq < 0) continue;
         // Última coluna que interessa: a varredura para nela (ver separarCsvAte).
-        const iUltima = Math.max(iArq, iPasta, iParser);
+        const iUltima = Math.max(iArq, iPasta, iParser, iTipo);
         for (let i = 1; i < ls.length; i++) {
             // O CSV usa ; como separador e aspas duplas com escape "" nos campos
             // (dados_parser é um JSON inteiro). Só precisamos das colunas 'arquivo'
@@ -317,6 +422,8 @@ function contarNoCsv(csvs) {
             linhas++;
             if (!ehDoc(arq)) { ignorados++; continue; }
 
+            const pastaRel = iPasta >= 0 ? (campos[iPasta] || '') : '';
+
             // O índice do OCR é montado ANTES do corte por mês e por categoria:
             // o pareamento consulta pastas vizinhas, então precisa dos campos de
             // documento que esta contagem descarta.
@@ -325,16 +432,38 @@ function contarNoCsv(csvs) {
             // na primeira: carnê grava uma linha por parcela (#p1, #p2…) e cada uma
             // traz um pedaço — a parcela tem o valor dela, o cabeçalho tem o da
             // nota. Ficar só com a primeira perdia campo em 1.035 arquivos.
-            if (iParser >= 0) {
-                const campo = camposOcr(campos[iParser]);
-                if (campo) {
-                    const at = ocrPorArquivo[arq] || (ocrPorArquivo[arq] = {});
-                    for (const k of ['numero', 'emitente', 'valor', 'dtEmissao'])
-                        if (at[k] == null && campo[k] != null) at[k] = campo[k];
+            //
+            // Indexado sob DUAS chaves: `pasta|arquivo`, que identifica o documento
+            // sem ambiguidade, e o nome sozinho, como reserva. O nome sozinho não
+            // basta porque o mesmo nome se repete em pastas diferentes — medido em
+            // jan–jun/2026: 6 nomes em 16 documentos (0,4%), todos documento
+            // recorrente arquivado todo mês (seguro prestamista da SICRED, endosso
+            // HDI, tarifa do Santander). Nesses o OCR compartilhado até é o certo,
+            // mas a chave por nome só funciona por sorte — e o extrator hoje tem
+            // PRECEDÊNCIA sobre o nome do arquivo (§19), então um OCR trocado
+            // sobrescreve número e valor bons. `chaveOcr` prefere a composta.
+            const chaveComposta = `${pastaRel}|${arq}`;
+            const funde = (chave) => {
+                if (iParser >= 0) {
+                    const campo = camposOcr(campos[iParser]);
+                    if (campo) {
+                        const at = ocrPorArquivo[chave] || (ocrPorArquivo[chave] = {});
+                        for (const k of ['numero', 'emitente', 'valor', 'dtEmissao'])
+                            if (at[k] == null && campo[k] != null) at[k] = campo[k];
+                        // `detalhe` é só exibição (CFOP/Itens/valor da nota/código da
+                        // receita) — não participa do pareamento, então não segue a
+                        // regra de precedência acima; primeira leitura não-vazia vale.
+                        if (at.detalhe == null && campo.detalhe != null) at.detalhe = campo.detalhe;
+                    }
                 }
-            }
+                if (iTipo >= 0 && String(campos[iTipo] || '').trim()) {
+                    const at = ocrPorArquivo[chave] || (ocrPorArquivo[chave] = {});
+                    if (at.tipo == null) at.tipo = String(campos[iTipo]).trim();
+                }
+            };
+            funde(chaveComposta);
+            funde(arq);
 
-            const pastaRel = iPasta >= 0 ? (campos[iPasta] || '') : '';
             const mes = mesDoDocumento(arq, pastaRel);
             if (!mes) { semData++; continue; }
 
@@ -367,9 +496,26 @@ function contarNoCsv(csvs) {
 // o tipo de documento (NF-e, NFS-e, boleto, guia), por isso cada campo aceita um
 // conjunto de nomes. Medido em 7.155 linhas: Emitente em 99,4%, Nº da NF-e em
 // 76%, Valor total em 80%.
-const CHAVES_NUMERO   = ['Nº da NF-e', 'Nº da NF-e (chave)', 'Número do documento', 'Numero da NF'];
-const CHAVES_EMITENTE = ['Emitente', 'Razão social', 'Nome do emitente'];
-const CHAVES_VALOR    = ['Valor total da nota', 'Valor total', 'Valor do boleto'];
+// 'Nº da NFS-e' entrou em 10/09/2026 com o parser de nota de serviço. Faltava, e a
+// falta era INVISÍVEL: `parseNfse` lia o número certo, gravava sob essa chave, e
+// `camposOcr` não a procurava — o número era descartado depois de extraído.
+// Medido no efeito: 3 notas da ARPSEG (NF 530/531/534) perderam o par que tinham,
+// porque `numero+entidade` deixou de existir para elas. Ver §15.16.
+const CHAVES_NUMERO   = ['Nº da NF-e', 'Nº da NF-e (chave)', 'Nº da NFS-e',
+                         'Número do documento', 'Numero da NF'];
+// 'Razão social (nota)' e 'Nome social' são a razão social e o nome fantasia lidos
+// do MIOLO da nota (09/09/2026). Vêm depois de 'Emitente' de propósito: o nome do
+// arquivo é o que casa com a planilha, e estes entram como fonte adicional de
+// tokens (_pareamento.js:364 UNE os tokens, não substitui) — o "BOBIG" do arquivo
+// continua valendo, e "CONTATTO"/"HIDRAUFLEX" passam a valer também.
+const CHAVES_EMITENTE = ['Emitente', 'Razão social', 'Nome do emitente',
+                         'Razão social (nota)', 'Nome social'];
+// 'Valor do serviço' é o BRUTO da NFS-e — o que a planilha lança. Vem por último:
+// quando a retenção fecha, `retencaoDoParser` já põe o bruto em `out.retencao` e
+// `enriquecerComOcr` o usa como valor de casamento; esta entrada cobre a NFS-e em
+// que a conta NÃO fecha e o bruto seria o único valor disponível.
+const CHAVES_VALOR    = ['Valor total da nota', 'Valor total', 'Valor do boleto',
+                         'Valor do serviço'];
 const CHAVES_EMISSAO  = ['Data de emissão', 'Data emissao'];
 
 function primeiroDe(obj, chaves) {
@@ -378,6 +524,24 @@ function primeiroDe(obj, chaves) {
         if (v != null && String(v).trim() !== '') return v;
     }
     return null;
+}
+
+// Junta o conteúdo de TODAS as chaves presentes, sem repetir. Só faz sentido para
+// campos em que várias leituras somam (o emitente) — ver o uso em `camposOcr`.
+function todosDe(obj, chaves) {
+    const vistos = new Set();
+    const partes = [];
+    for (const k of chaves) {
+        const v = obj[k];
+        if (v == null) continue;
+        const s = String(v).trim();
+        if (!s) continue;
+        const chaveDedup = s.toUpperCase();
+        if (vistos.has(chaveDedup)) continue;
+        vistos.add(chaveDedup);
+        partes.push(s);
+    }
+    return partes.length ? partes.join(' ') : null;
 }
 
 // "32.233,60" / "R$ 1.234,56" / "1234.56" → número. O parser grava em formatos
@@ -402,6 +566,151 @@ function dataDoParser(v) {
     return null;
 }
 
+// Campos de EXIBIÇÃO — não entram no pareamento (por isso ficam fora de `camposOcr`,
+// que só devolve o que `enriquecerComOcr` usa para casar documento×lançamento). São
+// para o clique em "notas encontradas" mostrar itens/valor/CFOP/código da receita
+// sem reabrir o PDF. Vêm de `_nf-itens.js` (CFOP/Itens) e `_nf-parsers.js` (guia de
+// imposto), já gravados em `dados_parser` — só precisavam ser lidos daqui.
+const CHAVES_CODIGO_RECEITA = ['Código da receita'];
+
+// ── Retenção na fonte (NFS-e) ────────────────────────────────────────────────
+// Numa nota de SERVIÇO com imposto retido, o papel traz DOIS valores e a planilha
+// lança o primeiro: o BRUTO (o serviço contratado) e o LÍQUIDO (o que o boleto
+// cobra, já descontado o tributo). A diferença é o imposto, e não é divergência
+// nenhuma — foi o caso que motivou esta regra: CORREA TRUCK HOUSE NF 377, bruto
+// 3.690,00, ISSRF 184,50, líquido 3.505,50. O card acusava R$ 184,50 de erro.
+//
+// `parseNfse` (_nf-parsers.js) grava esses campos desde 10/09/2026. Aqui eles são
+// lidos para `divergenciasDeValor` poder separar retenção de erro de verdade.
+const CHAVES_VALOR_BRUTO   = ['Valor do serviço', 'Valor total dos serviços'];
+const CHAVES_VALOR_LIQUIDO = ['Valor líquido'];
+const CHAVES_RETIDOS = ['ISS retido', 'IRRF retido', 'INSS retido',
+                        'CSLL retido', 'COFINS retido', 'PIS retido'];
+
+// O parser grava "—" (travessão) quando não achou o campo — mesmo placeholder
+// tratado no comentário de camposOcr. Sem filtrar, o travessão vira "código da
+// receita" e o botão de copiar copia lixo.
+const semValorReal = v => v == null || String(v).trim() === '' || String(v).trim() === '—';
+
+// O acervo tem itens gravados em DUAS formas. A atual é 'Itens' com rótulos
+// ('Descrição', 'Valor unitário'), normalizada por `camposParaDadosParser`. A
+// antiga é 'itens' com o objeto cru da IA ('descricao', 'valorUnitario'), de uma
+// versão anterior do gravador. Medido em 09/09/2026 (`_medir/_forma-itens.js`):
+// 960 linhas na forma nova e 802 na antiga, em 12.541 — e a divisão é por pasta,
+// não por época, porque o upsert casa por `arquivo|pasta` e as pastas foram
+// renomeadas ("SANTANDER/…" virou "2026.03.EXTRATOS CONTABILIDADE/SANTANDER/…").
+// A releitura de hoje gravou a linha nova AO LADO da antiga em vez de substituí-la,
+// e o pareamento pode casar com qualquer uma das duas. Ler só a forma nova deixava
+// o modal de detalhe vazio nessas 802 — daí traduzir a antiga aqui, na leitura.
+function itensDoParser(d) {
+    if (Array.isArray(d['Itens']) && d['Itens'].length) return d['Itens'];
+    if (!Array.isArray(d['itens']) || !d['itens'].length) return null;
+    // A forma antiga guarda número JS (25, 450); a nova já vem em string "25,00".
+    // Formatar aqui, e não na tela, faz as duas chegarem idênticas ao front.
+    const num = v => {
+        if (v == null || v === '') return '';
+        const n = typeof v === 'number' ? v : Number(String(v).replace(',', '.'));
+        return Number.isFinite(n) ? n.toFixed(2).replace('.', ',') : String(v);
+    };
+    return d['itens'].map(it => ({
+        'Descrição':     it.descricao || '',
+        'NCM':           it.ncm || '',
+        'CFOP':          it.cfop || '',
+        'Unidade':       it.unidade || '',
+        'Quantidade':    it.quantidade == null ? '' : it.quantidade,
+        'Valor unitário': num(it.valorUnitario),
+        'Valor total':    num(it.valorTotal),
+        // A forma antiga não gravava confiança; deixar vazio é mais honesto que
+        // inventar "alta" para item que ninguém conferiu.
+        'Confiança':     it.confianca || '',
+    }));
+}
+
+function detalheOcr(d) {
+    const out = {};
+    if (d['CFOP'] && !semValorReal(d['CFOP'])) out.cfop = String(d['CFOP']);
+    const itens = itensDoParser(d);
+    if (itens) out.itens = itens;
+    const valorNota = valorDoParser(primeiroDe(d, CHAVES_VALOR));
+    if (valorNota != null) out.valorNota = valorNota;
+    const codigoReceita = primeiroDe(d, CHAVES_CODIGO_RECEITA);
+    if (!semValorReal(codigoReceita)) out.codigoReceita = String(codigoReceita);
+    // A chave já chega validada pelo DV (`chaveValida` em _nf-parsers.js zera o
+    // campo quando não fecha — ver chave-acesso-valida-o-dv.md), então aqui é só
+    // repassar o que já está limpo. Sem reformatar: o botão de copiar da tela
+    // precisa da sequência crua de 44 dígitos, sem pontuação nem espaço.
+    const chave = d['Chave de acesso'];
+    if (!semValorReal(chave)) out.chaveAcesso = String(chave).replace(/\D/g, '');
+    return Object.keys(out).length ? out : null;
+}
+
+// Os três números da retenção, quando o papel é NFS-e e os traz.
+//
+// A trava está no `fecha`: só devolvemos retenção quando bruto − retenções =
+// líquido NO PRÓPRIO PAPEL. Isso não é rigor decorativo, é o que separa número de
+// número parecido — medido em 10/09/2026 (`_medir/_parser-nfse.js`), a NFS-e da
+// SKILLHUB imprime "IRRF 1,50 / COFINS 3,00 / PIS 0,65" que são ALÍQUOTAS, não
+// valores (1,5% de 790,12 = 11,85, não 1,50). Somá-las daria 5,15 e "explicaria"
+// um desconto de 48,59 como se fosse retenção parcial. Exigir que a conta feche
+// recusa essas: sem bruto e sem líquido impressos, não há o que conferir.
+//
+// É a mesma disciplina que `totalDaNotaComOrigem` (_nf-itens.js) já aplica ao
+// total da nota: a soma dos itens vale porque é aritmética verificada, e ler por
+// posição de coluna está reprovado justamente por produzir número errado com cara
+// de certo.
+function retencaoDoParser(d) {
+    const bruto = valorDoParser(primeiroDe(d, CHAVES_VALOR_BRUTO));
+    const liquido = valorDoParser(primeiroDe(d, CHAVES_VALOR_LIQUIDO));
+    if (bruto == null || liquido == null || liquido >= bruto) return null;
+
+    const retidos = CHAVES_RETIDOS
+        .map(k => valorDoParser(d[k]))
+        .filter(v => v != null);
+
+    // Duas candidatas para o total retido, testadas na ordem em que merecem
+    // confiança. Ambas passam pelo MESMO teste de fechamento — nenhuma é aceita
+    // por autoridade do rótulo.
+    //
+    //  1. `TOTAL TRIB. FEDERAIS`, que a própria nota soma. É mais robusta que
+    //     somar rótulo a rótulo: dispensa acertar o nome de cada tributo (o
+    //     layout de Cascavel usa `IR`, não `IRRF`) e não corre o risco de captar
+    //     a coluna vizinha. Na GENUSCLIN NF 37846 é ela que faz a conta fechar.
+    //     Somada ao ISS retido, quando os dois existem — o ISS é municipal e fica
+    //     fora do total federal.
+    //  2. a soma dos tributos lidos um a um, para as notas que não imprimem total.
+    const federais = valorDoParser(d['Total trib. federais']);
+    const issRetido = valorDoParser(d['ISS retido']);
+    const somaRotulos = retidos.reduce((s, v) => s + v, 0);
+    // Agrupados do layout NACIONAL de NFS-e, que não traz rótulo por tributo:
+    // "PIS/COFINS/CSLL 4,65%: R$ 25,39" (G.A.R NF 216) e o par
+    // "IRRF + CONTRIBUICOES SOCIAIS - RETIDAS" (MRD NF 107: 45,07 + 139,72 = 184,79).
+    const pcc = valorDoParser(d['PIS/COFINS/CSLL retidos']);
+    const sociais = valorDoParser(d['Contrib. sociais retidas']);
+    const irrf = valorDoParser(d['IRRF retido']);
+
+    const candidatas = [];
+    if (federais != null) {
+        candidatas.push(federais);
+        if (issRetido != null) candidatas.push(federais + issRetido);
+    }
+    if (pcc != null) {
+        candidatas.push(pcc);
+        if (irrf != null) candidatas.push(pcc + irrf);
+    }
+    if (sociais != null && irrf != null) candidatas.push(sociais + irrf);
+    if (sociais != null) candidatas.push(sociais);
+    if (somaRotulos > 0) candidatas.push(somaRotulos);
+    if (!candidatas.length) return null;
+
+    // Um centavo de folga por tributo: cada retenção é arredondada na origem.
+    const folga = 0.01 * Math.max(1, retidos.length);
+    for (const soma of candidatas) {
+        if (Math.abs(bruto - soma - liquido) <= folga)
+            return { bruto, liquido, retido: Math.round(soma * 100) / 100 };
+    }
+    return null;
+}
+
 // Extrai de `dados_parser` só o que o pareamento usa. Devolve null quando não há
 // nada aproveitável, para não encher o índice de objeto vazio.
 // O CNPJ NÃO entra: medido em 02/09/2026, ele não identifica o fornecedor de
@@ -418,17 +727,105 @@ function camposOcr(bruto) {
     const digitos = v => String(v == null ? '' : v).replace(/\D/g, '');
     const numeroBruto = primeiroDe(d, CHAVES_NUMERO);
     const numero = digitos(numeroBruto) ? String(numeroBruto) : null;
-    const emitente = primeiroDe(d, CHAVES_EMITENTE);
+    // O emitente é o único campo em que TODAS as fontes somam em vez de competir:
+    // `enriquecerComOcr` une os tokens (não substitui), então juntar aqui a razão
+    // social e o nome fantasia lidos da nota só acrescenta formas de casar a mesma
+    // empresa — "BOBIG" (arquivo) + "CONTATTO"/"HIDRAUFLEX" (nota). Para os demais
+    // campos `primeiroDe` continua valendo: número e valor têm de ser um só.
+    const emitente = todosDe(d, CHAVES_EMITENTE);
     const valor = valorDoParser(primeiroDe(d, CHAVES_VALOR));
     const dtEmissao = dataDoParser(primeiroDe(d, CHAVES_EMISSAO));
-    if (numero == null && emitente == null && valor == null && dtEmissao == null) return null;
+    const detalhe = detalheOcr(d);
+    const retencao = retencaoDoParser(d);
+    if (numero == null && emitente == null && valor == null && dtEmissao == null
+        && detalhe == null && retencao == null) return null;
 
     const out = {};
     if (numero != null) out.numero = String(numero);
     if (emitente != null) out.emitente = String(emitente);
     if (valor != null) out.valor = valor;
     if (dtEmissao != null) out.dtEmissao = dtEmissao;
+    if (detalhe != null) out.detalhe = detalhe;
+    // O BRUTO é o que a planilha lança. Quando a retenção confere, ele entra como
+    // valor do documento para o pareamento — sem ele, o par tem de casar contra o
+    // líquido, que é justamente o número que não bate com a planilha.
+    if (retencao != null) out.retencao = retencao;
     return out;
+}
+
+// ── Onde o documento está × onde deveria estar ───────────────────────────────
+// Medido em 09/09/2026 (`_medir/_por-que-deslocado.js`, 03.2026): dos 186 pares
+// casados em pasta VIZINHA, 181 (97,3%) têm o nome do arquivo e a pasta
+// CONCORDANDO entre si — o papel está bem arquivado pela data dele, e quem cai
+// noutro mês é o lançamento (competência ≠ pagamento). Marcar esses como "fora do
+// lugar" mandaria mexer em 180 arquivos corretos.
+//
+// Então o lugar devido do PAPEL é a pasta da data do PRÓPRIO documento, não a do
+// lançamento. Sobram três casos que merecem ação, e são poucos: em março, 6 para
+// mover e 5 para renomear, de 628 lançamentos.
+const RE_DATA_NOME_ISO = /(?<!\d)(20\d{2})\.(\d{2})\.(\d{2})(?!\d)/;
+const RE_DATA_NOME_BR  = /(?<!\d)(\d{2})\.(\d{2})\.(20\d{2})(?!\d)/;
+
+function mesNoNomeArquivo(nome) {
+    const n = String(nome || '');
+    let m = n.match(RE_DATA_NOME_ISO);
+    if (m) return `${m[1]}.${m[2]}`;
+    m = n.match(RE_DATA_NOME_BR);
+    if (m) return `${m[3]}.${m[2]}`;
+    return null;
+}
+
+function mesNaPastaDoCaminho(rel) {
+    const s = String(rel || '').replace(/\\/g, '/');
+    let m = s.match(/(?:^|\/)(20\d{2})\.(\d{2})\.(\d{2})(?:\/|$)/);
+    if (m) return `${m[1]}.${m[2]}`;
+    m = s.match(/(?:^|\/)(\d{2})\.(\d{2})\.(20\d{2})(?:\/|$)/);
+    if (m) return `${m[3]}.${m[2]}`;
+    return null;
+}
+
+// Data que PARECE data mas não casa nenhum formato válido: "2026.04.414" (dia
+// inválido), "226.04.22" (ano de 3 dígitos), "2026.04.1" (dia incompleto). Aqui a
+// pasta costuma estar certa e o NOME é que precisa de conserto — ação oposta a
+// mover o arquivo, por isso é situação própria.
+function dataMalformadaNoNome(nome) {
+    const n = String(nome || '');
+    if (mesNoNomeArquivo(n)) return '';
+    const m = n.match(/(?<!\d)(\d{1,4}\.\d{1,2}\.\d{1,4})(?!\d)/);
+    return m ? m[1] : '';
+}
+
+/**
+ * { situacao, ondeEsta, ondeDeveria, dataInvalida } para um documento casado.
+ *   ok            pasta do mês do lançamento
+ *   outro_mes     outra pasta, coerente com a data do nome — normal, sem ação
+ *   fora_do_lugar nome diz um mês, pasta é outra — mover
+ *   data_invalida data do nome malformada — renomear
+ */
+function localizacao(documento, periodoLancamento) {
+    const mesLanc = (() => { const [m, a] = String(periodoLancamento).split('.'); return `${a}.${m}`; })();
+    const nome = documento.arquivo || '';
+    const caminho = documento.caminho || '';
+    const ruim = dataMalformadaNoNome(nome);
+    const mn = mesNoNomeArquivo(nome);
+    const mp = mesNaPastaDoCaminho(caminho);
+
+    if (ruim) return { situacao: 'data_invalida', ondeEsta: caminho, ondeDeveria: mp || mesLanc, dataInvalida: ruim };
+    if (mn && mp && mn !== mp) return { situacao: 'fora_do_lugar', ondeEsta: caminho, ondeDeveria: mn, dataInvalida: '' };
+    if (mp && mp !== mesLanc) return { situacao: 'outro_mes', ondeEsta: caminho, ondeDeveria: mp, dataInvalida: '' };
+    return { situacao: 'ok', ondeEsta: caminho, ondeDeveria: mn || mesLanc, dataInvalida: '' };
+}
+
+// O OCR de um documento, preferindo a chave que o identifica sem ambiguidade.
+// `rel` é o caminho relativo do arquivo (com o nome no fim); o índice é chaveado
+// pela PASTA, então o nome sai do fim. Cai no nome sozinho quando a composta não
+// existe — CSV antigo, gravado antes da coluna `pasta`, ou pasta vazia.
+function ocrDoDocumento(ocrPorArquivo, nome, rel) {
+    if (!ocrPorArquivo) return null;
+    const s = String(rel || '').replace(/\\/g, '/');
+    const i = s.lastIndexOf('/');
+    const pasta = i < 0 ? '' : s.slice(0, i);
+    return ocrPorArquivo[`${pasta}|${nome}`] || ocrPorArquivo[nome] || null;
 }
 
 // Parsear ~30 CSVs (o maior tem ~1 MB) a cada request é desperdício quando o relatório
@@ -840,8 +1237,344 @@ function resumoPorValor(todos, semDocumento) {
         valorTotal: soma(todos),
         valorSemDocumento: soma(semDocumento),
         faixasSemDocumento: faixas,
+        // A tela limita a lista visual para não pesar o painel, mas a exportação
+        // precisa representar todos os lançamentos faltantes do período.
+        todosSemDocumento: semDocumento.map(l => ({
+            entidade: l.entidade,
+            nf: l.nf,
+            valor: Math.abs(l.valor) || 0,
+            dtLancamento: l.dtLancamento,
+        })),
         listaSemDocumento: lista,
         listaTruncadaEm: semDocumento.length > MAX_LISTA ? MAX_LISTA : null,
+    };
+}
+
+// ── Valores divergentes ──────────────────────────────────────────────────────
+// O par existe — número E fornecedor confirmam que o papel é DAQUELE lançamento —,
+// mas o dinheiro não bate. É a segunda pergunta da conferência: "o que está
+// arquivado confere com o que foi lançado?".
+//
+// Só entram pares em DESACORDO de valor, não pares em que o valor falta: sem
+// valor no documento não há divergência a apurar, há dado ausente (1 caso em
+// 2.068 pares). A via `valor*` nunca aparece aqui por construção — nela bate.
+//
+// MEDIDO em 03/09/2026 (jan–jun/2026, `_medir/divergencias.js` e `divergencias2.js`),
+// 2.068 pares, 247 com valor divergindo (11,9%). A composição é o que define o card:
+//
+//   parcela — razão inteira exata     110 (44,5%)   R$ 606 mil
+//   divergência real                  137 (55,5%)   R$ 667 mil
+//
+// **Parcela não é divergência.** CIMAG R$ 30.600 ÷ 5 = R$ 6.120, AGRICOPEL
+// R$ 20.995 ÷ 4 = R$ 5.248,75, YELUM ÷ 10 — o documento é UMA parcela da nota, e
+// a distribuição dos N confirma (2x:33, 3x:42, 4x:23, o resto pulverizado até 12x).
+// É o caso que PROGRESSO §13/§14 descreve. Sem essa separação o card viraria uma
+// lista em que as 15 maiores linhas são todas falsas — e a maior de todas seria a
+// CIMAG, que está certa.
+//
+// As 137 restantes se distribuem assim, e cada faixa quer uma leitura diferente:
+//
+//   ≤1%      1   arredondamento
+//   1–5%    54   retenção de ISS/IR, desconto de boleto — legítimo e esperado
+//   5–15%   40   idem, retenção maior
+//   15–50%   7
+//   >50%    35   é aqui que mora o problema
+//
+// A faixa >50% não é só "valor errado": parte dela é PAR errado. GIZELE FERREIRA
+// NF 3764 (R$ 5.748,79) casada com `084.DOC- 614,30 ... FT13837`, WN AUTO ELETRICA
+// NF 143 (R$ 150,00) com `021.DOC- 3040,00 ... FT511444` — o número do OCR bateu,
+// o do nome do arquivo é outro, e o fornecedor bate por token. O card as expõe
+// justamente por isso: é a única tela em que um par errado fica visível.
+const MAX_DIVERGENCIAS = 200;
+
+// Teto de parcelas aceito ao classificar. 36 cobre o que a medição encontrou
+// (o maior N real foi 12) com folga, sem chegar ao consórcio de 60–80, que não
+// aparece aqui.
+const MAX_PARCELAS_DIV = 36;
+
+// O documento pode ter dois valores: o lido pelo extrator (`valor`) e o do nome
+// do arquivo (`valorAlt`), que numa parcela é o valor PAGO. Para medir a
+// divergência vale o mais próximo do lançamento — senão uma parcela apareceria
+// como divergência de milhares de reais, que é justamente o que ela não é.
+function valorMaisProximo(l, d) {
+    const cands = [d.valor, d.valorAlt].filter(v => v != null && v > 0);
+    if (!cands.length) return null;
+    return cands.reduce((a, b) =>
+        Math.abs(l.valor - a) <= Math.abs(l.valor - b) ? a : b);
+}
+
+// N tal que `parte` × N = `total`, ou null. A tolerância cresce com N porque o
+// arredondamento da parcela se acumula (R$ 0,01 por parcela é o pior caso real).
+function razaoParcela(total, parte) {
+    if (!(parte > 0) || parte >= total) return null;
+    const n = Math.round(total / parte);
+    if (n < 2 || n > MAX_PARCELAS_DIV) return null;
+    return Math.abs(total - n * parte) <= 0.02 * n ? n : null;
+}
+
+// ── Empates: mais de um documento disputava o mesmo lançamento ───────────────
+// Quando dois candidatos empatam em força e em distância de data, o desempate é
+// pelo nome do arquivo (`parear` em _pareamento.js) — estável, mas arbitrário
+// quanto ao mérito. Foi assim que o Pedido/PV da MACPONTA ganhou da nota
+// escaneada, ambos "031.DOC- 1320000,00".
+//
+// A medição de 08/09/2026 tentou decidir isso automaticamente e REPROVOU: preferir
+// o documento sem marcador de acessório ("+ AUT", "+ PV", PEDIDO) trocava 61 pares,
+// e a inspeção mostrou os pares existentes CERTOS e as alternativas erradas —
+// "+ AUT" quer dizer "nota MAIS autorização anexa". Sem sinal automático confiável,
+// o caminho é mostrar o empate para conferência humana.
+const MAX_EMPATES = 50;
+
+// PARCELA não é empate. Medido em 02/2026: dos 50 empates brutos, a maioria era um
+// carnê — SAVANA NF 162111 de R$ 16.000 com quatro documentos de R$ 4.000 em meses
+// seguidos, UNIVERSAL FERRO NF 84179 com quatro de R$ 6.871,90. Os candidatos não
+// disputam o mesmo papel: cada um é uma parcela distinta do mesmo lançamento, e
+// listá-los como ambiguidade manda conferir o que está certo. Reusa `razaoParcela`,
+// o mesmo teste que `divergenciasDeValor` já aplica.
+//
+// Está separado em função porque agora responde em DOIS lugares: nesta lista e no
+// sinal `empatado` de cada linha de `encontradas`. Se o desconto do carnê valesse
+// só num deles, a tela mostraria mais linhas ambíguas do que a lista de empates diz
+// existir — dois números discordando na mesma tela.
+function ehParcela(p) {
+    const vDoc = valorMaisProximo(p.lancamento, p.documento);
+    return vDoc != null && razaoParcela(p.lancamento.valor, vDoc) != null;
+}
+
+// O valor PAGO num documento. `valorAlt` vem do nome do arquivo e, num carnê, é o
+// valor da parcela; `valor` é o total da nota lido pelo extrator. Para somar
+// parcelas vale o pago — somar totais de nota daria N× o lançamento.
+const valorPago = d => (d && d.valorAlt != null && d.valorAlt > 0) ? d.valorAlt
+                     : (d && d.valor != null && d.valor > 0) ? d.valor : null;
+
+// CARNÊ que `ehParcela` não pega. `ehParcela` testa se UM documento é fração exata
+// do total, e falha quando as parcelas são desiguais — UNIVERSAL FERRO NF 84958 de
+// R$ 19.473,80 tem entrada de R$ 5.242,01 e três de R$ 4.743,93: nenhuma é total÷4,
+// mas a SOMA fecha no centavo. Idem MULTIBELT (2.377,00 + 2.130,00) e BRV
+// (180,00 + 2.925,00).
+//
+// Medido em jan–jun/2026: dos 235 empates, 28 têm soma que fecha. Desses, 26 trazem
+// a MESMA NF em todos os arquivos e os 2 restantes são erro de digitação da mesma NF
+// (FLORESTEC "NF 13543" × "NF 13453"; R C TRATORES "NF 4+ BOL 1138" × "NF 41138") —
+// por isso o teste NÃO exige NF igual: exigir devolveria à lista dois carnês reais.
+// A soma fechar no centavo com 3–4 arquivos do mesmo fornecedor já é evidência mais
+// forte que a NF, que aqui é digitada à mão.
+//
+// Estes documentos não disputam o mesmo papel: cada um é uma parcela distinta do
+// mesmo lançamento, e listá-los como ambiguidade manda conferir o que está certo —
+// a mesma razão que tirou o carnê da lista em `ehParcela`.
+function ehCarne(p) {
+    const cands = p.candidatosEmpatados || [];
+    if (!cands.length) return false;
+    const vals = [valorPago(p.documento), ...cands.map(valorPago)];
+    // Soma parcial não fecha nada: um só candidato sem valor invalida o teste, senão
+    // um documento ilegível viraria "carnê" por omissão.
+    if (vals.some(v => v == null)) return false;
+    const soma = vals.reduce((a, b) => a + b, 0);
+    // Mesma escala de tolerância de `razaoParcela`: o arredondamento da parcela
+    // acumula (FLORESTEC: 7.548,24 + 7.548,23).
+    return Math.abs(soma - Math.abs(p.lancamento.valor)) <= 0.02 * vals.length;
+}
+
+// Os dois testes são COMPLEMENTARES e ambos valem: `ehParcela` pega o carnê de que a
+// pasta tem uma parcela só (a soma não teria como fechar), `ehCarne` pega o de
+// parcelas desiguais. Medido: dos 28 que a soma pega, `ehParcela` já pegava 14.
+const ehParcelamento = p => ehParcela(p) || ehCarne(p);
+
+// POR QUE este empate empatou. Medido em jan–jun/2026 sobre as 207 colisões reais:
+// não há desempate automático disponível (a NF do lançamento aparece em um só
+// arquivo em 6 casos, e em NENHUM arquivo em 165 — são recibos cujo "nf" na planilha
+// é número interno que nunca esteve no papel). Como a regra não tem o que decidir,
+// o que resta é dizer ao humano onde olhar. Por isso aqui se CLASSIFICA, não se
+// escolhe: nenhum par troca de documento.
+//
+// A ordem importa — o primeiro que casar vence, do mais específico ao mais genérico.
+function motivoDoEmpate(p) {
+    const cands = p.candidatosEmpatados || [];
+    const vEsc = valorPago(p.documento);
+    const mesmoValor = cands.some(d => {
+        const v = valorPago(d);
+        return v != null && vEsc != null && Math.abs(v - vEsc) < 0.005;
+    });
+
+    // A NF do lançamento aparece no nome de UM só arquivo? É o caso mais acionável:
+    // o humano decide num relance. Raro (6 em 207), e em 2 deles a NF aponta um
+    // arquivo diferente do escolhido — mostrar é justamente o objetivo.
+    const nfL = String(p.lancamento.nf ?? '').replace(/\D/g, '');
+    if (nfL.length >= 3) {
+        const temNF = nome => String(nome || '').replace(/\D/g, '').includes(nfL);
+        const quantos = (temNF(p.documento.arquivo) ? 1 : 0)
+                      + cands.filter(d => temNF(d.arquivo)).length;
+        if (quantos === 1) {
+            return temNF(p.documento.arquivo)
+                ? { codigo: 'nf_no_escolhido', texto: 'só o escolhido tem a NF do lançamento' }
+                : { codigo: 'nf_em_outro', texto: 'a NF do lançamento está em OUTRO arquivo' };
+        }
+    }
+
+    // Mesmo fornecedor nos dois papéis: nem o nome desempata. É o UNIDAS — FAT 68383
+    // e FAT 68634, mesmo dia, mesmo valor. Usa `tokens` de _pareamento.js, o mesmo
+    // teste que o motor usa para casar entidade; escrever outro aqui faria a tela
+    // discordar do pareamento sobre o que é "o mesmo fornecedor".
+    const tl = pareamento.tokens(p.lancamento.entidade);
+    if (tl.size) {
+        const doLanc = nome => {
+            const t = pareamento.tokens(nome);
+            for (const x of tl) if (t.has(x)) return true;
+            return false;
+        };
+        if (doLanc(p.documento.arquivo) && cands.every(d => doLanc(d.arquivo)))
+            return mesmoValor
+                ? { codigo: 'mesmo_fornecedor', texto: 'mesmo fornecedor, 2 papéis de valor igual' }
+                : { codigo: 'mesmo_fornecedor_val', texto: 'mesmo fornecedor, valores diferentes' };
+    }
+
+    // O caso mais comum (a maioria dos 207): valor idêntico, fornecedores distintos.
+    // R$ 1.000,00 é um valor que muita gente recebe, e quando o lançamento não tem NF
+    // no papel o valor é o único sinal — e ele não distingue.
+    if (mesmoValor) return { codigo: 'colisao_valor', texto: 'mesmo valor, fornecedor diferente' };
+    return { codigo: 'outro', texto: 'valores diferentes, casou por NF+fornecedor' };
+}
+
+function empatesParaTela(pares) {
+    const linhas = [];
+    let parcelados = 0;
+    for (const p of pares) {
+        if (!p.empatado) continue;
+        if (ehParcelamento(p)) { parcelados++; continue; }
+
+        linhas.push({
+            entidade: p.lancamento.entidade,
+            nf: p.lancamento.nf,
+            valor: p.lancamento.valor,
+            forca: p.forca,
+            via: p.via,
+            escolhido: p.documento.arquivo,
+            caminho: p.documento.caminho || p.documento.arquivo,
+            periodoDocumento: p.periodoDocumento || null,
+            // Por que empatou — a coluna "Motivo" da tela. Ver `motivoDoEmpate`.
+            motivo: motivoDoEmpate(p),
+            // Os que ficaram de fora, para quem confere abrir e comparar.
+            candidatos: (p.candidatosEmpatados || []).slice(0, 6),
+            outros: (p.candidatosEmpatados || []).length,
+        });
+    }
+    // Pelo valor: o empate de R$ 1,3 milhão importa mais que o de R$ 75.
+    linhas.sort((a, b) => Math.abs(b.valor) - Math.abs(a.valor));
+    return {
+        empatados: linhas.length,
+        // Quantos empates eram carnê — fora da lista, mas visíveis para o número
+        // não parecer ter sumido.
+        empatadosParcela: parcelados,
+        // O bruto, antes de descontar parcelamento. Existe para o medidor provar que
+        // reclassificar MOVE o empate de coluna sem fazê-lo sumir: a invariante é
+        // `empatados + empatadosParcela === empatadosBruto`. Sem isso o teste não
+        // teria como distinguir "virou parcela" de "desapareceu".
+        empatadosBruto: linhas.length + parcelados,
+        listaEmpatados: linhas.slice(0, MAX_EMPATES),
+        empatadosTruncadaEm: linhas.length > MAX_EMPATES ? MAX_EMPATES : null,
+    };
+}
+
+// RETENÇÃO NA FONTE não é divergência, pelo mesmo motivo que parcela não é: o
+// papel CONFERE com o lançamento, os dois números só descrevem coisas diferentes —
+// a planilha lança o serviço bruto, o boleto cobra o líquido, e a diferença é o
+// imposto que a própria nota declara reter.
+//
+// O teste é aritmético e usa só números lidos do papel: `retencaoDoParser` já
+// exigiu que bruto − retenções = líquido NA NOTA, e aqui basta confirmar que o
+// lançamento é o BRUTO. São duas verificações independentes — a nota consigo
+// mesma, e a nota com a planilha.
+//
+// MEDIDO em 10/09/2026 (`_medir/_retencao-*.js`, jan–jun/2026): das 131
+// divergências fora parcela, 110 têm documento menor que o lançado e 95 declaram
+// retenção. A regra que classifica por vocabulário + teto de 15% pegava 85 com
+// ZERO falsos positivos — e o que restava na lista era problema de verdade (par
+// errado: GIZELE FERREIRA, WN AUTO ELETRICA; valor invertido: FERNANDO MENDES
+// 10.044 × 10.440). Esta versão é mais estrita ainda: exige a conta fechando no
+// papel, então não depende de teto nenhum.
+function ehRetencao(l, d) {
+    if (!(d.valorRetido > 0) || !(d.valorLiquido > 0)) return false;
+    // O lançamento tem de ser o BRUTO. Se a planilha lançou outro número — o
+    // líquido, ou um valor que não é nenhum dos dois —, a retenção não explica
+    // nada e o caso segue para a lista como divergência, que é o certo.
+    return Math.abs(l.valor - d.valor) <= 0.02;
+}
+
+function divergenciasDeValor(pares) {
+    const linhas = [];
+    let parcelas = 0, valorParcelas = 0;
+    let retencoes = 0, valorRetencoes = 0;
+    for (const p of pares) {
+        const l = p.lancamento, d = p.documento;
+        if (!(l.valor > 0)) continue;
+
+        // A retenção é contada ANTES do teste de diferença, e não depois. Uma vez
+        // que `enriquecerComOcr` põe o BRUTO em `d.valor`, `valorMaisProximo`
+        // devolve justamente ele — o par passa a bater e cairia no `continue` de
+        // tolerância abaixo, sem ser contado. O caso ficaria correto na lista e
+        // invisível no rodapé: o usuário veria a divergência sumir sem explicação.
+        // Contar aqui é o que sustenta "R$ X são imposto retido" na tela.
+        if (ehRetencao(l, d)) {
+            retencoes++; valorRetencoes += d.valorRetido;
+            continue;
+        }
+
+        const vDoc = valorMaisProximo(l, d);
+        if (vDoc == null) continue;              // sem valor no papel: não é divergência
+        const dif = vDoc - l.valor;
+        if (Math.abs(dif) < 0.005) continue;     // mesma tolerância de `valorBate`
+
+        // Parcela sai da lista e vira contagem própria: o papel confere com o
+        // lançamento, só cobre uma fração dele.
+        const n = razaoParcela(l.valor, vDoc);
+        if (n) { parcelas++; valorParcelas += Math.abs(dif); continue; }
+
+        linhas.push({
+            entidade: l.entidade,
+            nf: l.nf,
+            valorPlanilha: l.valor,
+            valorDocumento: vDoc,
+            diferenca: dif,
+            // % sobre o lançamento: separa a retenção (poucos %) do erro grosso.
+            percentual: (dif / l.valor) * 100,
+            arquivo: d.arquivo,
+            // Caminho relativo à raiz varrida acima (ARQUIVO_PATH, com MONITOR_PATH
+            // como reserva) — é o que /api/pdf-viewer precisa para abrir o PDF na
+            // tela, e por isso aquela rota procura nas MESMAS duas raízes, nesta
+            // ordem. `arquivo` sozinho não basta: o mesmo nome aparece em subpastas
+            // de meses diferentes.
+            caminho: d.caminho || d.arquivo,
+            via: p.via,
+            // Onde o papel está, para quem for abrir a pasta conferir.
+            periodoDocumento: p.periodoDocumento || null,
+            // Idem `encontradas`: distingue par do mês de par de pasta vizinha.
+            deslocamento: p.deslocamento ?? null,
+        });
+    }
+    // Pela diferença absoluta: a retenção de centavos não compete com a nota
+    // lançada com o valor errado.
+    linhas.sort((a, b) => Math.abs(b.diferenca) - Math.abs(a.diferenca));
+    return {
+        divergentes: linhas.length,
+        valorDivergencia: linhas.reduce((s, x) => s + Math.abs(x.diferenca), 0),
+        // Quantos dos divergentes passam de 50% do lançamento — a faixa em que a
+        // medição achou par errado, não só valor errado.
+        divergentesGraves: linhas.filter(x => Math.abs(x.percentual) > 50).length,
+        // Parcela não entra na lista, mas o número aparece: sem ele o usuário
+        // pergunta por que o card mostra menos do que o total que não bate.
+        parcelas,
+        valorParcelas,
+        // Idem retenção na fonte: fora da lista, mas contada — é o imposto retido
+        // (ISS/IRRF/PIS/COFINS/CSLL), não erro. Mostrar o valor deixa explícito
+        // quanto do "que não bate" é tributo.
+        retencoes,
+        valorRetencoes,
+        // A tabela da tela mostra apenas os maiores; o relatório para PDF precisa
+        // incluir todos os pares divergentes devolvidos pelo pareamento.
+        todosDivergentes: linhas,
+        listaDivergentes: linhas.slice(0, MAX_DIVERGENCIAS),
+        divergentesTruncadaEm: linhas.length > MAX_DIVERGENCIAS ? MAX_DIVERGENCIAS : null,
     };
 }
 
@@ -903,6 +1636,37 @@ module.exports = async function compararNotasRoute(req, res) {
             mesesNoBanco: Object.keys(b.porMes).sort(),
         };
 
+        // 2b) "PDFs na pasta" — a lista crua do disco, do mês pedido. Depende do banco
+        // só para marcar quais o OCR já leu, e é a última coisa a ser montada porque o
+        // `stat` é a parte cara. Cai fora sem derrubar o resto se a pasta sumir.
+        let pdfs = { disponivel: false };
+        if (pasta.disponivel && pastaBruta) {
+            try {
+                const d = await detalharPdfsDoMesCacheado(raiz, pastaBruta.todosPorMes, periodo);
+                // O índice do OCR responde por `pasta|arquivo` e, como reserva, pelo
+                // nome sozinho — as duas chaves que `contarNoCsv` grava.
+                //
+                // `lido` sai numa CÓPIA, não no objeto cacheado: o cache do disco e o do
+                // banco expiram em ritmos diferentes, e gravar ali deixaria um "lido"
+                // velho colado no arquivo depois que o banco já mudou.
+                const ocr = (b && b.ocrPorArquivo) || {};
+                const arquivos = d.arquivos.map(a => ({
+                    ...a, lido: !!(ocr[`${a.nome}|${a.pasta}`] || ocr[a.nome]),
+                }));
+                pdfs = {
+                    disponivel: true, raiz, ...d, arquivos,
+                    lidos: arquivos.filter(a => a.lido).length,
+                    // Os PDFs sem data não pertencem a mês nenhum, então não estão na
+                    // lista acima. O número aparece para a seção não contradizer o
+                    // rodapé do painel, que os conta.
+                    semData: (pastaBruta.todosPorMes[SEM_DATA] || []).length,
+                };
+            } catch (e) {
+                console.error('[comparar-notas] lista de PDFs falhou:', e.message);
+                pdfs = { disponivel: false, motivo: e.message };
+            }
+        }
+
         // 3) planilha
         const planilhaPath = process.env.PLANILHA_PATH;
         let planilha = { total: 0, disponivel: false, linhas: 0, linhasTodasOrig: 0 };
@@ -951,7 +1715,7 @@ module.exports = async function compararNotasRoute(req, res) {
                     documentosPorMes[alvo] = arquivos.map(a =>
                         pareamento.enriquecerComOcr(
                             pareamento.documentoDoArquivo(a.nome, a.rel),
-                            ocrPorArquivo[a.nome]));
+                            ocrDoDocumento(ocrPorArquivo, a.nome, a.rel)));
                 }
                 const lancamentos = (itensPlanilha || []).map(pareamento.lancamentoDaPlanilha);
                 const r = pareamento.conferirPeriodo(lancamentos, documentosPorMes, periodo);
@@ -963,6 +1727,49 @@ module.exports = async function compararNotasRoute(req, res) {
                     disponivel: true,
                     // Total conferido = com documento em qualquer pasta. É o número do card.
                     conferidos: r.pares.length + r.paresVizinhos.length,
+                    encontradas: [...r.pares, ...r.paresVizinhos].map(p => ({
+                        tipo: p.documento.tipo || 'Não identificado',
+                        fornecedor: p.lancamento.entidade || '',
+                        cnpj: p.lancamento.cnpj || '',
+                        nf: p.lancamento.nf || '',
+                        valor: p.lancamento.valor ?? null,
+                        arquivo: p.documento.arquivo || '',
+                        caminho: p.documento.caminho || '',
+                        periodoDocumento: p.periodoDocumento || periodo,
+                        // Quantos meses o documento está distante da pasta do mês
+                        // consultado. `null` = achado na própria pasta. Sem isto,
+                        // "no mês" e "pasta vizinha" ficam indistinguíveis no
+                        // export: `periodoDocumento` cai no período do lançamento
+                        // quando o par é do mês, e a coluna vira só o mês da pasta.
+                        deslocamento: p.deslocamento ?? null,
+                        via: p.via,
+                        forca: p.forca,
+                        // Outro documento servia para este mesmo lançamento com força
+                        // igual, e quem desempatou foi o nome do arquivo — não o mérito.
+                        // A lista `listaEmpatados` já mostra isso, mas ela é truncada em
+                        // MAX_EMPATES; aqui a marca vale para TODAS as linhas, que é o
+                        // que a tela precisa para pintar a pílula e filtrar.
+                        // `ehParcela` desconta o carnê, senão todo pagamento parcelado
+                        // apareceria como ambíguo (ver a função).
+                        empatado: !!p.empatado && !ehParcelamento(p),
+                        // Só os nomes, e no mesmo teto de 6 da lista de empates: quem
+                        // precisa abrir o PDF usa aquela lista, que leva `caminho` e o
+                        // botão. Levar caminho em ~2.100 linhas incharia o JSON à toa.
+                        candidatosEmpatados: (p.candidatosEmpatados || []).slice(0, 6).map(x => x.arquivo),
+                        // CFOP/Itens/valor da nota/código da receita, quando o parser
+                        // achou — a tela abre isso ao clicar na linha. `null` quando o
+                        // documento não tem nada desse tipo (a maioria: são campos de
+                        // NF-e e guia de imposto).
+                        detalhe: p.documento.detalhe || null,
+                        ...localizacao(p.documento, periodo),
+                    })),
+                    // Resumo de localização: quantos estão no lugar, quantos em outra
+                    // pasta por competência (normal) e quantos pedem ação.
+                    porSituacao: [...r.pares, ...r.paresVizinhos].reduce((acc, p) => {
+                        const s = localizacao(p.documento, periodo).situacao;
+                        acc[s] = (acc[s] || 0) + 1;
+                        return acc;
+                    }, {}),
                     // Quantos vieram da pasta DESTE mês, e quantos de pasta vizinha.
                     noMes: r.pares.length,
                     emPastaVizinha: r.paresVizinhos.length,
@@ -972,7 +1779,17 @@ module.exports = async function compararNotasRoute(req, res) {
                     }, {}),
                     fracos: r.fracos,                                // apoiados num sinal só
                     lancamentosSemDocumento: r.lancamentosSemDocumento,
+                    // Líquido de irmãos: quem arquiva grava todos os papéis de um
+                    // pagamento sob o mesmo prefixo NNN, na mesma pasta-dia (nota +
+                    // pedido + autorização). O resto do maço não é documento sem
+                    // dono, e contá-lo assim superestimava o que falta conciliar.
                     documentosSemLancamento: r.documentosSemLancamento,
+                    documentosSemLancamentoBruto: r.documentosSemLancamentoBruto,
+                    irmaosAgrupados: r.irmaosAgrupados,
+                    // Pares em que outro documento disputava o mesmo lançamento com
+                    // força igual — o desempate é alfabético, então é onde o olho
+                    // humano decide melhor que a regra. Ver `parear` em _pareamento.js.
+                    ...empatesParaTela([...r.pares, ...r.paresVizinhos]),
                     porVia,
                     janelaDias: pareamento.JANELA_DIAS,
                     vizinhanca: r.vizinhanca,
@@ -983,10 +1800,15 @@ module.exports = async function compararNotasRoute(req, res) {
                     // abaixo de R$ 100 e somam R$ 2.600 — 23% dos casos, 0,09% do valor.
                     // O que decide a conferência é o valor, não a contagem.
                     ...resumoPorValor(lancamentos, r.semDocumento),
+                    // Segunda pergunta: dos que TÊM documento, em quantos o valor
+                    // arquivado difere do lançado. Vizinhos entram junto — o par é
+                    // o mesmo, só a pasta é outra.
+                    ...divergenciasDeValor([...r.pares, ...r.paresVizinhos]),
                 };
                 console.log(`[comparar-notas] ${periodo}: pareamento ${conferencia.conferidos} de ` +
                     `${lancamentos.length} lançamentos (${r.pares.length} no mês, ` +
-                    `${r.paresVizinhos.length} em pasta vizinha, ${r.fracos} fracos) ` +
+                    `${r.paresVizinhos.length} em pasta vizinha, ${r.fracos} fracos, ` +
+                    `${conferencia.divergentes} com valor divergente) ` +
                     `em ${conferencia.ms} ms`);
             } catch (e) {
                 console.error('[comparar-notas] pareamento falhou:', e.message);
@@ -996,7 +1818,7 @@ module.exports = async function compararNotasRoute(req, res) {
 
         console.log(`[comparar-notas] ${periodo}: pasta ${pasta.total}, banco ${banco.total}, planilha ${planilha.total}`);
 
-        return res.json({ success: true, mes, ano, periodo, pasta, banco, planilha, conferencia });
+        return res.json({ success: true, mes, ano, periodo, pasta, banco, planilha, conferencia, pdfs });
 
     } catch (e) {
         console.error('[comparar-notas] erro:', e.message);

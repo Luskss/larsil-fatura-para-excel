@@ -109,10 +109,57 @@ const soDigitos = s => String(s || '').replace(/\D/g, '');
 
 // Valor: primeiro número depois de ".DOC-", tolerando "R$" e milhar com ponto.
 // A ordem das alternativas importa — "166.960,86" tem que casar antes de "166".
+//
+// A terceira alternativa (valor sem centavos) exige grupos de 3 dígitos para o
+// milhar. Sem isso ela era `(\d+)`, que PARA no primeiro ponto: "12.500" lia 12,
+// "1.320.000" lia 1. E o estrago não é perder o par — é casar o errado: o
+// documento entrava no pareamento com um valor falso e pequeno, colidindo com
+// qualquer lançamento daquele valor (a colisão de valor redondo que o cabeçalho
+// deste módulo descreve como o principal modo de falha). Por ser pequeno, o valor
+// falso também escapava de `divergenciasDeValor`, que ordena pela diferença
+// absoluta — o par errado ficava invisível nas duas telas.
+//
+// O `(?![\d,])` impede que esta alternativa morda a parte inteira de um valor COM
+// centavos: as duas primeiras já tratam esse caso, e sem a trava "1.234,56" cairia
+// aqui como 1.234 se a ordem mudasse.
+//
+// É uma correção DEFENSIVA, e a medição diz isso com todas as letras: em
+// jan–jun/2026 nenhum dos 4.238 documentos usa milhar sem centavos, então o
+// conserto move ZERO par hoje. O defeito era real e demonstrável, mas o padrão
+// ainda não apareceu no acervo — quem escreve "1.320.000" em vez de
+// "1320000,00" no nome é raro. Fica pelo custo assimétrico: a linha é barata e
+// o modo de falha (valor falso e pequeno casando por colisão, invisível no card
+// de divergências) é caro.
+// A DATA no início do nome era lida como VALOR. Medido em 11/09/2026
+// (`_medir/_auditar-caminho-pdf.js`, invariante B): 19 dos 15.982 PDFs do acervo
+// entravam no pareamento com o ANO como gabarito —
+//
+//   "001.DOC- 2026.01.02. 17.904,40 -PAGTO FINANC VEIC 3148.pdf"  → R$ 2.026
+//   "001.DOC- 2026.01.26- R$ 165.903,28. GIRO PEAC - FGI.pdf"     → R$ 2.026
+//
+// A 4ª alternativa casa "2026" porque seu lookahead `(?=\s*[-.\s])` aceita o PONTO
+// da data, e o guarda de 8 dígitos não pega "2026.01.02" (tem separadores).
+//
+// O dano não é só perder par: o gabarito corrompido CONTAMINA a trava da visão.
+// `conferirValor` compara a leitura boa (165.903,28) contra 2.026, marca `diverge`
+// e descarta o valor certo como "não confere com o nome" — o valor real do
+// documento deixa de ser gravado.
+//
+// O conserto REMOVE o trecho da data e segue procurando, em vez de desistir:
+// descartar devolveria `null` e trocaria gabarito errado por gabarito nenhum,
+// perdendo o par. O sufixo `[.\-\s]*` cobre as três formas de separador que o
+// acervo usa depois da data ("2026.01.02. 17.904,40", "2026.01.26- R$ ...",
+// "2026.02.02 - 8.099,99").
+//
+// MEDIDO em 03.2026 (`_medir/_efeito-conserto-gabarito.js`): 397 pares antes e
+// depois, 0 perdidos, 0 trocados — corrige o gabarito sem mexer no casamento.
+const RE_DATA_PREFIXO = /(\.DOC-?\s*)(?:R\$\s*)?20\d{2}[.\-]\s*\d{1,2}[.\-]\s*\d{1,2}[.\-\s]*/i;
+
 function valorDoNome(nome) {
-    const n = String(nome || '');
+    const n = String(nome || '').replace(RE_DATA_PREFIXO, '$1 ');
     const m = n.match(/\.DOC-?\s*(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+,\d{2})/i)
            || n.match(/\.DOC-?\s*(?:R\$\s*)?(\d+,\d{2})/i)
+           || n.match(/\.DOC-?\s*(?:R\$\s*)?(\d{1,3}(?:\.\d{3})+)(?![\d,])/i)
            || n.match(/\.DOC-?\s*(?:R\$\s*)?(\d+)(?=\s*[-.\s])/i);
     if (!m) return null;
     // "20260102" é data lida como valor — 8 dígitos sem centavos não é dinheiro aqui.
@@ -129,13 +176,81 @@ function numeroDoNome(nome) {
 }
 
 // Data no nome: YYYY.MM.DD ou DD.MM.YYYY. Devolve epoch ms (UTC) ou null.
+//
+// O separador é `.` OU `-`, e os dois podem se misturar no mesmo nome — quem
+// arquiva digita à mão. Antes só o ponto era aceito, e 67 dos 4.238 documentos
+// (1,6%) ficavam sem data por causa disso: 63 com a data toda em hífen
+// ("...-2026-01-07-ERICLEIA..."), 2 com separador misto ("2026.01-19", os dois
+// papéis do maço MACPONTA) e 2 em DD-MM-YYYY.
+//
+// Ficar sem data não é neutro: `distanciaDias` devolve null, e `dentroDaJanela`
+// então retorna true incondicionalmente — o veto de 15 dias DESLIGA em silêncio
+// justamente para esses arquivos. Era o caso do documento de R$ 1,32 milhão da
+// MACPONTA, que assim podia casar por valor com um lançamento de qualquer mês.
+//
+// Os 163 restantes sem data no nome não têm conserto aqui (não trazem data
+// nenhuma: "049.DOC- 23053,79.MARCOS CONSORCIOS CAIXA.pdf"); para eles a data
+// continua vindo do OCR (`dtEmissao`) ou fica nula mesmo.
+const SEP_DATA = '[.\\-]';
 function dataDoNome(nome) {
     const n = String(nome || '');
-    let m = n.match(/(?<!\d)(20\d{2})\.(\d{2})\.(\d{2})(?!\d)/);
+    let m = n.match(new RegExp(`(?<!\\d)(20\\d{2})${SEP_DATA}(\\d{2})${SEP_DATA}(\\d{2})(?!\\d)`));
     if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3]);
-    m = n.match(/(?<!\d)(\d{2})\.(\d{2})\.(20\d{2})(?!\d)/);
+    m = n.match(new RegExp(`(?<!\\d)(\\d{2})${SEP_DATA}(\\d{2})${SEP_DATA}(20\\d{2})(?!\\d)`));
     if (m) return Date.UTC(+m[3], +m[2] - 1, +m[1]);
     return null;
+}
+
+// Data da SUBPASTA-DIA ("2026.01.05" no caminho). É criada pelo processo de
+// arquivamento, não digitada — o mesmo raciocínio que fez `mesDoDocumento` (na
+// rota) preferir a pasta para decidir o MÊS, em §15.
+function dataDaPasta(rel) {
+    const r = String(rel || '');
+    let m = r.match(/(?:^|[/\\])(20\d{2})\.(\d{2})\.(\d{2})(?:[/\\]|$)/);
+    if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3]);
+    m = r.match(/(?:^|[/\\])(\d{2})\.(\d{2})\.(20\d{2})(?:[/\\]|$)/);
+    if (m) return Date.UTC(+m[3], +m[2] - 1, +m[1]);
+    return null;
+}
+
+// A partir de quantos dias de discordância a pasta corrige o nome. Ver a medição
+// abaixo: acima de 90 dias tudo é erro de ano; abaixo de 30, tudo é diferença
+// legítima entre a data do documento e o dia do pagamento. 60 fica no vale vazio
+// entre as duas populações, longe de ambas.
+const DIAS_DISCORDANCIA_GROSSA = 60;
+
+/**
+ * A data do documento, resolvendo nome × pasta.
+ *
+ * §15 corrigiu o MÊS para vir da pasta (`mesDoDocumento`, na rota), mas a DATA
+ * usada pelo pareamento continuou saindo só do nome — então o veto de janela
+ * rodava contra uma data que a própria rota já sabia estar errada. Este é o outro
+ * lado daquela correção.
+ *
+ * A precedência NÃO é a mesma de `mesDoDocumento`, e a medição é que diz por quê.
+ * Dos 4.238 documentos de jan–jun/2026, todos têm data na pasta e 4.064 no nome;
+ * os 794 em que discordam se separam em duas populações que não se tocam:
+ *
+ *   0-2 dias    616   diferença LEGÍTIMA: a pasta é o dia do pagamento, o nome é
+ *                     a data do documento. Aqui o nome é a informação melhor.
+ *   3-30 dias    81   idem, prazo de boleto
+ *   31-60 dias   13
+ *   61-90 dias    7
+ *   91+ dias     77   ERRO DE DIGITAÇÃO: todos com o ANO trocado (nome "2025.01.05"
+ *                     na pasta "2026.01.05"), dia e mês idênticos. Não é documento
+ *                     antigo — é o dedo escorregando no ano na virada.
+ *
+ * Por isso: o nome manda (preserva os 616 legítimos), a pasta entra como RESERVA
+ * quando o nome não traz data (174 documentos, que hoje ficam sem data e portanto
+ * sem veto de janela) e como CORRETOR quando a discordância é grossa (os 77 do
+ * ano trocado). Trocar a precedência inteira pioraria 700 casos para consertar 77.
+ */
+function dataDoDocumento(nome, rel) {
+    const dn = dataDoNome(nome);
+    const dp = dataDaPasta(rel);
+    if (dn == null) return dp;
+    if (dp == null) return dn;
+    return Math.abs(dn - dp) / DIA_MS > DIAS_DISCORDANCIA_GROSSA ? dp : dn;
 }
 
 // Tokens que identificam o fornecedor, vindos de um texto livre (nome de arquivo
@@ -157,20 +272,50 @@ const compartilhaToken = (a, b) => {
     return false;
 };
 
+// ── Identidade de ARQUIVAMENTO: a pasta-dia e o prefixo "NNN" ───────────────
+// Quem arquiva numera os pagamentos do dia (001, 002, …) e grava TODOS os papéis
+// daquele pagamento com o mesmo prefixo, na mesma pasta-dia:
+//
+//   031.DOC- 1320000,00 ... MACPONTA PEDIDO 11352045- PROPOSTA ... + PV.pdf
+//   031.DOC- 1320000,00 ... MACPONTA.pdf           <- a nota escaneada
+//   031.CPV.pdf                                    <- o comprovante (fora do escopo)
+//
+// Os dois primeiros são o MESMO pagamento visto por dois papéis. O pareamento
+// consome um documento por lançamento (e deve continuar assim: um lançamento tem
+// um par), mas o que sobra não é órfão — é o resto do maço. `parear` usa esta
+// chave, no fim, para reconhecê-los sem tocar em como o par é escolhido.
+const prefixoDoNome = nome => {
+    const m = String(nome || '').match(/^\s*(\d+)\s*\./);
+    return m ? String(Number(m[1])) : null;   // "031" e "31" são o mesmo maço
+};
+
+// A pasta-dia é o diretório que contém o arquivo — o `rel` traz o caminho inteiro.
+const pastaDoCaminho = rel => {
+    const s = String(rel || '').replace(/\\/g, '/');
+    const i = s.lastIndexOf('/');
+    return i < 0 ? '' : s.slice(0, i);
+};
+
 /**
  * Descreve um documento da pasta a partir do nome do arquivo.
  * @param {string} nome  nome do PDF, como está no disco
  * @param {string} [rel] caminho relativo, só para exibição
  */
 function documentoDoArquivo(nome, rel) {
+    const caminho = rel || nome;
+    const pref = prefixoDoNome(nome);
     return {
         arquivo: nome,
-        caminho: rel || nome,
+        caminho,
         valor: valorDoNome(nome),
         numero: numeroDoNome(nome),
         numeroDig: soDigitos(numeroDoNome(nome)),
-        data: dataDoNome(nome),
+        // Nome com a pasta como reserva e como corretor — ver `dataDoDocumento`.
+        data: dataDoDocumento(nome, caminho),
         tokens: tokens(nome),
+        // Chave do maço: só existe quando há prefixo. Sem ela o documento nunca é
+        // agrupado como irmão — é o comportamento seguro.
+        maco: pref == null ? null : `${pastaDoCaminho(caminho)}|${pref}`,
     };
 }
 
@@ -235,6 +380,24 @@ function enriquecerComOcr(doc, ocr) {
         d.valor = ocr.valor;
     }
 
+    // RETENÇÃO NA FONTE: numa NFS-e com imposto retido o papel tem dois valores, e
+    // a planilha lança o BRUTO enquanto o extrator costuma ler o LÍQUIDO (é ele que
+    // o boleto cobra). Foi o que fez a CORREA TRUCK HOUSE NF 377 aparecer como
+    // divergência de R$ 184,50 — o ISSRF retido.
+    //
+    // `retencaoDoParser` (comparar-notas.js) só devolve isto quando a aritmética
+    // FECHA no próprio papel (bruto − retenções = líquido), então aqui o bruto é um
+    // número conferido, não uma leitura solta: pode assumir o valor de casamento.
+    // O líquido não se perde — vira `valorAlt`, e `valorBate` testa os dois, para
+    // o par continuar valendo quando a planilha lançar o valor pago.
+    if (ocr.retencao && ocr.retencao.bruto > 0) {
+        const { bruto, liquido } = ocr.retencao;
+        if (d.valor != null && d.valor !== bruto) d.valorAlt = d.valor;
+        d.valor = bruto;
+        d.valorLiquido = liquido;
+        d.valorRetido = ocr.retencao.retido;
+    }
+
     // A DATA é a exceção: continua vindo do nome/pasta. Ela não descreve o
     // documento, posiciona-o no mês certo para a busca (§15/§16) — `dtEmissao` do
     // OCR é a data de emissão da nota, que é outra coisa.
@@ -242,6 +405,10 @@ function enriquecerComOcr(doc, ocr) {
 
     if (ocr.emitente && !ehEmitenteProprio(ocr.emitente))
         d.tokens = new Set([...d.tokens, ...tokens(ocr.emitente)]);
+    if (ocr.tipo) d.tipo = String(ocr.tipo);
+    // Só exibição (CFOP/Itens/valor da nota/código da receita) — não influencia
+    // casamento nenhum, é carregado para a tela mostrar ao clicar na nota.
+    if (ocr.detalhe) d.detalhe = ocr.detalhe;
     return d;
 }
 
@@ -253,6 +420,14 @@ function lancamentoDaPlanilha(l) {
     return {
         nf: l.nf,
         entidade: l.entidade,
+        cnpj: l.cnpj || '',
+        // O `Math.abs` NÃO é para tratar estorno — é o que faz o comparador
+        // funcionar. Medido em 08/09/2026: 3.034 dos 3.057 lançamentos de
+        // jan–jun/2026 (99,2%) são NEGATIVOS. É a convenção de sinal da planilha,
+        // em que despesa a pagar é lançada com sinal negativo; o documento traz o
+        // valor absoluto. Os 23 positivos são todos lançamento de conta bancária
+        // (`CC.LAR.SAN.PR.8875.CORRENTE`), não fornecedor.
+        // Tirar o abs daqui zeraria o pareamento inteiro.
         valor: Math.abs(Number(l.valor) || 0),
         nfDig: soDigitos(l.nf),
         // FANTASIA entra junto: a planilha lança pela razão social e o arquivista
@@ -298,7 +473,25 @@ function distanciaDias(l, d) {
 
 // Sem data em algum dos lados o veto não se aplica: ausência de evidência não é
 // evidência de erro, e barrar aí só perderia par bom.
-function dentroDaJanela(l, d) {
+//
+// `entidadeDispensa` afrouxa o veto quando o par também tem a ENTIDADE batendo —
+// aí são dois sinais, não um, e a data deixa de ser a única defesa. Vale SÓ na
+// passada das pastas vizinhas (ver `conferirPeriodo`): medido em 08/09/2026,
+// jan–jun/2026,
+//
+//   variante                              pares  2º campo  piora  MACPONTA
+//   atual (veto de 15d em toda parte)      2.072    91,5%     —      não acha
+//   relaxar em TODA passada                2.106    91,7%     6      acha
+//   relaxar só nas vizinhas                2.104    91,7%     0      acha   <- aplicada
+//
+// Relaxar também no mês corrente parece melhor pelo total, mas troca 6 pares por
+// piores, e a auditoria no disco mostrou o porquê: nesses casos o documento de
+// força 3 (número idêntico) está na pasta +1 e o de força 2 no mês corrente
+// (LOCALIZA `FAT 315637` em 04/2026 × `FAT 307515` em 03/2026). Como a passada
+// vizinha só recebe quem ficou pendente, afrouxar no mês faz o lançamento fechar
+// cedo com o documento pior, e o melhor nunca chega a ser considerado.
+function dentroDaJanela(l, d, entidadeDispensa) {
+    if (entidadeDispensa && entidadeBate(l, d)) return true;
     const dist = distanciaDias(l, d);
     return dist == null || dist <= JANELA_DIAS;
 }
@@ -339,12 +532,12 @@ function dentroDaJanela(l, d) {
  * O veto de janela NÃO se aplica a esta via, e é o ponto: ele existe para o par
  * sustentado só por valor. Com o número junto, a data deixa de ser a única defesa.
  */
-function casa(l, d) {
+function casa(l, d, entidadeDispensaJanela) {
     if (numeroBate(l, d) && entidadeBate(l, d))
         return valorBate(l, d) ? 'numero+entidade+valor' : 'numero+entidade';
     if (numeroBate(l, d) && valorBate(l, d))
         return 'numero+valor';
-    if (valorBate(l, d) && dentroDaJanela(l, d))
+    if (valorBate(l, d) && dentroDaJanela(l, d, entidadeDispensaJanela))
         return entidadeBate(l, d) ? 'valor+entidade' : 'valor';
     return null;
 }
@@ -364,11 +557,11 @@ const forcaDoPar = (l, d) =>
  * @param {Array} lancamentos  saída de lancamentoDaPlanilha
  * @param {Array} documentos   saída de documentoDoArquivo
  */
-function parear(lancamentos, documentos) {
+function parear(lancamentos, documentos, entidadeDispensaJanela) {
     const candidatos = [];
     for (let i = 0; i < lancamentos.length; i++) {
         for (let j = 0; j < documentos.length; j++) {
-            const via = casa(lancamentos[i], documentos[j]);
+            const via = casa(lancamentos[i], documentos[j], entidadeDispensaJanela);
             if (via) candidatos.push({ i, j, via, forca: forcaDoPar(lancamentos[i], documentos[j]) });
         }
     }
@@ -396,26 +589,105 @@ function parear(lancamentos, documentos) {
     const lancUsado = new Array(lancamentos.length).fill(false);
     const docUsado = new Array(documentos.length).fill(false);
     const pares = [];
+    const parPorLanc = new Map();   // índice do lançamento → par, para achar o maço depois
     for (const c of candidatos) {
         if (lancUsado[c.i] || docUsado[c.j]) continue;
         lancUsado[c.i] = true;
         docUsado[c.j] = true;
-        pares.push({
+        const par = {
             lancamento: lancamentos[c.i],
             documento: documentos[c.j],
             via: c.via,
             forca: c.forca,
             distanciaDias: distanciaDias(lancamentos[c.i], documentos[c.j]),
-        });
+        };
+        pares.push(par);
+        parPorLanc.set(c.i, par);
     }
 
+    // ── Empate: outro documento disputava este lançamento com a MESMA força ──
+    // O desempate que decidiu (data, depois nome do arquivo) é estável e
+    // determinístico, e a medição de 08/09/2026 não achou critério melhor —
+    // preferir o documento "não acessório" REPROVOU, porque "+ AUT" quer dizer
+    // "nota MAIS autorização anexa", não "só a autorização": dos 61 casos com
+    // alternativa, o par existente estava certo e a alternativa era colisão de
+    // valor redondo. Então a escolha fica como está e o empate só é MARCADO —
+    // é o ponto em que o olho humano decide melhor que a regra.
+    //
+    // Só conta como empate o candidato que disputava o MESMO lançamento e ficou
+    // de fora; documento já usado por outro lançamento não é empate, é ocupação.
+    const empatesPorLanc = new Map();
+    for (const c of candidatos) {
+        const par = parPorLanc.get(c.i);
+        if (!par || documentos[c.j] === par.documento) continue;
+        if (c.forca !== par.forca) continue;
+        const lista = empatesPorLanc.get(c.i) || [];
+        lista.push(documentos[c.j]);
+        empatesPorLanc.set(c.i, lista);
+    }
+    for (const [i, docs] of empatesPorLanc) {
+        const par = parPorLanc.get(i);
+        par.empatado = true;
+        // `valor`/`valorAlt` vão junto porque quem consome precisa SOMAR os candidatos:
+        // quando a soma fecha o lançamento, os arquivos são as parcelas de um carnê e
+        // não papéis concorrentes (ver `ehCarne` em comparar-notas.js). `valorAlt` é o
+        // valor do NOME do arquivo — numa parcela, o valor PAGO; `valor` é o total da
+        // nota lido pelo extrator. Sem os dois a soma não fecha.
+        par.candidatosEmpatados = docs.map(d => ({
+            arquivo: d.arquivo, caminho: d.caminho, valor: d.valor, valorAlt: d.valorAlt,
+        }));
+    }
+
+    // ── Irmãos: o resto do maço, que não é documento órfão ──────────────────
+    // Um documento não consumido que divide (pasta-dia, prefixo) com o documento
+    // de um par pertence àquele pagamento — é o pedido, a proposta ou a
+    // autorização arquivados junto da nota. Contá-lo como "documento sem
+    // lançamento" superestima o que falta conciliar.
+    //
+    // O prefixo SOZINHO não basta, e isso foi medido: em 04/2026 o maço 059 juntava
+    // quatro apólices BRADESCO de valores diferentes (R$ 780,43 / 1.363,63 / 570,17
+    // / 684,63) — pagamentos distintos que só dividem o número do dia. Exigir também
+    // o MESMO VALOR é o que separa "dois papéis do mesmo pagamento" de "dois
+    // pagamentos vizinhos na pasta": o PV da MACPONTA traz o mesmo 1.320.000,00 da
+    // nota, a apólice de R$ 570 não tem nada a ver com a de R$ 780.
+    //
+    // Documento sem valor legível no nome não é agrupado — sem o segundo sinal, a
+    // coincidência de prefixo é fraca demais.
+    //
+    // Pós-processamento puro: nenhum par muda, nenhum documento passa a casar.
+    const macoDoPar = new Map();
+    for (const p of pares) if (p.documento.maco) macoDoPar.set(p.documento.maco, p);
+    const irmaoDe = new Array(documentos.length).fill(null);
+    for (let j = 0; j < documentos.length; j++) {
+        if (docUsado[j]) continue;
+        const d = documentos[j];
+        if (!d.maco || d.valor == null) continue;
+        const par = macoDoPar.get(d.maco);
+        if (!par) continue;
+        // Mesmo valor que o documento do par (ou que o lançamento, quando o par se
+        // apoia no valor da nota e o irmão traz o valor pago).
+        const alvo = par.documento.valor;
+        const bateDoc = alvo != null && Math.abs(alvo - d.valor) < TOL_VALOR;
+        const bateLanc = Math.abs(par.lancamento.valor - d.valor) < TOL_VALOR;
+        if (!bateDoc && !bateLanc) continue;
+        irmaoDe[j] = par;
+        (par.irmaos || (par.irmaos = [])).push({ arquivo: d.arquivo, caminho: d.caminho });
+    }
+
+    const orfaos = docUsado.reduce((n, u, j) => n + (u || irmaoDe[j] ? 0 : 1), 0);
     return {
         pares,
         // "Fraco" = sustentado por um sinal só. É o que merece conferência humana:
         // medido, 25,4% dos pares só-por-valor tinham entidade e número discordando.
         fracos: pares.filter(p => p.forca === 1).length,
+        empatados: pares.filter(p => p.empatado).length,
         lancamentosSemDocumento: lancUsado.reduce((n, u) => n + (u ? 0 : 1), 0),
-        documentosSemLancamento: docUsado.reduce((n, u) => n + (u ? 0 : 1), 0),
+        // Só o que não é par NEM irmão de par: o documento realmente sem dono.
+        documentosSemLancamento: orfaos,
+        // O bruto continua disponível — é a contagem que os cards usavam antes, e
+        // a diferença entre os dois é exatamente o que o arquivamento agrupa.
+        documentosSemLancamentoBruto: docUsado.reduce((n, u) => n + (u ? 0 : 1), 0),
+        irmaosAgrupados: irmaoDe.reduce((n, p) => n + (p ? 1 : 0), 0),
     };
 }
 
@@ -483,7 +755,11 @@ function conferirPeriodo(lancamentos, documentosPorMes, periodo) {
         for (const d of (documentosPorMes[alvo] || []))
             docsVizinhos.push({ ...d, periodoDocumento: alvo, deslocamento: off });
     }
-    const rViz = parear(pendentes, docsVizinhos);
+    // `true`: nas pastas vizinhas o veto de data cede quando a entidade bate. A
+    // distância entre a pasta e o lançamento é ESTRUTURAL aqui — o papel é
+    // arquivado quando chega e a planilha lança no pagamento —, então a data diz
+    // pouco, e valor + entidade já são dois sinais. Ver `dentroDaJanela`.
+    const rViz = parear(pendentes, docsVizinhos, true);
     const emVizinhas = rViz.pares.map(p => ({
         ...p,
         periodoDocumento: p.documento.periodoDocumento,
@@ -492,11 +768,35 @@ function conferirPeriodo(lancamentos, documentosPorMes, periodo) {
     const casadosViz = new Set(emVizinhas.map(p => p.lancamento));
     const semDocumento = pendentes.filter(l => !casadosViz.has(l));
 
+    // ── Órfãos do mês, contados depois das DUAS passadas ────────────────────
+    // `noMes` não enxerga o que a passada vizinha fez: um documento desta pasta
+    // pode ter virado par (ou irmão de par) de um lançamento de outro mês. Contar
+    // só por `noMes` marcaria esse documento como órfão, que é justamente o erro
+    // que este bloco corrige — o caso MACPONTA cai aqui, porque o lançamento é de
+    // fevereiro e o maço está na pasta de janeiro.
+    //
+    // A passada vizinha roda com CÓPIAS dos documentos (`{...d}`), então o cotejo é
+    // pelo caminho, que identifica o arquivo dentro da pasta.
+    const doMes = documentosPorMes[periodo] || [];
+    const reivindicados = new Set();
+    for (const p of [...noMes.pares, ...emVizinhas]) {
+        reivindicados.add(p.documento.caminho);
+        for (const irm of (p.irmaos || [])) reivindicados.add(irm.caminho);
+    }
+    const orfaosDoMes = doMes.filter(d => !reivindicados.has(d.caminho)).length;
+    // Bruto = sem o desconto dos irmãos, para a tela poder mostrar a diferença.
+    const soPares = new Set([...noMes.pares, ...emVizinhas].map(p => p.documento.caminho));
+    const orfaosBruto = doMes.filter(d => !soPares.has(d.caminho)).length;
+
     return {
         pares: noMes.pares,                  // documento da pasta DESTE mês
         paresVizinhos: emVizinhas,           // documento arquivado em pasta vizinha
         fracos: noMes.pares.filter(p => p.forca === 1).length
               + emVizinhas.filter(p => p.forca === 1).length,
+        // Pares em que outro documento disputava o mesmo lançamento com força igual.
+        // Vale para os dois grupos: o empate acontece dentro de cada passada.
+        empatados: noMes.pares.filter(p => p.empatado).length
+                 + emVizinhas.filter(p => p.empatado).length,
         // "Sem documento" já considera as vizinhas — é o número que interessa a quem
         // confere: o papel existe, só está arquivado noutro mês.
         lancamentosSemDocumento: semDocumento.length,
@@ -504,7 +804,10 @@ function conferirPeriodo(lancamentos, documentosPorMes, periodo) {
         // lançamentos não têm papel", e para agir é preciso saber quais são.
         semDocumento,
         // Só do mês: documento de pasta vizinha não é "desta pasta" e não entra aqui.
-        documentosSemLancamento: noMes.documentosSemLancamento,
+        // Já é líquido de irmãos — o resto do maço não é documento sem dono.
+        documentosSemLancamento: orfaosDoMes,
+        documentosSemLancamentoBruto: orfaosBruto,
+        irmaosAgrupados: orfaosBruto - orfaosDoMes,
         vizinhanca: VIZINHANCA,
     };
 }
@@ -524,7 +827,7 @@ module.exports = {
     enriquecerComOcr,
     lancamentoDaPlanilha,
     // exportados para teste e medição
-    valorDoNome, numeroDoNome, dataDoNome, tokens,
+    valorDoNome, numeroDoNome, dataDoNome, tokens, prefixoDoNome, pastaDoCaminho,
     valorBate, numeroBate, entidadeBate, casa, distanciaDias,
     JANELA_DIAS, VIZINHANCA,
 };

@@ -40,7 +40,12 @@ function parseEnvContent(content) {
     const eq = line.indexOf('=');
     if (eq === -1) continue;
     const k = line.slice(0, eq).trim();
-    const v = line.slice(eq + 1).trim();
+    let v = line.slice(eq + 1).trim();
+    // Valores podem vir delimitados por aspas (DB_SERVER="host"). Sem remover, as
+    // aspas entram no valor e o host vira literalmente `"host"` → ENOTFOUND.
+    if (v.length >= 2 && (v[0] === '"' || v[0] === "'") && v[v.length - 1] === v[0]) {
+      v = v.slice(1, -1);
+    }
     if (process.env[k] === undefined || process.env[k] === '') process.env[k] = v;
   }
 }

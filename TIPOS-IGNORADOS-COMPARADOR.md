@@ -1564,3 +1564,341 @@ passaram a apontar para o documento certo.
 > subiu para 49 lançamentos com documento livre e 2+ sinais. A lição de §13 se
 > repete: a métrica agregada não viu o erro do BIOS NETWORKS porque ele não muda
 > contagem nenhuma — troca o documento, não o número de pares.
+
+---
+
+## 20. O veto de data nas pastas vizinhas (08/09/2026)
+
+**Origem:** o usuário mostrou o painel de 02/2026 com `MACPONTA NF 2391
+R$ 1.320.000` em "OS QUE FALTAM", e informou que o PDF estava em
+`W:\2026.01...\SANTANDER\2026.01.19`. Insistiu duas vezes que o número não mudava —
+e estava certo.
+
+### 20.1. Erro meu de método, antes do diagnóstico
+
+Afirmei que o par funcionava e que o print estava velho. **Estava errado.** Meu
+script de teste montava o documento só com `documentoDoArquivo`, sem
+`enriquecerComOcr`, e o lançamento com `dtEmissao: null`. Sem os dois o documento
+fica **sem data**, e `dentroDaJanela` devolve `true` por ausência de evidência: o par
+passava no teste e falhava na rota.
+
+O veto de janela é o único ponto do motor que depende de um campo que **só o OCR
+preenche**. Um harness que pula o enriquecimento não é o motor — é um motor mais
+permissivo, e erra sempre para o mesmo lado. `_medir/_t5.js` ganhou um aviso no
+cabeçalho; para conferir um caso como o painel o vê, usar `_medir/_rota.js` (chama o
+handler real) ou `_medir/_variantes.js` (pipeline completo).
+
+### 20.2. A causa real
+
+| passo | valor |
+|---|---|
+| nome do arquivo | `031.DOC- 1320000,00-2026.01-19- MACPONTA.pdf` |
+| `dataDoNome` | `null` — o nome traz `2026.01-19`, com **hífen** no lugar do ponto |
+| data que o OCR preenche | 19/01/2026 |
+| lançamento | 11/02/2026 |
+| distância | **18 dias** |
+| via do par | `valor+entidade` (nenhum dos dois PDFs traz o número da NF) |
+| `JANELA_DIAS` | 15 → **18 > 15, vetado** |
+
+### 20.3. As variantes medidas (jan–jun/2026, pipeline completo)
+
+| variante | pares | 2º campo | fracos | MACPONTA |
+|---|---|---|---|---|
+| A) atual, veto de 15d | 2.072 | 91,5% | 177 | não acha |
+| B) janela 20d | 2.095 | 90,8% | 193 | acha |
+| C) janela 30d | 2.155 | 89,0% | 237 | acha |
+| E) sem janela nenhuma | 2.301 | **83,7%** | 374 | acha |
+| H) sem veto se a entidade bate | 2.106 | 91,7% | 175 | acha |
+
+Alargar a janela como número (B–E) compra cobertura com precisão — o critério de §10
+rejeita. H domina: mais pares **e** mais precisão, e os 37 ganhos têm todos **valor
+exato** (0 parcelas, 0 divergentes), todos de força 2.
+
+### 20.4. Mas H troca 6 pares por piores — e a pasta explica por quê
+
+H parece aprovado pelo agregado, e não está: perde 3 pares e **troca 15 de
+documento, 6 deles para pior** (força 3 → 2). Indo aos arquivos no disco, o desenho é
+sempre o mesmo:
+
+| lançamento | documento de A (f3) | documento de H (f2) |
+|---|---|---|
+| LOCALIZA NF 315637 | `FAT 315637` em **04.2026** | `FAT 307515` em 03.2026 |
+| ALGAR RCB 543346 | `RCB 543346` em **06.2026** | `RC 730287` em 05.2026 |
+| AGROLUB NF 43205 | `NF43205` em 04.2026 (dia 09) | `NF 42942` em 04.2026 (dia 29) |
+
+O documento certo — número idêntico — está na pasta **+1**; o pior está no mês
+corrente. Como `conferirPeriodo` só manda os **pendentes** para a passada vizinha,
+afrouxar o veto no mês faz o lançamento fechar cedo com o documento pior, e o melhor
+**fica livre, sem dono nenhum** (confirmado: em todos os 5 casos ninguém o pegou).
+
+Testei três formas de corrigir pela ordem — relaxados por último (K), relaxado nunca
+desbanca estrito (L), relaxamento só para quem ficaria sem par (M). **As três dão o
+mesmo resultado de H**, porque o problema não é a ordem dentro de uma passada: é a
+separação entre as duas passadas.
+
+### 20.5. A regra aplicada
+
+Relaxar o veto **só na passada das pastas vizinhas**. Ali a distância de data é
+estrutural — o papel é arquivado quando chega, a planilha lança no pagamento — então
+a data diz pouco, e valor + entidade já são dois sinais. O mês corrente segue com a
+janela de 15 dias, intacto.
+
+| variante | pares | 2º campo | piora | MACPONTA |
+|---|---|---|---|---|
+| A) atual | 2.072 | 91,5% | — | não acha |
+| H) relaxa em toda passada | 2.106 | 91,7% | **6** | acha |
+| **N) relaxa só nas vizinhas** | **2.104** | **91,7%** | **0** | acha |
+
+Estável em 3 sementes de embaralhamento (2.104 nas três). Custa 3 pares, todos de
+valor muito divergente casados só por número+entidade — AGRIPONTA NF 1650 R$ 6.800 ×
+documento de R$ 3.084,36; COMERCIAL IVAIPORÁ NF 141920 R$ 2.396,70 × documento de
+R$ 34,06.
+
+`dentroDaJanela(l, d, entidadeDispensa)` e `casa(l, d, entidadeDispensaJanela)`
+ganharam o parâmetro; `conferirPeriodo` passa `true` só na chamada de `parear` das
+vizinhas.
+
+### 20.6. Resultado na rota de produção
+
+| período | conferidos | sem documento |
+|---|---|---|
+| 01/2026 | 334 | 142 |
+| 02/2026 | 325 | **154** (era 157) |
+| 03/2026 | 399 | 229 |
+| 04/2026 | 326 | 156 |
+| 05/2026 | 386 | 110 |
+| 06/2026 | 334 | 162 |
+
+Total **2.110 pares** por `_medir/_variantes.js`, precisão 91,5%. A MACPONTA saiu da
+lista de faltantes de 02/2026 — era o maior valor dela.
+
+### 20.7. Também nesta rodada (aditivo, não muda par nenhum)
+
+Duas mudanças no lado dos **documentos**, medidas com o invariante de que
+`pares`/`2º campo`/`fracos` não podem mudar:
+
+- **Maços de arquivamento** (`maco` em `documentoDoArquivo`, agrupamento no fim de
+  `parear`): papéis do mesmo pagamento — mesmo prefixo `NNN`, mesma pasta-dia e
+  **mesmo valor** — deixam de contar como documento órfão. O valor é obrigatório: sem
+  ele, o maço 059 de 04/2026 juntava quatro apólices BRADESCO de valores diferentes
+  (R$ 780,43 / 1.363,63 / 570,17 / 684,63), que são pagamentos distintos. Universo
+  real: dos 4.290 documentos fiscais, **20 maços com 2+ documentos, só 7 com 2+ de
+  mesmo valor** — é raro.
+- **Empates marcados**: quando 2+ documentos disputam o mesmo lançamento com força
+  igual, o par recebe `empatado` e vai para uma lista de conferência humana. Parcelas
+  ficam de fora reusando `razaoParcela` (50 → 35 empates em 02/2026: SAVANA NF 162111
+  de R$ 16.000 tinha 4 documentos de R$ 4.000, que é carnê, não ambiguidade).
+
+Não automatizei a escolha entre os empatados, e isso foi medido: preferir o documento
+"sem marcador de acessório" (`+ AUT`, `+ PV`, PEDIDO — 903 de 4.290 arquivos)
+**reprova**, porque `+ AUT` quer dizer "nota **mais** autorização anexa". Dos 61 casos
+com alternativa, os pares existentes estavam certos e as alternativas eram colisão de
+valor redondo (R$ 1.500 da GRÁFICA EXECUTIVA).
+
+### 20.8. Outras hipóteses medidas e reprovadas
+
+| hipótese | resultado | veredito |
+|---|---|---|
+| Ordem de compra como chave (`LANC_ORIG` × `Ordem de Compra` do OCR) | 88,6% dos lançamentos e 57,6% dos documentos têm OC | **reprovada** — a OC é agrupador de compra, 1 OC → N notas: OC 901783 apontava 4 NFs para o mesmo PDF de R$ 21.508,13 |
+| Ignorar o número do OCR quando é igual à OC (74 casos nocivos: SANESUL, CEMIG, COPASA, ELEKTRO) | 2.079 → 2.078 pares, precisão idêntica | **reprovada por indiferença** — `casa()` nunca usa o número sozinho e `numeroAlt` guarda o do nome |
+| Regra dedicada para "gêmeos" (mesmo dia, prefixo e valor) | 7 grupos em toda a base | **reprovada por volume** |
+| `Natureza da operação` do OCR como sinal de devolução | 0 de 103 valores com DEVOL/RETORN/ESTORN | **inexistente** — nem no OCR nem na planilha (`NAT_OP` só tem COMPRA/AQUISIÇÃO) |
+
+### 20.9. Nota operacional
+
+O servidor carrega os módulos na inicialização: **reiniciar** para a mudança aparecer
+na tela. E `TTL_PASTA_MS = 60s` — um PDF arquivado agora leva até um minuto para
+entrar na contagem.
+
+---
+
+## 21. Revisão de código do extrator (08/09/2026) — dois defeitos na leitura do nome
+
+Revisão dirigida de `_pareamento.js` e `comparar-notas.js`, procurando defeito de
+código e não regra a ajustar. Os dois achados estão na **extração a partir do nome
+do arquivo** — a camada mais antiga do módulo, que nunca tinha sido auditada contra
+o acervo inteiro.
+
+### 21.1. A data só aceitava ponto como separador — 67 documentos sem data
+
+`dataDoNome` casava `YYYY.MM.DD` e `DD.MM.YYYY`, com ponto nos dois separadores.
+Quem arquiva digita à mão e usa hífen também. Varrendo os 4.238 documentos fiscais
+de jan–jun/2026, **241 (5,7%) não tinham data legível**, assim distribuídos:
+
+| padrão | n | exemplo |
+|---|---|---|
+| sem data alguma no nome | 163 | `049.DOC- 23053,79.MARCOS CONSORCIOS CAIXA.pdf` |
+| `YYYY-MM-DD` (tudo hífen) | 63 | `014.DOC- 43844,14-2026-01-07-ERICLEIA...` |
+| só ano.mês, sem dia | 11 | `017.DOC- 1484,46-2026.02.GV CLINICAS...` |
+| misto `YYYY.MM-DD` | 2 | `031.DOC- 1320000,00-2026.01-19- MACPONTA.pdf` |
+| `DD-MM-YYYY` (tudo hífen) | 2 | `...Extrato-Completo-001153-167-_21-07-2026.pdf` |
+
+**Ficar sem data não é neutro.** `distanciaDias` devolve `null` e `dentroDaJanela`
+então retorna `true` incondicionalmente: o veto de 15 dias **desliga em silêncio**
+justamente para esses arquivos. Era o caso dos dois papéis do maço MACPONTA
+(R$ 1,32 milhão), que podiam casar por valor com lançamento de qualquer mês.
+
+Aceitar `[.\-]` nos dois separadores recupera os 67 com data em hífen. Os 163 sem
+data nenhuma não têm conserto aqui — para eles a data segue vindo do OCR
+(`dtEmissao`) ou fica nula.
+
+### 21.2. Valor com milhar e sem centavos lia truncado — defensivo, 0 casos hoje
+
+A terceira alternativa de `valorDoNome` era `(\d+)`, que **para no primeiro ponto**:
+
+    005.DOC- 12.500 -2026.03.10.ACME.pdf       →     12   (esperado 12.500)
+    006.DOC- 1.320.000 -2026.03.10.X.pdf       →      1   (esperado 1.320.000)
+
+O estrago não seria perder o par, seria **casar o errado**: o documento entra no
+pareamento com valor falso e pequeno e colide com qualquer lançamento daquele
+valor. Por ser pequeno, escaparia também de `divergenciasDeValor`, que ordena pela
+diferença absoluta — o par errado ficaria invisível nas duas telas.
+
+**Medido: nenhum dos 4.238 documentos usa esse formato.** O conserto move zero par
+hoje e fica pelo custo assimétrico (uma alternativa de regex contra um modo de
+falha silencioso). Registrado aqui para não ser "otimizado" de volta por parecer
+código morto.
+
+### 21.3. Efeito medido — jan–jun/2026, caminho de produção
+
+Medido com `_medir/verificar-cache.js` (novo): mesmo caminho de `verificar.js`
+— `documentoDoArquivo` + `enriquecerComOcr` + `conferirPeriodo` — mas lendo o
+índice do OCR de `.cache/ocr.json`, para medir sem depender do SQL.
+
+| | antes | depois |
+|---|---|---|
+| conferidos | 2.100 | **2.099** |
+| confirmados por 2º campo | 1.927 (91,8%) | **1.927 (91,8%)** |
+| fracos (1 sinal) | 173 | **172** |
+| via `valor` (a mais frágil) | 173 | **172** |
+
+O total cai 1, e **o par perdido é falso**:
+
+    06.2026  NF 886  ATRIO EMPREENDIMENTOS HOTELEIROS  R$ 140
+        × 007.DOC- 140,00-2026-08-28- BET CARGAS- NF73903-AUT.pdf   via=valor  força=1
+
+ATRIO (hotelaria) casada com documento da BET CARGAS, NF 886 × NF 73903, unidas só
+pelo valor redondo de R$ 140. Com a data `2026-08-28` agora legível, a distância é
+de **74 dias** e o veto de janela — que existe exatamente para isso — recusa o par.
+
+Outros **dois pares trocaram de documento, ambos para melhor**, pelo desempate por
+distância de data que só agora enxerga essas datas:
+
+| lançamento | antes | depois |
+|---|---|---|
+| COMERCIAL IVAIPORÃ NF 138750 (força 3) | doc de 20/05 | **doc de 15/05** |
+| MONT KOYA (força 2, lanç. de 04/2026) | doc de 29/06 | **doc de 30/05** |
+
+Nenhum par de força 2+ foi perdido. É o mesmo critério de §10: cobertura que cai
+trocando par fraco por recusa correta não é perda.
+
+---
+
+## 22. Os três pontos restantes da revisão (08/09/2026)
+
+Continuação de §21. Dos três, **um era defeito real, um não existia, e um era
+fragilidade sem dano medido**. O que mudou a conclusão em dois deles foi medir
+antes de consertar.
+
+### 22.1. A data do pareamento vinha só do nome — corrigido
+
+§15 corrigiu o **mês** para vir da subpasta (`mesDoDocumento`, na rota), mas a
+**data** usada pelo pareamento continuou saindo só do nome. O veto de janela
+rodava contra uma data que a própria rota já sabia estar errada.
+
+O conserto **não** é inverter a precedência, e a medição é que diz por quê. Dos
+4.238 documentos, todos têm data na pasta e 4.064 no nome; os 794 em que discordam
+são duas populações que não se tocam:
+
+| \|nome − pasta\| | n | leitura |
+|---|---|---|
+| 0-2 dias | 616 | **legítimo** — a pasta é o dia do pagamento, o nome é a data do documento |
+| 3-30 dias | 81 | legítimo, prazo de boleto |
+| 31-60 dias | 13 | — |
+| 61-90 dias | 7 | — |
+| 91+ dias | 77 | **erro de digitação**: ano trocado (nome `2025.01.05` na pasta `2026.01.05`), dia e mês idênticos |
+
+Então `dataDoDocumento` usa **o nome, com a pasta como reserva e como corretor**:
+a pasta entra quando o nome não traz data (174 documentos, que hoje ficam sem data
+e portanto **sem veto de janela**) e quando a discordância passa de 60 dias (os 77
+do ano trocado). O limiar de 60 fica no vale vazio entre as duas populações.
+
+Inverter a precedência inteira pioraria ~700 casos para consertar 77.
+
+### 22.2. O `Math.abs` do valor NÃO é bug — hipótese reprovada
+
+A revisão levantou que `lancamentoDaPlanilha` faz `Math.abs(valor)`, e que um
+estorno negativo casaria com uma despesa positiva. **Medido: 3.034 dos 3.057
+lançamentos (99,2%) são negativos.** Não é estorno — é a convenção de sinal da
+planilha, em que despesa a pagar é lançada com sinal negativo enquanto o documento
+traz o valor absoluto. Os 23 positivos são todos lançamento de conta bancária
+(`CC.LAR.SAN.PR.8875.CORRENTE`), não fornecedor.
+
+Tirar o `abs` zeraria o pareamento. Comentário deixado no código para o próximo
+que passar por ali não "consertar" isso.
+
+### 22.3. O índice do OCR era chaveado só pelo nome — corrigido
+
+`ocrPorArquivo` era indexado por `arquivoBase(arquivo)`, e a rota consultava
+`ocrPorArquivo[a.nome]`. Dois PDFs homônimos em pastas diferentes recebiam o mesmo
+OCR — e como o extrator hoje tem **precedência** sobre o nome (§19), um OCR trocado
+sobrescreve número e valor bons.
+
+Medido: **6 nomes em 16 documentos (0,4%)**, todos documento recorrente arquivado
+todo mês — seguro prestamista da SICRED, endosso HDI, tarifa do Santander. Nesses
+o OCR compartilhado até é o certo, mas por sorte, não por construção.
+
+O índice passa a ter **duas chaves**: `pasta|arquivo` (precisa) e o nome sozinho
+(reserva). `ocrDoDocumento` prefere a composta. A reserva mantém compatibilidade
+com CSV gravado antes da coluna `pasta` — verificado: com índice no esquema antigo
+o resultado é idêntico ao anterior à mudança.
+
+### 22.4. Efeito acumulado — jan–jun/2026, caminho de produção
+
+| | §21 (antes) | +22.1 | +22.3 (final) |
+|---|---|---|---|
+| conferidos | 2.099 | 2.092 | **2.091** |
+| confirmados por 2º campo | 1.927 (91,8%) | 1.927 (92,1%) | **1.925 (92,1%)** |
+| fracos (1 sinal) | 173 | 165 | **166** |
+
+A cobertura cai 8 e **a precisão sobe 0,3pp**. As perdas são quase todas de pares
+de força 1 que a inspeção mostra falsos — "7 ESTETICA AUTOMOTIVA" × documento da
+IMOBILIARIA, "M D SABOIA BORRACHARIA" × `pgto EVA - LARSIL`, "POSTO ARCO IRIS" ×
+documento da EDINA: nenhuma entidade em comum, só valor redondo coincidindo. É o
+critério de §10 — cobertura comprada com par errado não conta.
+
+Duas trocas de 22.3 são melhora direta: **FIG TELECOM NF 631501 (R$ 139,90)** sai
+de um documento de R$ 119,90 para o de R$ 139,90, valor exato; **ADS
+DISTRIBUIDORA** sai de um documento de 29/06 para o de 29/05, mais perto do
+lançamento.
+
+### 22.5. Achado colateral: a ordem das duas passadas (§18) continua custando
+
+Ao investigar as trocas de 22.1 reencontramos o defeito que §18 já descreve, agora
+com um caso limpo. **LOCALIZA FLEET NF 315637, R$ 68.748,78, lançamento de
+03/2026:**
+
+| documento | pasta | sinais | força |
+|---|---|---|---|
+| `063.DOC- ... FAT 315637 + BOL.pdf` | 04/2026 | número + entidade + valor | **3** |
+| `060.DOC- ... FAT 307515.pdf` | 03/2026 | entidade + valor | 2 |
+
+O documento **certo** (número idêntico) está na pasta vizinha; o pior, no mês
+corrente. Como a passada do mês roda primeiro e só os pendentes vão às vizinhas, o
+lançamento fecha com o de força 2 e o de força 3 nunca é considerado. Verificado:
+`parear` com os dois candidatos na MESMA passada escolhe o certo — a ordenação por
+força já resolve, o que falta é ela poder ver os dois.
+
+Isso **não** foi consertado aqui: é mudança de desenho (uma passada só, com os
+documentos do mês e das vizinhas juntos e o offset como desempate), e precisa de
+medição própria — o risco é um documento do mês ser consumido por lançamento de
+outro mês, que é exatamente o que a separação em duas passadas protege (§10.9).
+Fica registrado com o caso reprodutível.
+
+### 22.6. Ferramentas novas
+
+- `_medir/verificar-cache.js` — igual a `verificar.js` (caminho de produção), mas
+  lê o índice do OCR de `.cache/ocr.json` em vez do SQL. É o medidor a usar quando
+  o banco não alcança.
+- `_medir/ocr-cache.js` — regrava `.cache/ocr.json` com o `contarNoCsv` **de
+  produção**. Rode-o quando o esquema do índice mudar; foi o caso em 22.3.

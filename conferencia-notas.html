@@ -235,6 +235,165 @@
         .cf-dinheiro { margin-left: auto; text-align: right; }
         .cf-dinheiro .v { font: 800 1.5rem/1 'Montserrat', sans-serif; letter-spacing: -.02em; color: #f87171; }
         .cf-dinheiro .l { font-size: .72rem; color: rgba(255,255,255,.42); margin-top: .3rem; }
+        .cf-encontradas-card {
+            display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;
+            padding: 1rem 1.15rem; border: 1px solid rgba(108,212,126,.28);
+            border-radius: 12px; background: rgba(77,181,94,.10);
+        }
+        .cf-encontradas-card .n { font: 800 1.8rem/1 'Montserrat', sans-serif; color: #a0d063; }
+        .cf-encontradas-card .l { margin-top: .25rem; font-size: .72rem; color: rgba(255,255,255,.55); }
+        .cf-encontradas-card .p { font: 700 .85rem/1 'Montserrat', sans-serif; color: rgba(255,255,255,.78); }
+        .cf-encontradas-lista { flex: 0 0 100%; margin-top: .9rem; padding-top: .9rem; border-top: 1px solid rgba(255,255,255,.10); }
+        /* auto-fit em vez de 3 colunas fixas: o filtro de localização entrou como
+           4º campo e, em tela estreita, as colunas quebram sozinhas. */
+        .cf-encontradas-filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .5rem; margin-bottom: .65rem; }
+        .cf-encontradas-filtros input, .cf-encontradas-filtros select {
+            min-width: 0; padding: .5rem .65rem; border-radius: 7px;
+            background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.14);
+            color: rgba(255,255,255,.82); font-size: .74rem; outline: none;
+        }
+        .cf-encontradas-filtros input::placeholder { color: rgba(255,255,255,.38); }
+        .cf-encontradas-filtros input:focus, .cf-encontradas-filtros select:focus { border-color: rgba(108,212,126,.65); }
+        /* A lista aberta do <select> é desenhada pelo SO, que NÃO herda o fundo
+           translúcido do controle: sobrava texto claro sobre lista clara. As <option>
+           precisam de cor sólida própria — e color-scheme faz o Windows pintar a
+           moldura do popup no tom certo. */
+        .cf-encontradas-filtros select { color-scheme: dark; }
+        .cf-encontradas-filtros select option { background: #14301a; color: #eaf3ea; }
+        .cf-encontradas-count { margin-bottom: .5rem; font-size: .68rem; color: rgba(255,255,255,.42); }
+        .cf-encontradas-wrap { max-height: 18rem; overflow: auto; border: 1px solid rgba(255,255,255,.09); border-radius: 9px; }
+        .cf-encontradas-table { width: 100%; min-width: 68rem; border-collapse: collapse; table-layout: fixed; font-size: .74rem; }
+        .cf-encontradas-table th { position: sticky; top: 0; z-index: 1; padding: .35rem .45rem; background: #14301a; color: rgba(255,255,255,.45); font-size: .65rem; text-align: left; text-transform: uppercase; letter-spacing: .05em; }
+        .cf-encontradas-table th.cf-th-resizing { user-select: none; }
+        .cf-th-resizer { position: absolute; top: 0; right: -4px; bottom: 0; z-index: 2; width: 8px; cursor: col-resize; }
+        .cf-th-resizer:hover, .cf-th-resizing .cf-th-resizer { background: rgba(108,212,126,.65); }
+        .cf-th-label { display: flex; align-items: center; justify-content: space-between; gap: .45rem; min-width: 5rem; }
+        .cf-th-filter { display: inline-flex; align-items: center; justify-content: center; width: 1.35rem; height: 1.35rem; padding: 0; border: 1px solid transparent; border-radius: 4px; background: transparent; color: rgba(255,255,255,.5); cursor: pointer; font-size: .8rem; line-height: 1; }
+        .cf-th-filter:hover, .cf-th-filter.active { background: rgba(108,212,126,.18); border-color: rgba(108,212,126,.35); color: #a0d063; }
+        .cf-col-menu { position: fixed; z-index: 100; width: min(18rem, calc(100vw - 1.5rem)); padding: .65rem; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; background: #14301a; box-shadow: 0 14px 35px rgba(0,0,0,.45); text-transform: none; letter-spacing: normal; }
+        .cf-col-menu[hidden] { display: none; }
+        .cf-col-menu input[type="search"] { width: 100%; min-width: 0; padding: .45rem .55rem; border: 1px solid rgba(255,255,255,.14); border-radius: 5px; outline: none; background: rgba(255,255,255,.07); color: #eaf3ea; font-size: .74rem; }
+        .cf-col-menu input[type="search"]:focus { border-color: rgba(108,212,126,.65); }
+        .cf-col-options { max-height: 12rem; overflow-y: auto; margin: .5rem 0; }
+        .cf-col-option { display: flex; align-items: center; gap: .45rem; padding: .28rem .2rem; color: rgba(255,255,255,.8); font-size: .72rem; cursor: pointer; }
+        .cf-col-option:hover { background: rgba(255,255,255,.06); }
+        .cf-col-option input { accent-color: #6cd47e; }
+        .cf-col-select-actions { display: flex; gap: .35rem; margin: .5rem 0; }
+        .cf-col-select-actions button { flex: 1; padding: .3rem .35rem; border: 1px solid rgba(255,255,255,.12); border-radius: 5px; background: rgba(255,255,255,.05); color: rgba(255,255,255,.7); cursor: pointer; font-size: .68rem; }
+        .cf-col-select-actions button:hover { background: rgba(108,212,126,.16); color: #b9e69a; }
+        .cf-col-actions { display: flex; justify-content: space-between; gap: .5rem; border-top: 1px solid rgba(255,255,255,.1); padding-top: .5rem; }
+        .cf-col-actions button { padding: .35rem .55rem; border: 1px solid rgba(255,255,255,.14); border-radius: 5px; background: rgba(255,255,255,.06); color: rgba(255,255,255,.75); cursor: pointer; font-size: .7rem; }
+        .cf-col-actions button:last-child { background: rgba(108,212,126,.2); border-color: rgba(108,212,126,.4); color: #b9e69a; }
+        .cf-encontradas-table td { padding: .45rem .65rem; border-top: 1px solid rgba(255,255,255,.05); color: rgba(255,255,255,.76); }
+        .cf-encontradas-table tr:hover td { background: rgba(255,255,255,.04); }
+        .cf-encontradas-table .cnpj { white-space: nowrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: rgba(255,255,255,.52); }
+        /* Só as linhas com CFOP/Itens/valor/código da receita no dados_parser abrem
+           detalhe — as demais (cartão, folha, tributo sem guia) não têm nada a mostrar. */
+        .cf-encontradas-table tr.cf-linha-detalhe { cursor: pointer; }
+        .cf-encontradas-table tr.cf-linha-detalhe td:first-child { position: relative; }
+        .cf-encontradas-table tr.cf-linha-detalhe:hover td { background: rgba(108,212,126,.10); }
+        .cf-encontradas-table tr.cf-linha-detalhe:focus-visible td { background: rgba(108,212,126,.14); outline: none; }
+        /* caminho do arquivo: não pode empurrar a tabela; o título traz o caminho inteiro */
+        .cf-cam { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .68rem;
+                  color: rgba(255,255,255,.55); }
+        /* Nesta tabela o caminho cede largura: ela ganhou Confirmação e Origem e passou
+           a oito colunas, e em 1366px (a largura das máquinas do escritório) as 22rem
+           do padrão forçavam scroll horizontal. O `title` continua com o caminho todo. */
+        .cf-encontradas-table .cf-cam { max-width: 15rem; }
+        .cf-encontradas-table .cf-origem { white-space: nowrap; font-size: .68rem; color: rgba(255,255,255,.5); }
+        /* Pílulas do resumo de confiança: são atalhos para o filtro, não rótulos. */
+        .cf-filtra { cursor: pointer; user-select: none; }
+        .cf-filtra:hover { filter: brightness(1.25); }
+        .cf-filtra:focus-visible { outline: 2px solid rgba(108,212,126,.6); outline-offset: 1px; }
+        /* Selos de localização. "outro mês" é NEUTRO de propósito: é o caso normal
+           (competência ≠ pagamento) e responde por ~29% dos lançamentos — pintá-lo
+           de alerta afogaria os poucos que realmente pedem ação. */
+        .cf-sit { display: inline-block; padding: .12rem .45rem; border-radius: 999px;
+                  font-size: .62rem; font-weight: 600; white-space: nowrap; letter-spacing: .02em; }
+        .cf-sit.sit-ok   { background: rgba(108,212,126,.14); color: #8fd39b; }
+        .cf-sit.sit-neu  { background: rgba(255,255,255,.07); color: rgba(255,255,255,.5); }
+        .cf-sit.sit-warn { background: rgba(251,191,36,.16); color: #fbbf24; }
+        .cf-sit.sit-bad  { background: rgba(248,113,113,.16); color: #f87171; }
+        .cf-sit-resumo { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; margin-bottom: .6rem; }
+        .cf-sit-acao { margin-left: auto; font-size: .66rem; font-weight: 700; color: #fbbf24; }
+        .cf-sit-acao.ok { color: rgba(143,211,155,.9); }
+        html.light .cf-cam { color: rgba(0,0,0,.5); }
+        html.light .cf-sit.sit-ok   { background: rgba(22,163,74,.12); color: #15803d; }
+        html.light .cf-sit.sit-neu  { background: rgba(0,0,0,.06); color: rgba(0,0,0,.5); }
+        html.light .cf-sit.sit-warn { background: rgba(180,120,0,.14); color: #a16207; }
+        html.light .cf-sit.sit-bad  { background: rgba(220,38,38,.12); color: #b91c1c; }
+        html.light .cf-sit-acao { color: #a16207; }
+        html.light .cf-sit-acao.ok { color: #15803d; }
+        html.light .cf-encontradas-lista { border-top-color: rgba(0,0,0,.10); }
+        html.light .cf-encontradas-filtros input, html.light .cf-encontradas-filtros select { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.14); color: #1a2e1a; }
+        html.light .cf-encontradas-filtros select { color-scheme: light; }
+        html.light .cf-encontradas-filtros select option { background: #fff; color: #1a2e1a; }
+        html.light .cf-encontradas-filtros input::placeholder { color: rgba(0,0,0,.4); }
+        html.light .cf-encontradas-count { color: rgba(0,0,0,.48); }
+        html.light .cf-encontradas-wrap { border-color: rgba(0,0,0,.10); }
+        html.light .cf-encontradas-table th { background: #eef4ee; color: rgba(0,0,0,.5); }
+        html.light .cf-th-filter { color: rgba(0,0,0,.5); }
+        html.light .cf-th-filter:hover, html.light .cf-th-filter.active { background: rgba(22,163,74,.12); border-color: rgba(22,163,74,.35); color: #16803c; }
+        html.light .cf-col-menu { background: #fff; border-color: rgba(0,0,0,.14); box-shadow: 0 14px 35px rgba(0,0,0,.18); }
+        html.light .cf-col-menu input[type="search"] { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.14); color: #1a2e1a; }
+        html.light .cf-col-option { color: #1a2e1a; }
+        html.light .cf-col-option:hover { background: rgba(0,0,0,.04); }
+        html.light .cf-col-select-actions button { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.12); color: #1a2e1a; }
+        html.light .cf-col-select-actions button:hover { background: rgba(22,163,74,.12); color: #16803c; }
+        html.light .cf-col-actions { border-top-color: rgba(0,0,0,.1); }
+        html.light .cf-col-actions button { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.12); color: #1a2e1a; }
+        html.light .cf-col-actions button:last-child { background: rgba(22,163,74,.12); border-color: rgba(22,163,74,.3); color: #16803c; }
+        html.light .cf-encontradas-table td { border-top-color: rgba(0,0,0,.06); color: #1a2e1a; }
+        html.light .cf-encontradas-table tr:hover td { background: rgba(0,0,0,.03); }
+        html.light .cf-encontradas-table .cnpj { color: rgba(0,0,0,.52); }
+        html.light .cf-encontradas-table .cf-origem { color: rgba(0,0,0,.5); }
+        html.light .cf-encontradas-table tr.cf-linha-detalhe:hover td { background: rgba(22,163,74,.08); }
+        html.light .cf-encontradas-table tr.cf-linha-detalhe:focus-visible td { background: rgba(22,163,74,.12); }
+
+        /* Relatório enxuto para o diálogo nativo "Salvar como PDF". */
+        #pdfExportReport { display: none; }
+        @media print {
+            @page { size: A4 portrait; margin: 10mm; }
+            body > * { display: none !important; }
+            #pdfExportReport { display: block !important; color: #152315; font-family: 'Trebuchet MS', Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #pdfExportReport .pdf-report-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 10px; border-bottom: 3px solid #2d6a35; }
+            #pdfExportReport .pdf-brand { color: #2d6a35; font-size: 8px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
+            #pdfExportReport h1 { margin: 3px 0 2px; color: #152315; font-size: 19px; line-height: 1.1; }
+            #pdfExportReport .pdf-periodo { min-width: 105px; padding: 8px 10px; border: 1px solid #b9cfb8; border-radius: 5px; background: #f0f7ef; color: #2d6a35; font-size: 11px; font-weight: 700; text-align: center; }
+            #pdfExportReport .pdf-meta { margin: 4px 0 0; font-size: 9px; color: #526052; }
+            #pdfExportReport .pdf-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 10px 0 13px; }
+            #pdfExportReport .pdf-kpi { padding: 8px 10px; border: 1px solid #d5e2d3; border-radius: 5px; background: #f8fbf7; }
+            #pdfExportReport .pdf-kpi strong { display: block; color: #244c29; font-size: 15px; line-height: 1; }
+            #pdfExportReport .pdf-kpi span { display: block; margin-top: 3px; color: #657265; font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+            #pdfExportReport h2 { display: flex; justify-content: space-between; margin: 18px 0 6px; padding: 5px 8px; border-left: 4px solid #2d6a35; background: #edf5ec; color: #244c29; font-size: 12px; page-break-after: avoid; }
+            #pdfExportReport h2.pdf-section-found { border-left-color: #238443; color: #17652f; background: #eaf6ed; }
+            #pdfExportReport h2.pdf-section-divergent { border-left-color: #c27b00; color: #875700; background: #fff7e6; }
+            #pdfExportReport h2.pdf-section-missing { border-left-color: #c43d3d; color: #9a2929; background: #fff0f0; }
+            #pdfExportReport p { margin: 3px 0; font-size: 9px; color: #526052; }
+            #pdfExportReport table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 7px; }
+            #pdfExportReport thead { display: table-header-group; }
+            #pdfExportReport th { background: #dfeedd; color: #244c29; text-align: left; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+            #pdfExportReport th, #pdfExportReport td { padding: 3px 4px; border-bottom: 1px solid #d8e2d6; vertical-align: top; overflow-wrap: anywhere; word-break: break-word; }
+            #pdfExportReport th:first-child { border-radius: 4px 0 0 0; }
+            #pdfExportReport th:last-child { border-radius: 0 4px 0 0; }
+            #pdfExportReport tbody tr:nth-child(even) td { background: #f7faf6; }
+            #pdfExportReport tbody tr:last-child td { border-bottom: 1px solid #b9cfb8; }
+            #pdfExportReport tr { page-break-inside: avoid; }
+            #pdfExportReport .pdf-status { color: #2d6a35; font-weight: 700; }
+            #pdfExportReport .pdf-status-warn { color: #946b00; font-weight: 700; }
+            #pdfExportReport .pdf-status-bad { color: #ad3434; font-weight: 700; }
+            #pdfExportReport .pdf-difference { color: #a45b00; font-weight: 700; }
+            #pdfExportReport .pdf-missing-value { color: #ad3434; font-weight: 700; }
+            #pdfExportReport .pdf-empty { padding: 10px; border: 1px dashed #b9cfb8; color: #657265; }
+            #pdfExportReport .pdf-col-fornecedor { width: 15%; }
+            #pdfExportReport .pdf-col-nf { width: 8%; }
+            #pdfExportReport .pdf-col-valor { width: 9%; text-align: right; }
+            #pdfExportReport .pdf-col-arquivo { width: 15%; }
+            #pdfExportReport .pdf-col-local { width: 27%; }
+            #pdfExportReport .pdf-col-situacao { width: 11%; }
+            #pdfExportReport .pdf-col-extra { width: 15%; }
+        }
 
         /* Barra: com documento à esquerda, sem à direita. Uma peça só — a soma é
            o total, e a proporção é lida de relance sem contar número. */
@@ -304,6 +463,42 @@
         .cf-lista .fraco { color: rgba(255,255,255,.4); }
         .cf-ent { max-width: 22rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+        /* Valores divergentes. `menos` é o caso comum e benigno (desconto, retenção,
+           medido: 95 dos 137 ficam abaixo de 15%): fica apagado, para o vermelho
+           ficar reservado à faixa acima de 50%, onde a medição achou par errado. */
+        .cf-lista-sub { margin-right: auto; font-size: .72rem; color: rgba(255,255,255,.38); }
+        .cf-lista .menos { color: rgba(255,255,255,.62); font-weight: 600; }
+        .cf-lista .pc { display: block; font-size: .65rem; font-weight: 400;
+                        color: rgba(255,255,255,.32); }
+
+        /* ── "PDFs na pasta" ────────────────────────────────────────────────
+           Selo da CLASSE do arquivo. Só "fiscal" ganha cor: é o que entra na
+           conferência. Anexo e não-fiscal são maioria (1.295 e 364 de 2.221 em
+           03/2026) e são normais — pintá-los de alerta transformaria o arquivo
+           inteiro num mar de avisos sobre arquivos que estão certos. */
+        .cf-cls { display: inline-block; padding: .12rem .45rem; border-radius: 999px;
+                  font-size: .62rem; font-weight: 600; white-space: nowrap; letter-spacing: .02em; }
+        .cf-cls.cls-fiscal     { background: rgba(108,212,126,.14); color: #8fd39b; }
+        .cf-cls.cls-nao_fiscal { background: rgba(255,255,255,.07); color: rgba(255,255,255,.5); }
+        .cf-cls.cls-anexo      { background: rgba(255,255,255,.05); color: rgba(255,255,255,.38); }
+        .cf-cls.cls-sem_data   { background: rgba(251,191,36,.16); color: #fbbf24; }
+        /* O nome do arquivo é a coluna que importa aqui, e é longo: ganha o espaço
+           que sobra e quebra em duas linhas em vez de virar reticências. */
+        .cf-pdf-nome { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+                       font-size: .7rem; word-break: break-word; color: rgba(255,255,255,.82); }
+        .cf-pdf-pasta { font-size: .66rem; color: rgba(255,255,255,.4); white-space: nowrap;
+                        overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
+        .cf-pdf-ok { color: #8fd39b; font-weight: 700; }
+        .cf-pdf-nao { color: rgba(255,255,255,.28); }
+        html.light .cf-cls.cls-fiscal     { background: rgba(22,163,74,.12); color: #15803d; }
+        html.light .cf-cls.cls-nao_fiscal { background: rgba(0,0,0,.06); color: rgba(0,0,0,.5); }
+        html.light .cf-cls.cls-anexo      { background: rgba(0,0,0,.04); color: rgba(0,0,0,.38); }
+        html.light .cf-cls.cls-sem_data   { background: rgba(180,120,0,.14); color: #a16207; }
+        html.light .cf-pdf-nome { color: #1a2e1a; }
+        html.light .cf-pdf-pasta { color: rgba(0,0,0,.45); }
+        html.light .cf-pdf-ok { color: #15803d; }
+        html.light .cf-pdf-nao { color: rgba(0,0,0,.25); }
+
         .cf-rodape { font-size: .72rem; line-height: 1.6; color: rgba(255,255,255,.38); }
         .cf-rodape b { color: rgba(255,255,255,.58); font-weight: 600; }
         .cf-btn {
@@ -314,10 +509,26 @@
             transition: background .15s, color .15s, border-color .15s;
         }
         .cf-btn:hover { background: rgba(255,255,255,.13); color: #fff; border-color: rgba(255,255,255,.28); }
+
+        /* Botão POR LINHA. Deliberadamente mais apagado que .cf-btn: são até 200
+           linhas, e um botão em caixa alta em cada uma competiria com a coluna de
+           diferença, que é o que a tabela existe para mostrar. Só acende no hover. */
+        .cf-ver-doc, .cf-ver-emp {
+            font: 500 .68rem/1 'Montserrat', sans-serif; cursor: pointer; white-space: nowrap;
+            background: transparent; border: 1px solid rgba(255,255,255,.14);
+            color: rgba(255,255,255,.45); border-radius: 6px; padding: .25rem .5rem;
+            transition: background .15s, color .15s, border-color .15s;
+        }
+        .cf-ver-doc:hover, .cf-ver-emp:hover { background: rgba(255,255,255,.10); color: #fff;
+                            border-color: rgba(255,255,255,.30); }
         [data-hint] { cursor: help; }
 
         html.light .cf-num-lbl, html.light .cf-legenda,
         html.light .cf-faixa .r { color: rgba(0,0,0,.55) !important; }
+        html.light .cf-encontradas-card { background: rgba(22,163,74,.08) !important; border-color: rgba(22,163,74,.24) !important; }
+        html.light .cf-encontradas-card .n { color: #16803c !important; }
+        html.light .cf-encontradas-card .l { color: rgba(0,0,0,.55) !important; }
+        html.light .cf-encontradas-card .p { color: rgba(0,0,0,.72) !important; }
         html.light .cf-leg-n { color: rgba(0,0,0,.8) !important; }
         html.light .cf-num-sub, html.light .cf-faixa .n,
         html.light .cf-dinheiro .l, html.light .cf-rodape { color: rgba(0,0,0,.45) !important; }
@@ -340,8 +551,15 @@
         html.light .cf-lista tr:hover td { background: rgba(0,0,0,.03) !important; }
         html.light .cf-lista .fraco { color: rgba(0,0,0,.42) !important; }
         html.light .cf-lista-tit { color: rgba(0,0,0,.5) !important; }
+        html.light .cf-lista-sub { color: rgba(0,0,0,.45) !important; }
+        html.light .cf-lista .menos { color: rgba(0,0,0,.62) !important; }
+        html.light .cf-lista .pc { color: rgba(0,0,0,.38) !important; }
         html.light .cf-btn { background: rgba(0,0,0,.04) !important; border-color: rgba(0,0,0,.14) !important;
                              color: rgba(0,0,0,.65) !important; }
+        html.light .cf-ver-doc, html.light .cf-ver-emp { border-color: rgba(0,0,0,.14) !important;
+                                 color: rgba(0,0,0,.45) !important; }
+        html.light .cf-ver-doc:hover, html.light .cf-ver-emp:hover { background: rgba(0,0,0,.06) !important;
+                                       color: #1a2e1a !important; border-color: rgba(0,0,0,.28) !important; }
 
         /* ── Celular ────────────────────────────────────────────────────
            Abaixo de 560px nada disso cabe lado a lado: o valor total sai da
@@ -359,6 +577,9 @@
             .cf-faixa .r { grid-column: 1 / -1; }
             .cf-faixa .n { text-align: left; }
             .cf-lista-topo { flex-wrap: wrap; }
+            /* Com o subtítulo, o topo tem 3 filhos: o `margin-right:auto` empurraria
+               o botão para uma terceira linha. Aqui o subtítulo ocupa a linha toda. */
+            .cf-lista-sub { order: 3; width: 100%; margin-right: 0; }
             .cf-ent { max-width: 11rem; }
         }
 
@@ -536,7 +757,21 @@
                 <h2 class="font-semibold text-white/90">Comparação com Planilha Delsoft</h2>
                 <p id="comparacaoSubtitle" class="text-xs text-white/40 mt-0.5"></p>
             </div>
-            <button id="btnFecharComparacao" class="text-white/40 hover:text-white text-xl leading-none">&times;</button>
+            <div class="flex items-center gap-2">
+                <button id="btnExportarComparacaoXlsx" type="button" class="cf-btn" title="Baixar a conferência em Excel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13l4 4m0-4-4 4m8-4h-2m2 4h-2"/>
+                    </svg>
+                    Exportar XLSX
+                </button>
+                <button id="btnExportarComparacaoPdf" type="button" class="cf-btn" title="Abrir o relatório para salvar como PDF">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 12v6m0 0-2-2m2 2 2-2"/>
+                    </svg>
+                    Exportar PDF
+                </button>
+                <button id="btnFecharComparacao" class="text-white/40 hover:text-white text-xl leading-none" aria-label="Fechar comparação">&times;</button>
+            </div>
         </div>
         <!-- Reconciliação em DUAS COLUNAS que não somam entre si: a esquerda conta
              DOCUMENTO (papel arquivado), a direita conta LANÇAMENTO (linha da planilha).
@@ -654,7 +889,7 @@
 
 <!-- Modal: detalhes (DARF parser, etc.) -->
 <div id="modal" class="hidden fixed inset-0 flex items-center justify-center p-4 z-50" style="background:rgba(0,0,0,.60);backdrop-filter:blur(4px)">
-    <div class="rounded-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto" style="background:rgba(10,28,10,.97);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);box-shadow:0 24px 64px rgba(0,0,0,.55)">
+    <div class="rounded-2xl max-w-4xl w-full max-h-[80vh] overflow-y-auto" style="background:rgba(10,28,10,.97);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);box-shadow:0 24px 64px rgba(0,0,0,.55)">
         <div class="flex items-center justify-between px-6 py-4" style="border-bottom:1px solid rgba(255,255,255,.10)">
             <h3 id="modalTitle" class="font-semibold truncate flex-1" style="color:rgba(255,255,255,.90)"></h3>
             <button id="modalClose" class="text-2xl leading-none ml-3" style="color:rgba(255,255,255,.40)" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.40)'">&times;</button>
@@ -673,7 +908,7 @@
         </div>
     </div>
     <div id="pdfViewport" class="flex-1 overflow-y-auto flex items-start justify-center px-4 pb-8">
-        <div id="pdfCanvas" class="w-full max-w-3xl space-y-3"></div>
+        <div id="pdfCanvas" class="w-full max-w-5xl space-y-3"></div>
     </div>
     <div id="pdfSpinner" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none">
         <div class="bg-black/60 rounded-xl px-5 py-3 text-white/80 text-sm flex items-center gap-2">
@@ -682,7 +917,9 @@
         </div>
     </div>
 </div>
+<div id="pdfExportReport" aria-hidden="true"></div>
 
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script type="module">
 import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.min.mjs';
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.mjs';
@@ -691,6 +928,24 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 const norm = s => (s || '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .toUpperCase().replace(/\s+/g, ' ').trim();
+
+// ── Onde o papel foi achado ─────────────────────────────────────────────────
+// Todas as linhas são lançamentos do mês consultado; só a PASTA do PDF muda. O
+// arquivamento é por chegada e a planilha lança no pagamento, então a nota de
+// março costuma estar guardada na pasta de abril (medido em 03/2026: 155 dos 189
+// pares de pasta vizinha vieram de +1). Sem esta coluna o relatório parece "cheio
+// de coisa de outro mês", quando não é.
+//
+// Estava escrito TRÊS vezes — e com dois textos diferentes: "pasta vizinha +1" no
+// XLSX e "vizinha +1" no PDF, para o mesmo par do mesmo período. Ficou aqui, em
+// escopo de módulo, para a tela e os três exports dizerem a mesma coisa.
+//
+// A guarda testa `!= null && !== 0` em vez de `l.deslocamento ?`: hoje VIZINHANCA
+// nunca gera 0, mas escrever o truthy embutiria uma armadilha para o dia em que
+// gerar — 0 cairia silenciosamente em "no mês".
+const rotuloOrigem = l => (l.deslocamento != null && l.deslocamento !== 0)
+    ? `pasta vizinha ${l.deslocamento > 0 ? '+' : ''}${l.deslocamento}`
+    : 'no mês';
 
 // Extração genérica de CNPJ (qualquer tipo de documento, mesmo sem parser dedicado).
 // Prioriza CNPJ rotulado; senão pega o primeiro CNPJ formatado válido do texto.
@@ -939,40 +1194,50 @@ async function renderAllPages() {
     const total = viewerPdf.numPages;
     $('pdfPageInfo').textContent = `${total} página${total > 1 ? 's' : ''}`;
 
-    const dpr = window.devicePixelRatio || 1;
+    // Limita a resolução do bitmap: telas 3x/4x multiplicam a memória de cada
+    // canvas sem melhorar perceptivelmente a leitura dentro do modal.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const containerW = container.clientWidth || 900;
 
     for (let n = 1; n <= total; n++) {
         $('pdfSpinnerText').textContent = `Renderizando ${n} / ${total}…`;
         $('pdfSpinner').classList.remove('hidden');
+        try {
+            const page = await viewerPdf.getPage(n);
+            const baseVp = page.getViewport({ scale: 1 });
+            const cssScale = containerW / baseVp.width;
+            const vp = page.getViewport({ scale: cssScale * dpr });
 
-        const page = await viewerPdf.getPage(n);
-        const baseVp = page.getViewport({ scale: 1 });
-        const cssScale = containerW / baseVp.width;
-        const vp = page.getViewport({ scale: cssScale * dpr });
+            const cv = document.createElement('canvas');
+            cv.width  = Math.floor(vp.width);
+            cv.height = Math.floor(vp.height);
+            cv.style.width    = `${Math.floor(containerW)}px`;
+            cv.style.height   = `${Math.floor(containerW * (baseVp.height / baseVp.width))}px`;
+            cv.style.maxWidth = '100%';
+            cv.style.display  = 'block';
+            cv.style.borderRadius = '6px';
+            cv.style.boxShadow    = '0 4px 20px rgba(0,0,0,.4)';
 
-        const cv = document.createElement('canvas');
-        cv.width  = Math.floor(vp.width);
-        cv.height = Math.floor(vp.height);
-        cv.style.width    = `${Math.floor(containerW)}px`;
-        cv.style.height   = `${Math.floor(containerW * (baseVp.height / baseVp.width))}px`;
-        cv.style.maxWidth = '100%';
-        cv.style.display  = 'block';
-        cv.style.borderRadius = '6px';
-        cv.style.boxShadow    = '0 4px 20px rgba(0,0,0,.4)';
+            // Empilha a página imediatamente — o render preenche em background.
+            const wrap = document.createElement('div');
+            if (total > 1) {
+                const lbl = document.createElement('div');
+                lbl.style.cssText = 'text-align:center;color:rgba(255,255,255,.35);font-size:11px;margin-bottom:4px;font-family:ui-monospace,monospace';
+                lbl.textContent = `Página ${n} / ${total}`;
+                wrap.appendChild(lbl);
+            }
+            wrap.appendChild(cv);
+            container.appendChild(wrap);
 
-        // Empilha a página imediatamente — o render preenche em background
-        const wrap = document.createElement('div');
-        if (total > 1) {
-            const lbl = document.createElement('div');
-            lbl.style.cssText = 'text-align:center;color:rgba(255,255,255,.35);font-size:11px;margin-bottom:4px;font-family:ui-monospace,monospace';
-            lbl.textContent = `Página ${n} / ${total}`;
-            wrap.appendChild(lbl);
+            await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+            page.cleanup();
+        } catch (error) {
+            console.error(`[viewer] erro ao renderizar a página ${n}:`, error);
+            const aviso = document.createElement('p');
+            aviso.style.cssText = 'color:rgba(255,255,255,.5);text-align:center;font-size:12px;margin:8px 0';
+            aviso.textContent = `Página ${n} não pôde ser renderizada.`;
+            container.appendChild(aviso);
         }
-        wrap.appendChild(cv);
-        container.appendChild(wrap);
-
-        await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
     }
 
     $('pdfSpinner').classList.add('hidden');
@@ -2214,6 +2479,20 @@ document.addEventListener('wheel', e => {
         $('comparacaoWrap').classList.add('hidden');
         compData = null;
     });
+    $('btnExportarComparacaoPdf').addEventListener('click', () => {
+        if (!compData?.conferencia?.disponivel) {
+            showToast('Faça uma comparação antes de exportar o PDF.', 'info', 3500);
+            return;
+        }
+        exportarComparacaoPdf(compData);
+    });
+    $('btnExportarComparacaoXlsx').addEventListener('click', () => {
+        if (!compData?.conferencia?.disponivel) {
+            showToast('Faça uma comparação antes de exportar o XLSX.', 'info', 3500);
+            return;
+        }
+        exportarComparacaoXlsx(compData);
+    });
 
 
     async function executarComparacao(mes, ano) {
@@ -2330,6 +2609,14 @@ document.addEventListener('wheel', e => {
             '',
             `De ${planilha.total} lançamentos na planilha: ${c.lancamentosSemDocumento} sem documento.`,
             `De ${pasta.total} documentos nesta pasta: ${c.documentosSemLancamento} sem lançamento.`,
+        );
+        // Papéis do mesmo pagamento (nota + pedido + autorização) são arquivados sob
+        // o mesmo prefixo NNN, no mesmo dia. Só um deles vira o par; os outros não são
+        // documento sem dono, e antes eram contados como se fossem.
+        if (c.irmaosAgrupados)
+            linhas.push(`   (${c.irmaosAgrupados} agrupados como papel do mesmo pagamento, ` +
+                `de ${c.documentosSemLancamentoBruto} soltos)`);
+        linhas.push(
             '',
             'Como cada par foi confirmado:',
         );
@@ -2339,6 +2626,13 @@ document.addEventListener('wheel', e => {
             linhas.push('');
             linhas.push(`${c.fracos} apoiados num sinal só — são os que merecem conferência:`);
             linhas.push('casar apenas por valor erra em ~25% dos casos (valores redondos colidem).');
+        }
+        // Empate: mais de um documento servia para o mesmo lançamento, com a mesma
+        // força. Quem decidiu foi o nome do arquivo, não o mérito — por isso o aviso.
+        if (c.empatados) {
+            linhas.push('');
+            linhas.push(`${c.empatados} com mais de um documento candidato de força igual —`);
+            linhas.push('o desempate foi pelo nome do arquivo; vale conferir se pegou o certo.');
         }
         linhas.push('');
         linhas.push(`Par sustentado só pelo valor exige documento a até ${c.janelaDias} dias do lançamento.`);
@@ -2374,13 +2668,27 @@ document.addEventListener('wheel', e => {
         const brlCurto = v => v >= 1000
             ? 'R$ ' + (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' mil'
             : 'R$ ' + brl(v);
+        // CNPJ/CPF só ganham máscara quando o dígito bate 14 ou 11 — o zero à
+        // esquerda que o Excel corta (ver cnpj-nao-identifica-fornecedor.md) faz
+        // sobrar CNPJ com 13 dígitos, e mascarar isso como se fosse válido
+        // esconderia o problema em vez de mostrá-lo. Nesses casos fica cru.
+        const cnpjFmt = v => {
+            const d = String(v || '').replace(/\D/g, '');
+            if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+            if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+            return String(v || '');
+        };
 
         if (!planilha.disponivel || !c.disponivel) {
+            // A conferência caiu, mas "PDFs na pasta" não depende dela nem da planilha
+            // — é o disco. Continua na tela: é justamente quando o resto falta que
+            // saber o que está arquivado ajuda mais.
             el.innerHTML = `<p class="cf-rodape" style="text-align:center;padding:2rem 0">
                 ${!planilha.disponivel
                     ? 'Planilha indisponível — PLANILHA_PATH não configurado ou inacessível.'
                     : 'Pareamento indisponível' + (c.motivo ? `: ${esc(c.motivo)}` : '.')}
-             </p>`;
+             </p>` + secaoPdfsNaPasta(compData.pdfs, esc);
+            ligarPdfsNaPasta(el, compData.pdfs, compData.periodo);
             return;
         }
 
@@ -2388,6 +2696,176 @@ document.addEventListener('wheel', e => {
         const comDoc = c.conferidos;
         const semDoc = c.lancamentosSemDocumento;
         const pcOk = total ? (comDoc / total * 100) : 0;
+
+        // ── Localização do documento ────────────────────────────────────────
+        // Medido em 09/09/2026: dos pares casados em pasta vizinha, 97,3% têm o
+        // nome do arquivo e a pasta concordando — o papel está bem arquivado e é o
+        // LANÇAMENTO que cai noutro mês (competência ≠ pagamento). Por isso
+        // "outro mês" é neutro na tela, e não alerta: destacá-lo mandaria mexer em
+        // centenas de arquivos corretos. Só `fora_do_lugar` e `data_invalida`
+        // pedem ação — em março foram 6 e 5, de 628 lançamentos.
+        const SITUACOES = {
+            ok:            { rot: 'no lugar',      cls: 'sit-ok',   dica: 'Documento na pasta do mês do lançamento.' },
+            outro_mes:     { rot: 'outro mês',     cls: 'sit-neu',  dica: 'Em pasta de outro mês, mas coerente com a data do próprio documento. Normal: competência ≠ pagamento.' },
+            fora_do_lugar: { rot: 'fora do lugar', cls: 'sit-warn', dica: 'A data no nome do arquivo não bate com a pasta em que ele está — candidato a MOVER.' },
+            data_invalida: { rot: 'data inválida', cls: 'sit-bad',  dica: 'A data no nome do arquivo está malformada. A pasta indica a data certa — candidato a RENOMEAR.' },
+        };
+        const selo = l => {
+            const s = SITUACOES[l.situacao] || SITUACOES.ok;
+            const extra = l.situacao === 'fora_do_lugar' ? ` → ${esc(l.ondeDeveria || '')}`
+                        : l.situacao === 'data_invalida' ? ` "${esc(l.dataInvalida || '')}"` : '';
+            return `<span class="cf-sit ${s.cls}" title="${esc(s.dica)}">${s.rot}${extra}</span>`;
+        };
+
+        // ── Em que o par se apoia ────────────────────────────────────────────
+        // O motor casa por até três sinais (número da nota, fornecedor, valor) e já
+        // devolve quantos bateram. Até aqui esse número só existia no JSON: a tela
+        // mostrava o par de três sinais e o par só-por-valor exatamente iguais, e
+        // quem confere não tinha como saber em qual confiar.
+        //
+        // Medido em 01–06/2026 (2.119 pares): 68,0% com os três sinais, 24,4% com
+        // dois, 7,7% (163 pares) só pelo valor — esses últimos valendo R$ 300 mil,
+        // 2,0% do total.
+        //
+        // Cinza para dois sinais, e não verde: se 2 e 3 fossem ambos verdes a pílula
+        // deixaria de discriminar e viraria enfeite. É o mesmo papel que "outro mês"
+        // cumpre na coluna de localização.
+        //
+        // ÂMBAR, nunca vermelho, para o só-por-valor: vermelho promete erro, e a
+        // maioria desses pares está certa (58,3% eram o único documento daquele
+        // valor). O vermelho continua reservado à data inválida, que é defeito de
+        // fato. Aqui a mensagem é "olhe", não "está errado".
+        const CONFIRMACAO = {
+            3: { rot: '3 sinais', cls: 'sit-ok',   dica: 'Número da nota, fornecedor e valor batem. Par confirmado.' },
+            2: { rot: '2 sinais', cls: 'sit-neu',  dica: 'Dois dos três campos batem; o terceiro difere.' },
+            1: { rot: 'só valor', cls: 'sit-warn', dica: 'Apoiado só no valor — o fornecedor do arquivo não bate com o da planilha. Vale conferir: valores redondos colidem.' },
+        };
+        const seloForca = l => {
+            const s = CONFIRMACAO[l.forca];
+            if (!s) return '—';
+            // O empate é um eixo SEPARADO da força: acontece também em par de dois e
+            // de três sinais. Por isso entra como sufixo da mesma pílula, e não como
+            // um quarto nível — que exigiria mais uma coluna para dizer a mesma coisa.
+            const emp = l.empatado
+                ? `\n\nOutro documento servia para este lançamento com a mesma força; o desempate foi pelo nome do arquivo.`
+                  + (l.candidatosEmpatados?.length ? `\nTambém serviam: ${l.candidatosEmpatados.join(' | ')}` : '')
+                : '';
+            // O glifo vai TAMBÉM para o title: sozinho ele não é lido por leitor de
+            // tela nem sobrevive a uma cópia da tabela para o Excel.
+            return `<span class="cf-sit ${s.cls}" title="${esc(s.dica + emp)}">${s.rot}${l.empatado ? ' ⚖' : ''}</span>`;
+        };
+        const resumoLocal = (cc) => {
+            const ps = cc.porSituacao || {};
+            const acao = (ps.fora_do_lugar || 0) + (ps.data_invalida || 0);
+            if (!Object.keys(ps).length) return '';
+            return `<div class="cf-sit-resumo">
+                <span class="cf-sit sit-ok">${ps.ok || 0} no lugar</span>
+                <span class="cf-sit sit-neu">${ps.outro_mes || 0} em outro mês</span>
+                ${ps.fora_do_lugar ? `<span class="cf-sit sit-warn">${ps.fora_do_lugar} fora do lugar</span>` : ''}
+                ${ps.data_invalida ? `<span class="cf-sit sit-bad">${ps.data_invalida} data inválida</span>` : ''}
+                ${acao ? `<span class="cf-sit-acao">${acao} pede${acao > 1 ? 'm' : ''} ação</span>`
+                       : `<span class="cf-sit-acao ok">nenhum pede ação</span>`}
+            </div>`;
+        };
+
+        // Irmão do `resumoLocal`, para o outro eixo: não ONDE o papel está, mas o
+        // quanto se pode confiar que é o papel certo. Responde "é certeza?" antes de
+        // o usuário precisar filtrar — que era exatamente a pergunta que originou
+        // esta coluna.
+        //
+        // Os totais saem de `c.encontradas` aqui mesmo, e não de um campo novo do
+        // servidor: `c.fracos` já existe e é a fonte da verdade do card. Recontar no
+        // servidor criaria um segundo número que pode divergir do primeiro.
+        //
+        // As pílulas são clicáveis: o número vira caminho para a lista, em vez de
+        // obrigar quem lê a traduzir "163" no filtro certo.
+        const resumoConfianca = (cc) => {
+            const enc = cc.encontradas || [];
+            if (!enc.length) return '';
+            const n = f => enc.filter(l => l.forca === f).length;
+            const emp = enc.filter(l => l.empatado).length;
+            const conferir = enc.filter(l => l.forca === 1 || l.empatado).length;
+            const pilula = (cls, txt, filtro) =>
+                `<span class="cf-sit ${cls} cf-filtra" data-conf="${filtro}" role="button" tabindex="0"
+                       title="Clique para ver só estes">${txt}</span>`;
+            return `<div class="cf-sit-resumo">
+                ${pilula('sit-ok',  `${n(3)} com 3 sinais`, '3')}
+                ${pilula('sit-neu', `${n(2)} com 2 sinais`, '2')}
+                ${n(1) ? pilula('sit-warn', `${n(1)} só por valor`, '1') : ''}
+                ${emp ? pilula('sit-neu', `${emp} com concorrente ⚖`, 'empatado') : ''}
+                ${conferir ? `<span class="cf-sit-acao cf-filtra" data-conf="conferir" role="button" tabindex="0"
+                                    title="Clique para ver só estes">${conferir} merece${conferir > 1 ? 'm' : ''} conferência</span>`
+                           : `<span class="cf-sit-acao ok">todos confirmados por 2+ sinais</span>`}
+            </div>`;
+        };
+
+        const encontradas = `
+            <div class="cf-encontradas-card" aria-label="Notas encontradas">
+                <div>
+                    <div class="n">${comDoc}</div>
+                    <div class="l">notas encontradas com documento arquivado</div>
+                </div>
+                <div class="p">${pcOk.toFixed(1)}% do período</div>
+                <div class="cf-encontradas-lista">
+                    ${resumoLocal(c)}
+                    ${resumoConfianca(c)}
+                    <div class="cf-encontradas-filtros">
+                        <select id="filtroEncontradasTipo" aria-label="Filtrar por tipo">
+                            <option value="">Todos os tipos</option>
+                            ${[...new Set((c.encontradas || []).map(l => l.tipo || 'Não identificado'))]
+                                .sort().map(tipo => `<option value="${esc(tipo)}">${esc(tipo)}</option>`).join('')}
+                        </select>
+                        <input id="filtroEncontradasFornecedor" type="search" placeholder="Filtrar fornecedor..." aria-label="Filtrar por fornecedor">
+                        <input id="filtroEncontradasCnpj" type="search" placeholder="Filtrar CNPJ..." aria-label="Filtrar por CNPJ">
+                        <select id="filtroEncontradasSituacao" aria-label="Filtrar por localização">
+                            <option value="">Toda localização</option>
+                            <option value="acao">⚠ Só os que pedem ação</option>
+                            <option value="ok">No lugar</option>
+                            <option value="outro_mes">Em outro mês (normal)</option>
+                            <option value="fora_do_lugar">Fora do lugar (mover)</option>
+                            <option value="data_invalida">Data inválida (renomear)</option>
+                        </select>
+                        <select id="filtroEncontradasConfianca" aria-label="Filtrar por confirmação">
+                            <option value="">Toda confirmação</option>
+                            <option value="conferir">⚠ Só os que merecem conferência</option>
+                            <option value="3">3 sinais (confirmado)</option>
+                            <option value="2">2 sinais</option>
+                            <option value="1">Só valor</option>
+                            <option value="empatado">Com documento concorrente</option>
+                        </select>
+                    </div>
+                    <div id="filtroEncontradasCount" class="cf-encontradas-count"></div>
+                    <div class="cf-encontradas-wrap">
+                        <table class="cf-encontradas-table">
+                            <colgroup>${Array.from({ length: 9 }, (_, i) => `<col data-column="${i}">`).join('')}</colgroup>
+                            <thead><tr>
+                                ${['Tipo', 'Fornecedor', 'CNPJ', 'CFOP', 'Confirmação', 'Origem', 'Localização', 'Onde está', 'Ações']
+                                    .map((label, i) => `<th data-filter-col="${i}"><div class="cf-th-label"><span>${label}</span><button type="button" class="cf-th-filter" aria-label="Filtrar por ${label}" title="Filtrar por ${label}">⌄</button></div><span class="cf-th-resizer" role="separator" aria-label="Redimensionar coluna ${label}" title="Arrastar para redimensionar"></span></th>`).join('')}
+                            </tr></thead>
+                            <tbody id="encontradasBody">
+                                ${(c.encontradas || []).map((l, i) => `
+                                    <tr data-tipo="${esc(l.tipo || 'Não identificado')}"
+                                        data-fornecedor="${esc(norm(l.fornecedor))}"
+                                        data-cnpj="${esc(norm(l.cnpj))}"
+                                        data-situacao="${esc(l.situacao || 'ok')}"
+                                        data-forca="${l.forca || 0}"
+                                        data-empatado="${l.empatado ? '1' : ''}"
+                                        ${l.detalhe ? `class="cf-linha-detalhe" data-encontrada="${i}" tabindex="0" title="Clique para ver itens, valor e CFOP"` : ''}>
+                                        <td>${esc(l.tipo || 'Não identificado')}</td>
+                                        <td><div class="cf-ent" title="${esc(l.fornecedor)}">${esc(l.fornecedor) || '—'}</div></td>
+                                        <td class="cnpj">${esc(cnpjFmt(l.cnpj)) || '—'}</td>
+                                        <td class="cnpj">${esc(l.detalhe?.cfop) || '—'}</td>
+                                        <td>${seloForca(l)}</td>
+                                        <td class="cf-origem" title="${esc(l.periodoDocumento || '')}">${esc(rotuloOrigem(l))}</td>
+                                        <td>${selo(l)}</td>
+                                        <td><div class="cf-cam" title="${esc(l.ondeEsta || l.caminho || '')}">${esc(l.arquivo) || '—'}</div></td>
+                                        <td><button type="button" class="cf-ver-doc" data-encontrada-doc="${i}" title="Visualizar ${esc(l.arquivo || l.caminho || 'nota')}"${l.caminho || l.arquivo ? '' : ' disabled'}>Ver nota</button></td>
+                                    </tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>`;
 
         // ── Resposta ────────────────────────────────────────────────────────
         const topo = `
@@ -2462,6 +2940,102 @@ document.addEventListener('wheel', e => {
                 </div>
             </div>` : '';
 
+        // ── Valores divergentes: o par existe, o dinheiro não bate ──────────
+        // Segunda pergunta da conferência. A primeira ("está arquivado?") é a
+        // tabela acima; esta é "o que está arquivado confere com o lançado?".
+        // Fica abaixo, e não ao lado, porque tem outra unidade — aqui cada linha
+        // é um par, não um lançamento órfão, e somá-las seria erro de leitura.
+        //
+        // O subtítulo carrega os DOIS números medidos: a diferença acima de 50%,
+        // que é onde a medição achou par errado, e as parcelas, que saíram da
+        // lista por não serem divergência. Sem citá-las o usuário pergunta por que
+        // a lista tem menos linhas do que os pares que não batem.
+        const divergentes = (c.listaDivergentes || []).length ? `
+            <div>
+                <div class="cf-lista-topo">
+                    <span class="cf-lista-tit"${hint(hintDivergencias(c))}>Valores divergentes — ${
+                        c.divergentesTruncadaEm
+                            ? `${c.divergentesTruncadaEm} maiores de ${c.divergentes}`
+                            : c.divergentes}</span>
+                    <span class="cf-lista-sub">R$ ${brl(c.valorDivergencia)} de diferença${
+                        c.divergentesGraves ? ` · ${c.divergentesGraves} acima de 50%` : ''}${
+                        c.parcelas ? ` · ${c.parcelas} parcelas fora da lista` : ''}${
+                        c.retencoes ? ` · ${c.retencoes} conferem com o bruto (R$ ${brl(c.valorRetencoes)} de imposto retido)` : ''}</span>
+                    <button type="button" class="cf-btn" id="btnBaixarDivergentes">Baixar CSV</button>
+                </div>
+                <div class="cf-lista-wrap">
+                    <table class="cf-lista">
+                        <thead><tr>
+                            <th>Fornecedor</th><th>NF</th>
+                            <th style="text-align:right">Planilha</th>
+                            <th style="text-align:right">Documento</th>
+                            <th style="text-align:right">Diferença</th>
+                            <th></th>
+                        </tr></thead>
+                        <tbody>${c.listaDivergentes.map((l, i) => `
+                            <tr>
+                                <td><div class="cf-ent" title="${esc(l.arquivo)}">${esc(l.entidade)}</div></td>
+                                <td class="fraco">${esc(l.nf) || '—'}</td>
+                                <td class="num">${brl(l.valorPlanilha)}</td>
+                                <td class="num">${brl(l.valorDocumento)}</td>
+                                <td class="num ${Math.abs(l.percentual) > 50 ? 'forte' : 'menos'}">${
+                                    l.diferenca > 0 ? '+' : '−'}${brl(Math.abs(l.diferenca))}
+                                    <span class="pc">${(l.percentual > 0 ? '+' : '−')
+                                        + Math.abs(l.percentual).toFixed(Math.abs(l.percentual) < 10 ? 1 : 0)}%</span>
+                                </td>
+                                <td style="text-align:right">
+                                    <button type="button" class="cf-ver-doc" data-doc="${i}"
+                                        title="Abrir ${esc(l.arquivo)}">Ver nota</button>
+                                </td>
+                            </tr>`).join('')}</tbody>
+                    </table>
+                </div>
+            </div>` : '';
+
+        // ── Empates: mais de um documento servia para o mesmo lançamento ────
+        // O desempate foi pelo nome do arquivo (ver `parear` em _pareamento.js), que
+        // é estável mas arbitrário quanto ao mérito: foi assim que o Pedido/PV da
+        // MACPONTA ganhou da nota escaneada. Medir não resolveu — preferir o
+        // documento "sem marcador de acessório" trocava pares certos por errados —
+        // então o caso vai para o olho humano. Carnê fica fora: parcela não é empate.
+        const empates = (c.listaEmpatados || []).length ? `
+            <div>
+                <div class="cf-lista-topo">
+                    <span class="cf-lista-tit">Mais de um documento possível — ${
+                        c.empatadosTruncadaEm
+                            ? `${c.empatadosTruncadaEm} maiores de ${c.empatados}`
+                            : c.empatados}</span>
+                    <span class="cf-lista-sub">o desempate foi pelo nome do arquivo · a coluna Motivo diz por que empatou${
+                        c.empatadosParcela ? ` · ${c.empatadosParcela} parcelas fora da lista` : ''}</span>
+                </div>
+                <div class="cf-lista-wrap">
+                    <table class="cf-lista">
+                        <thead><tr>
+                            <th>Fornecedor</th><th>NF</th>
+                            <th style="text-align:right">Valor</th>
+                            <th>Documento escolhido</th>
+                            <th>Motivo</th>
+                            <th style="text-align:right">Outros</th>
+                            <th></th>
+                        </tr></thead>
+                        <tbody>${c.listaEmpatados.map((l, i) => `
+                            <tr>
+                                <td><div class="cf-ent">${esc(l.entidade)}</div></td>
+                                <td class="fraco">${esc(l.nf) || '—'}</td>
+                                <td class="num">${brl(l.valor)}</td>
+                                <td><div class="cf-ent" title="${esc(l.escolhido)}">${esc(l.escolhido)}</div></td>
+                                <td class="fraco">${esc(l.motivo?.texto || '—')}</td>
+                                <td class="num ${l.forca === 1 ? 'forte' : 'menos'}"
+                                    title="${esc(l.candidatos.map(x => x.arquivo).join('  |  '))}">${l.outros}</td>
+                                <td style="text-align:right">
+                                    <button type="button" class="cf-ver-emp" data-emp="${i}"
+                                        title="Abrir ${esc(l.escolhido)}">Ver nota</button>
+                                </td>
+                            </tr>`).join('')}</tbody>
+                    </table>
+                </div>
+            </div>` : '';
+
         // ── Contexto: o lado documento, que NÃO é a pergunta ────────────────
         const ctx = [];
         if (pasta.disponivel)
@@ -2480,14 +3054,741 @@ document.addEventListener('wheel', e => {
                 outro mês.` : ''}
             </p>`;
 
-        el.innerHTML = topo + barra + faixas + lista + rodape;
+        el.innerHTML = encontradas + topo + barra + faixas + lista + divergentes + empates
+                     + secaoPdfsNaPasta(compData.pdfs, esc) + rodape;
+        ligarPdfsNaPasta(el, compData.pdfs, compData.periodo);
+        const valoresNormalizadosPorLinha = new WeakMap();
+        el.querySelectorAll('#encontradasBody tr').forEach(tr => {
+            valoresNormalizadosPorLinha.set(tr, [...tr.cells].map(cell => norm(cell.textContent || '')));
+        });
+
+        const aplicarFiltroEncontradas = () => {
+            const tipo = $('filtroEncontradasTipo')?.value || '';
+            const fornecedor = norm($('filtroEncontradasFornecedor')?.value || '');
+            const cnpj = norm($('filtroEncontradasCnpj')?.value || '');
+            const situacao = $('filtroEncontradasSituacao')?.value || '';
+            const confianca = $('filtroEncontradasConfianca')?.value || '';
+            let visiveis = 0;
+            el.querySelectorAll('#encontradasBody tr').forEach(tr => {
+                // "acao" é o atalho que interessa na prática: só o que pede
+                // intervenção (mover ou renomear), escondendo os ~29% de
+                // "outro mês" que são normais.
+                const s = tr.dataset.situacao || 'ok';
+                const passaSit = !situacao
+                    || (situacao === 'acao' ? (s === 'fora_do_lugar' || s === 'data_invalida') : s === situacao);
+                // "conferir" junta os dois motivos de desconfiança, que são
+                // independentes: o par apoiado num sinal só, e o par que tinha
+                // concorrente de força igual (onde quem decidiu foi o nome do
+                // arquivo). Medido em 01–06/2026: 163 + 167 = 330 pares, 15,6%.
+                const f = tr.dataset.forca, emp = !!tr.dataset.empatado;
+                const passaConf = !confianca
+                    || (confianca === 'conferir' ? (f === '1' || emp)
+                      : confianca === 'empatado' ? emp
+                      : f === confianca);
+                const valoresLinha = valoresNormalizadosPorLinha.get(tr) || [];
+                const passaColunas = [...filtrosColuna.entries()].every(([coluna, valores]) =>
+                    !valores || valores.has(valoresLinha[coluna] || ''));
+                const visivel = (!tipo || tr.dataset.tipo === tipo)
+                    && (!fornecedor || tr.dataset.fornecedor.includes(fornecedor))
+                    && (!cnpj || tr.dataset.cnpj.includes(cnpj))
+                    && passaSit && passaConf && passaColunas;
+                tr.style.display = visivel ? '' : 'none';
+                if (visivel) visiveis++;
+            });
+            $('filtroEncontradasCount').textContent = `${visiveis} de ${(c.encontradas || []).length} encontradas`;
+        };
+        const filtrosColuna = new Map();
+        const menuAnterior = document.querySelector('.cf-col-menu');
+        if (menuAnterior?._outsideHandler) document.removeEventListener('click', menuAnterior._outsideHandler);
+        menuAnterior?.remove();
+        const menuColuna = document.createElement('div');
+        menuColuna.className = 'cf-col-menu';
+        menuColuna.hidden = true;
+        document.body.appendChild(menuColuna);
+
+        const fecharMenuColuna = () => {
+            menuColuna.hidden = true;
+            menuColuna.dataset.coluna = '';
+        };
+        const abrirMenuColuna = th => {
+            const coluna = Number(th.dataset.filterCol);
+            const valores = [...new Set([...el.querySelectorAll('#encontradasBody tr')]
+                .map(tr => norm(tr.cells[coluna]?.textContent || '')))]
+                .filter(Boolean).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+            const selecionados = filtrosColuna.get(coluna) || new Set(valores);
+            menuColuna.dataset.coluna = coluna;
+            menuColuna.innerHTML = `<input type="search" placeholder="Pesquisar valores..." aria-label="Pesquisar valores">
+                <div class="cf-col-select-actions"><button type="button" data-col-action="select-all">Marcar tudo</button><button type="button" data-col-action="select-none">Desmarcar tudo</button></div>
+                <div class="cf-col-options">${valores.map(valor => `<label class="cf-col-option">
+                    <input type="checkbox" value="${esc(valor)}" ${selecionados.has(valor) ? 'checked' : ''}>
+                    <span>${esc(valor)}</span>
+                </label>`).join('')}</div>
+                <div class="cf-col-actions"><button type="button" data-col-action="clear">Limpar</button><button type="button" data-col-action="apply">Aplicar</button></div>`;
+            const rect = th.getBoundingClientRect();
+            menuColuna.hidden = false;
+            menuColuna.style.left = `${Math.max(12, Math.min(rect.left, window.innerWidth - menuColuna.offsetWidth - 12))}px`;
+            menuColuna.style.top = `${rect.bottom + 4}px`;
+            const busca = menuColuna.querySelector('input[type="search"]');
+            busca.addEventListener('input', () => {
+                const termo = norm(busca.value);
+                menuColuna.querySelectorAll('.cf-col-option').forEach(opcao => {
+                    opcao.hidden = !!termo && !norm(opcao.textContent).includes(termo);
+                });
+            });
+            menuColuna.querySelector('[data-col-action="select-all"]').addEventListener('click', () => {
+                menuColuna.querySelectorAll('.cf-col-option input').forEach(input => { input.checked = true; });
+            });
+            menuColuna.querySelector('[data-col-action="select-none"]').addEventListener('click', () => {
+                menuColuna.querySelectorAll('.cf-col-option input').forEach(input => { input.checked = false; });
+            });
+            menuColuna.querySelector('[data-col-action="clear"]').addEventListener('click', () => {
+                filtrosColuna.delete(coluna);
+                th.querySelector('.cf-th-filter').classList.remove('active');
+                fecharMenuColuna();
+                aplicarFiltroEncontradas();
+            });
+            menuColuna.querySelector('[data-col-action="apply"]').addEventListener('click', () => {
+                const escolhidos = new Set([...menuColuna.querySelectorAll('.cf-col-option input:checked')]
+                    .map(input => norm(input.value)));
+                if (escolhidos.size === valores.length) filtrosColuna.delete(coluna);
+                else filtrosColuna.set(coluna, escolhidos);
+                th.querySelector('.cf-th-filter').classList.toggle('active', escolhidos.size !== valores.length);
+                fecharMenuColuna();
+                aplicarFiltroEncontradas();
+            });
+            busca.focus();
+        };
+        el.querySelectorAll('.cf-encontradas-table th[data-filter-col]').forEach(th => {
+            th.querySelector('.cf-th-filter').addEventListener('click', e => {
+                e.stopPropagation();
+                if (!menuColuna.hidden && menuColuna.dataset.coluna === th.dataset.filterCol) fecharMenuColuna();
+                else abrirMenuColuna(th);
+            });
+        });
+        const tabelaEncontradas = el.querySelector('.cf-encontradas-table');
+        const envoltorioTabela = el.querySelector('.cf-encontradas-wrap');
+        const colunasEncontradas = [...tabelaEncontradas.querySelectorAll('col[data-column]')];
+        const chaveLarguras = 'conferencia-notas:larguras-tabela-encontradas';
+        const atualizarLarguras = (larguras, larguraTotal = null) => {
+            larguras.forEach((largura, indice) => {
+                colunasEncontradas[indice].style.width = `${largura}px`;
+            });
+            const somaLarguras = larguras.reduce((total, largura) => total + largura, 0);
+            tabelaEncontradas.style.width = `${Math.max(envoltorioTabela.clientWidth, larguraTotal || somaLarguras)}px`;
+        };
+        try {
+            const largurasSalvas = JSON.parse(localStorage.getItem(chaveLarguras) || 'null');
+            if (Array.isArray(largurasSalvas) && largurasSalvas.length === colunasEncontradas.length) {
+                atualizarLarguras(largurasSalvas.map(largura => Math.max(72, Number(largura) || 72)));
+            }
+        } catch (_) {
+            // Preferir as larguras padrão se o armazenamento do navegador estiver indisponível.
+        }
+        el.querySelectorAll('.cf-th-resizer').forEach(resizer => {
+            resizer.addEventListener('mousedown', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                const th = resizer.closest('th');
+                const indice = Number(th.dataset.filterCol);
+                const largurasIniciais = colunasEncontradas.map(coluna => coluna.getBoundingClientRect().width);
+                const larguraTabelaInicial = tabelaEncontradas.getBoundingClientRect().width;
+                const mover = evento => {
+                    const larguras = [...largurasIniciais];
+                    larguras[indice] = Math.max(72, largurasIniciais[indice] + evento.clientX - e.clientX);
+                    atualizarLarguras(larguras, Math.max(larguraTabelaInicial, larguras.reduce((total, largura) => total + largura, 0)));
+                };
+                const soltar = () => {
+                    document.removeEventListener('mousemove', mover);
+                    document.removeEventListener('mouseup', soltar);
+                    th.classList.remove('cf-th-resizing');
+                    document.body.style.cursor = '';
+                    localStorage.setItem(chaveLarguras, JSON.stringify(colunasEncontradas.map(coluna => coluna.getBoundingClientRect().width)));
+                };
+                th.classList.add('cf-th-resizing');
+                document.body.style.cursor = 'col-resize';
+                document.addEventListener('mousemove', mover);
+                document.addEventListener('mouseup', soltar);
+            });
+        });
+        const fecharAoClicarFora = e => {
+            if (!menuColuna.hidden && !menuColuna.contains(e.target)) fecharMenuColuna();
+        };
+        menuColuna._outsideHandler = fecharAoClicarFora;
+        document.addEventListener('click', fecharAoClicarFora);
+        ['filtroEncontradasTipo', 'filtroEncontradasFornecedor', 'filtroEncontradasCnpj',
+         'filtroEncontradasSituacao', 'filtroEncontradasConfianca']
+            .forEach(id => $(id)?.addEventListener('input', aplicarFiltroEncontradas));
+        // As pílulas do resumo de confiança são atalhos para o filtro: clicar em
+        // "163 só por valor" mostra esses 163. Teclado incluído — elas têm
+        // role="button" e tabindex, então precisam responder a Enter/Espaço.
+        el.querySelectorAll('.cf-filtra').forEach(p => {
+            const filtrar = () => {
+                const sel = $('filtroEncontradasConfianca');
+                if (!sel) return;
+                // Clicar de novo na mesma pílula desfaz o filtro.
+                sel.value = sel.value === p.dataset.conf ? '' : p.dataset.conf;
+                aplicarFiltroEncontradas();
+            };
+            p.addEventListener('click', filtrar);
+            p.addEventListener('keydown', e => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); filtrar(); }
+            });
+        });
+        aplicarFiltroEncontradas();
 
         const btn = document.getElementById('btnBaixarFaltantes');
         if (btn) btn.addEventListener('click', () => baixarFaltantes(c, compData.periodo));
+        const btnDiv = document.getElementById('btnBaixarDivergentes');
+        if (btnDiv) btnDiv.addEventListener('click', () => baixarDivergentes(c, compData.periodo));
+
+        // Delegação mantém a tabela leve: 408 linhas não precisam de listeners
+        // individuais para abrir detalhe e visualizar o documento.
+        const encontradasBody = el.querySelector('#encontradasBody');
+        encontradasBody.addEventListener('click', e => {
+            const botao = e.target.closest('.cf-ver-doc[data-encontrada-doc]');
+            if (botao) {
+                const l = (c.encontradas || [])[Number(botao.dataset.encontradaDoc)];
+                if (l && (l.caminho || l.arquivo)) abrirDocumento(l);
+                return;
+            }
+            const linha = e.target.closest('tr.cf-linha-detalhe');
+            if (!linha) return;
+            const l = (c.encontradas || [])[Number(linha.dataset.encontrada)];
+            if (l) abrirDetalheNota(l, esc, brl);
+        });
+        encontradasBody.addEventListener('keydown', e => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            const linha = e.target.closest('tr.cf-linha-detalhe');
+            if (!linha) return;
+            e.preventDefault();
+            const l = (c.encontradas || [])[Number(linha.dataset.encontrada)];
+            if (l) abrirDetalheNota(l, esc, brl);
+        });
+
+        // "Ver nota" — abre o PDF arquivado no visualizador que a página já tem.
+        // Delegado no container: as linhas são reescritas a cada comparação.
+        // O seletor traz `[data-doc]` porque a seção "PDFs na pasta" usa a mesma
+        // classe de botão com outro índice (`data-pdf`) — sem isso os dois conjuntos
+        // se misturam e cada botão de lá ganharia um handler que não é o dele.
+        el.querySelectorAll('.cf-ver-doc[data-doc]').forEach(b => {
+            b.addEventListener('click', () => {
+                const l = (c.listaDivergentes || [])[Number(b.dataset.doc)];
+                if (l) abrirDocumento(l);
+            });
+        });
+        // Empates abrem o documento ESCOLHIDO — é o que está no par, e o que quem
+        // confere precisa ver primeiro para julgar se o desempate acertou.
+        el.querySelectorAll('.cf-ver-emp').forEach(b => {
+            b.addEventListener('click', () => {
+                const l = (c.listaEmpatados || [])[Number(b.dataset.emp)];
+                if (l) abrirDocumento({ caminho: l.caminho, arquivo: l.escolhido });
+            });
+        });
     }
 
-    // CSV com a lista que está na tela. O download é do próprio navegador (Blob),
-    // sem passar pelo servidor — a lista já veio no JSON da comparação.
+    // ── "PDFs na pasta" ─────────────────────────────────────────────────────
+    // As outras seções contam NOTA (o que entra na conferência). Esta conta ARQUIVO:
+    // é o disco cru, com o comprovante, o extrato do dia e o consórcio no meio. Existe
+    // para responder "o que está guardado nesta pasta?" sem abrir o Explorer — e para
+    // mostrar o que as contagens de propósito descartam, que é justamente o que some
+    // da tela quando alguém pergunta "cadê o PDF que eu sei que está lá".
+    const CLASSES_PDF = {
+        fiscal:     { rot: 'nota',       dica: 'Documento fiscal — é o que entra na conferência.' },
+        nao_fiscal: { rot: 'não-fiscal', dica: 'Tem nome "NNN.DOC" mas é pagamento sem nota de fornecedor (consórcio, PIX, folha, guia).' },
+        anexo:      { rot: 'anexo',      dica: 'Não é "NNN.DOC": comprovante (CPV), extrato do dia (000.pdf) e outros anexos.' },
+        sem_data:   { rot: 'sem data',   dica: 'É "NNN.DOC" mas nem o nome nem a pasta dizem a data.' },
+    };
+
+    // A rota manda `pasta` e `nome` separados e NÃO manda o caminho: em 2.221 linhas
+    // ele era 250 KB de repetição. Aqui volta a ser um só, no formato que o
+    // visualizador espera.
+    const caminhoDoPdf = a => a.pasta ? `${a.pasta}/${a.nome}` : a.nome;
+    const tamanhoPdf = b => b == null ? '—'
+        : b < 1024 ? `${b} B`
+        : b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB`
+        : `${(b / 1024 / 1024).toFixed(1)} MB`;
+    const dataPdf = ms => ms ? new Date(ms).toLocaleDateString('pt-BR') : '—';
+
+    function secaoPdfsNaPasta(p, esc) {
+        if (!p) return '';
+        if (!p.disponivel) return `
+            <div>
+                <div class="cf-lista-topo"><span class="cf-lista-tit">PDFs na pasta</span></div>
+                <p class="cf-rodape">Pasta indisponível${p.motivo ? ` — ${esc(p.motivo)}` : '.'}</p>
+            </div>`;
+
+        const c = p.porClasse || {};
+        const resumo = Object.entries(CLASSES_PDF)
+            .filter(([k]) => c[k])
+            .map(([k, v]) => `<span class="cf-cls cls-${k}" title="${esc(v.dica)}">${c[k]} ${v.rot}</span>`)
+            .join('');
+
+        return `
+            <div>
+                <div class="cf-lista-topo">
+                    <span class="cf-lista-tit">PDFs na pasta — ${p.total}</span>
+                    <span class="cf-lista-sub">${tamanhoPdf(p.bytesTotal)} no disco · ${p.lidos} lidos pelo OCR${
+                        p.semData ? ` · ${p.semData} sem data, fora deste mês` : ''}</span>
+                    <button type="button" class="cf-btn" id="btnBaixarPdfs">Baixar CSV</button>
+                </div>
+                <div class="cf-sit-resumo">${resumo}</div>
+                <div class="cf-encontradas-filtros">
+                    <select id="filtroPdfClasse" aria-label="Filtrar por classe">
+                        <option value="">Todas as classes</option>
+                        ${Object.entries(CLASSES_PDF).filter(([k]) => c[k])
+                            .map(([k, v]) => `<option value="${k}">${esc(v.rot)} (${c[k]})</option>`).join('')}
+                    </select>
+                    <input id="filtroPdfNome" type="search" placeholder="Filtrar nome do arquivo..." aria-label="Filtrar por nome">
+                    <select id="filtroPdfPasta" aria-label="Filtrar por subpasta">
+                        <option value="">Todas as subpastas</option>
+                        ${[...new Set((p.arquivos || []).map(a => a.pasta))].sort()
+                            .map(sp => `<option value="${esc(sp)}">${esc(sp) || '(raiz)'}</option>`).join('')}
+                    </select>
+                    <select id="filtroPdfLido" aria-label="Filtrar por leitura do OCR">
+                        <option value="">Lidos e não lidos</option>
+                        <option value="sim">Só os lidos pelo OCR</option>
+                        <option value="nao">Só os não lidos</option>
+                    </select>
+                </div>
+                <div id="filtroPdfCount" class="cf-encontradas-count"></div>
+                <div class="cf-lista-wrap" id="pdfsWrap">
+                    <table class="cf-lista">
+                        <thead><tr>
+                            <th>Arquivo</th><th>Subpasta</th><th>Classe</th>
+                            <th style="text-align:right">Tamanho</th>
+                            <th>Modificado</th>
+                            <th style="text-align:center" title="O OCR já leu este arquivo?">OCR</th>
+                            <th></th>
+                        </tr></thead>
+                        <!-- Corpo vazio de propósito: ligarPdfsNaPasta desenha as
+                             linhas em blocos, conforme a rolagem. -->
+                        <tbody id="pdfsBody"></tbody>
+                    </table>
+                </div>
+            </div>`;
+    }
+
+    // Uma linha da tabela. Fora do `map` porque agora é chamada aos poucos, à medida
+    // que a lista rola.
+    function linhaPdf(a, i, esc) {
+        const cl = CLASSES_PDF[a.classe] || CLASSES_PDF.anexo;
+        return `
+            <tr>
+                <td><div class="cf-pdf-nome" title="${esc(caminhoDoPdf(a))}">${esc(a.nome)}</div></td>
+                <td><div class="cf-pdf-pasta" title="${esc(a.pasta)}">${esc(a.pasta) || '(raiz)'}</div></td>
+                <td><span class="cf-cls cls-${esc(a.classe)}" title="${esc(cl.dica)}">${cl.rot}${
+                    a.categoria ? ` · ${esc(a.categoria)}` : ''}</span></td>
+                <td class="num ${a.bytes === 0 ? 'forte' : ''}"${
+                    a.bytes === 0 ? ' title="Arquivo vazio — 0 byte"' : ''}>${tamanhoPdf(a.bytes)}</td>
+                <td class="fraco">${dataPdf(a.mtime)}</td>
+                <td style="text-align:center" class="${a.lido ? 'cf-pdf-ok' : 'cf-pdf-nao'}"
+                    title="${a.lido ? 'Lido pelo OCR' : 'Ainda não lido pelo OCR'}">${a.lido ? '✓' : '—'}</td>
+                <td style="text-align:right">
+                    <button type="button" class="cf-ver-doc" data-pdf="${i}"
+                        title="Abrir ${esc(a.nome)}">Abrir</button>
+                </td>
+            </tr>`;
+    }
+
+    // Quantas linhas entram no DOM por vez. As outras tabelas da tela param em 200
+    // linhas, mas aqui truncar mudaria a resposta: a pergunta é "o que TEM na pasta",
+    // e mostrar 200 de 2.221 responde outra coisa. Então a lista é inteira — só que
+    // desenhada por blocos conforme rola. Desenhar as 2.221 de uma vez custava 2,9 MB
+    // de HTML e 15.547 células (medido em 03/2026), o que trava a rolagem do painel.
+    const BLOCO_PDFS = 100;
+
+    function ligarPdfsNaPasta(el, p, periodo) {
+        if (!p || !p.disponivel) return;
+        const corpo = $('pdfsBody');
+        const wrap = $('pdfsWrap');
+        if (!corpo || !wrap) return;
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,
+            ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+
+        // Índice original preservado: `data-pdf` aponta para `p.arquivos`, que o botão
+        // "Abrir" e o CSV usam. Filtrar reordena a tela, não os dados.
+        const todos = (p.arquivos || []).map((a, i) => ({ a, i }));
+        let filtrados = todos, desenhadas = 0;
+
+        const desenharMais = () => {
+            const proximas = filtrados.slice(desenhadas, desenhadas + BLOCO_PDFS);
+            if (!proximas.length) return;
+            corpo.insertAdjacentHTML('beforeend',
+                proximas.map(({ a, i }) => linhaPdf(a, i, esc)).join(''));
+            desenhadas += proximas.length;
+        };
+
+        const aplicar = () => {
+            const classe = $('filtroPdfClasse')?.value || '';
+            const nome = norm($('filtroPdfNome')?.value || '');
+            const pasta = $('filtroPdfPasta')?.value || '';
+            const lido = $('filtroPdfLido')?.value || '';
+            filtrados = todos.filter(({ a }) =>
+                   (!classe || a.classe === classe)
+                && (!nome || norm(a.nome).includes(nome))
+                && (!pasta || a.pasta === pasta)
+                && (!lido || (a.lido ? 'sim' : 'nao') === lido));
+            corpo.innerHTML = '';
+            desenhadas = 0;
+            wrap.scrollTop = 0;
+            desenharMais();
+            $('filtroPdfCount').textContent = filtrados.length === p.total
+                ? `${p.total} PDFs`
+                : `${filtrados.length} de ${p.total} PDFs`;
+        };
+
+        // Ao chegar perto do fim, desenha o bloco seguinte. Sem debounce: o trabalho
+        // por evento é uma comparação, e `desenharMais` sai na hora quando acabou.
+        wrap.addEventListener('scroll', () => {
+            if (wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 120) desenharMais();
+        });
+
+        ['filtroPdfClasse', 'filtroPdfNome', 'filtroPdfPasta', 'filtroPdfLido']
+            .forEach(id => $(id)?.addEventListener('input', aplicar));
+        aplicar();
+
+        // Delegado no corpo da tabela, e não por botão: as linhas nascem ao rolar, e
+        // um listener por botão perderia as que ainda não existem.
+        corpo.addEventListener('click', ev => {
+            const b = ev.target.closest('.cf-ver-doc[data-pdf]');
+            if (!b) return;
+            const a = (p.arquivos || [])[Number(b.dataset.pdf)];
+            if (a) abrirDocumento({ caminho: caminhoDoPdf(a), arquivo: a.nome });
+        });
+
+        const btn = $('btnBaixarPdfs');
+        if (btn) btn.addEventListener('click', () => {
+            const linhas = [['arquivo', 'subpasta', 'classe', 'categoria', 'bytes', 'modificado', 'lido_pelo_ocr']];
+            for (const a of (p.arquivos || [])) {
+                linhas.push([
+                    a.nome, a.pasta, (CLASSES_PDF[a.classe] || {}).rot || a.classe,
+                    a.categoria || '', a.bytes == null ? '' : a.bytes,
+                    a.mtime ? new Date(a.mtime).toLocaleDateString('pt-BR') : '',
+                    a.lido ? 'sim' : 'nao',
+                ]);
+            }
+            baixarCsv(linhas, `pdfs-na-pasta-${String(periodo || '').replace('.', '-')}.csv`);
+        });
+    }
+
+    // O par já sabe onde o papel está: `caminho` é relativo a MONITOR_PATH, e o
+    // visualizador quer a subpasta separada do nome. Documento sem subpasta (PDF
+    // na raiz do arquivo permanente) cai no `pasta` vazio, que a rota aceita.
+    function abrirDocumento(l) {
+        const caminho = String(l.caminho || l.arquivo || '');
+        const corte = caminho.lastIndexOf('/');
+        openViewer({
+            name: corte >= 0 ? caminho.slice(corte + 1) : caminho,
+            folder: corte >= 0 ? caminho.slice(0, corte) : '',
+        });
+    }
+
+    // Detalhe de uma nota encontrada: itens, valor da nota, CFOP e — em guia de
+    // imposto — o código da receita, com botão para copiar. Reusa o modal genérico
+    // (#modal) que já existe para o parser do DARF na outra tabela da página.
+    // `esc`/`brl` vêm de renderComparacao porque são fechados naquele escopo.
+    function abrirDetalheNota(l, esc, brl) {
+        const d = l.detalhe || {};
+        const partes = [];
+
+        partes.push(`<div class="flex justify-between gap-4 pb-1.5" style="border-bottom:1px solid rgba(255,255,255,.10)">
+            <dt style="color:rgba(255,255,255,.50)">Fornecedor</dt>
+            <dd class="font-medium text-right" style="color:rgba(255,255,255,.90)">${esc(l.fornecedor) || '—'}</dd>
+        </div>`);
+
+        if (d.valorNota != null) {
+            partes.push(`<div class="flex justify-between gap-4 pb-1.5" style="border-bottom:1px solid rgba(255,255,255,.10)">
+                <dt style="color:rgba(255,255,255,.50)">Valor da nota</dt>
+                <dd class="font-medium mono" style="color:rgba(255,255,255,.90)">R$ ${brl(d.valorNota)}</dd>
+            </div>`);
+        }
+        if (d.cfop) {
+            partes.push(`<div class="flex justify-between gap-4 pb-1.5" style="border-bottom:1px solid rgba(255,255,255,.10)">
+                <dt style="color:rgba(255,255,255,.50)">CFOP</dt>
+                <dd class="font-medium mono" style="color:rgba(255,255,255,.90)">${esc(d.cfop)}</dd>
+            </div>`);
+        }
+        if (d.chaveAcesso) {
+            partes.push(`<div class="flex justify-between items-center gap-4 pb-1.5" style="border-bottom:1px solid rgba(255,255,255,.10)">
+                <dt style="color:rgba(255,255,255,.50)">Chave de acesso</dt>
+                <dd class="font-medium mono flex items-center gap-2" style="color:rgba(255,255,255,.90)">
+                    <span>${esc(d.chaveAcesso)}</span>
+                    <button type="button" class="cf-copiar-valor" data-valor="${esc(d.chaveAcesso)}"
+                        style="font-size:.65rem;padding:.2rem .5rem;border-radius:6px;border:1px solid rgba(255,255,255,.18);
+                               background:rgba(255,255,255,.06);color:rgba(255,255,255,.75);cursor:pointer">
+                        Copiar
+                    </button>
+                </dd>
+            </div>`);
+        }
+        if (d.codigoReceita) {
+            partes.push(`<div class="flex justify-between items-center gap-4 pb-1.5" style="border-bottom:1px solid rgba(255,255,255,.10)">
+                <dt style="color:rgba(255,255,255,.50)">Código da receita</dt>
+                <dd class="font-medium mono flex items-center gap-2" style="color:rgba(255,255,255,.90)">
+                    <span>${esc(d.codigoReceita)}</span>
+                    <button type="button" class="cf-copiar-receita" data-valor="${esc(d.codigoReceita)}"
+                        style="font-size:.65rem;padding:.2rem .5rem;border-radius:6px;border:1px solid rgba(255,255,255,.18);
+                               background:rgba(255,255,255,.06);color:rgba(255,255,255,.75);cursor:pointer">
+                        Copiar
+                    </button>
+                </dd>
+            </div>`);
+        }
+
+        if (Array.isArray(d.itens) && d.itens.length) {
+            const cols = ['Descrição', 'NCM', 'CFOP', 'Unidade', 'Quantidade', 'Valor unitário', 'Valor total'];
+            partes.push(`<div style="margin-top:.75rem">
+                <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:rgba(255,255,255,.45);margin-bottom:.4rem">
+                    Itens (${d.itens.length})
+                </div>
+                <div style="overflow-x:auto;border:1px solid rgba(255,255,255,.10);border-radius:8px">
+                    <table style="width:100%;border-collapse:collapse;font-size:.72rem;white-space:nowrap">
+                        <thead><tr>${cols.map(k => `<th style="padding:.4rem .55rem;text-align:left;background:rgba(255,255,255,.05);color:rgba(255,255,255,.5)">${esc(k)}</th>`).join('')}</tr></thead>
+                        <tbody>
+                            ${d.itens.map(it => `<tr>${cols.map(k =>
+                                `<td style="padding:.4rem .55rem;border-top:1px solid rgba(255,255,255,.06);color:rgba(255,255,255,.82)">${esc(it[k] ?? '—')}</td>`).join('')}</tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`);
+        }
+
+        if (partes.length === 1 && !d.valorNota && !d.cfop && !d.chaveAcesso && !d.codigoReceita && !(d.itens || []).length) {
+            partes.push(`<p style="color:rgba(255,255,255,.5)">Sem itens, valor ou CFOP extraídos deste documento.</p>`);
+        }
+
+        $('modalTitle').textContent = `${l.tipo || 'Não identificado'} — ${l.arquivo || ''}`;
+        $('modalBody').innerHTML = `<dl class="space-y-2">${partes.join('')}</dl>`;
+        $('modal').classList.remove('hidden');
+
+        $('modalBody').querySelectorAll('.cf-copiar-receita, .cf-copiar-valor').forEach(btnCopiar => {
+            btnCopiar.addEventListener('click', async () => {
+                const valor = btnCopiar.dataset.valor || '';
+                try {
+                    await navigator.clipboard.writeText(valor);
+                } catch (e) {
+                    // Sem permissão de clipboard (http sem foco, navegador antigo):
+                    // fallback com textarea temporário + execCommand.
+                    const ta = document.createElement('textarea');
+                    ta.value = valor;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try { document.execCommand('copy'); } catch (_) {}
+                    document.body.removeChild(ta);
+                }
+                const original = btnCopiar.textContent;
+                btnCopiar.textContent = 'Copiado!';
+                setTimeout(() => { btnCopiar.textContent = original; }, 1500);
+            });
+        });
+    }
+
+    // Tooltip do card de divergência. Sem ele o número é lido como "N erros", e a
+    // maior parte não é: retenção de ISS/IR e desconto de boleto fazem o papel
+    // divergir da planilha legitimamente. O que o tooltip precisa entregar é ONDE
+    // olhar — a faixa acima de 50% — e por que a parcela não está na lista.
+    // Números de jan–jun/2026 (`_medir/divergencias2.js`).
+    function hintDivergencias(c) {
+        const rs = v => 'R$ ' + (v || 0)
+            .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const linhas = [
+            `${c.divergentes} pares em que o documento existe mas o valor difere do lançado.`,
+            `Somam ${rs(c.valorDivergencia)} de diferença.`,
+            '',
+            'O par foi confirmado por número + fornecedor, então o papel é daquele',
+            'lançamento — o que não bate é o dinheiro.',
+            '',
+            'Diferença pequena (até ~15%) é o caso normal e legítimo: retenção de',
+            'ISS/IR e desconto de boleto. ARPSEG NF 517: R$ 827,00 × R$ 797,93.',
+        ];
+        if (c.retencoes)
+            linhas.push(
+                '',
+                `${c.retencoes} pares saíram da lista por RETENÇÃO NA FONTE —`,
+                `${rs(c.valorRetencoes)} de imposto retido (ISS/IRRF/PIS/COFINS/CSLL).`,
+                'Nesses, a nota de serviço imprime os três números e a conta fecha no',
+                'papel: bruto − imposto retido = líquido. A planilha lança o BRUTO e o',
+                'boleto cobra o LÍQUIDO, então os dois estão certos — o que faltava era',
+                'comparar a planilha com o número certo da nota.',
+                'CORREA TRUCK NF 377: R$ 3.690,00 − R$ 184,50 de ISSRF = R$ 3.505,50.');
+        if (c.divergentesGraves)
+            linhas.push(
+                '',
+                `${c.divergentesGraves} passam de 50% do lançamento — em vermelho. É onde olhar:`,
+                'parte deles não é valor errado, é PAR errado (o número do OCR bateu,',
+                'o do nome do arquivo é outro). Passe o mouse no fornecedor para ver',
+                'o nome do PDF e conferir.');
+        if (c.parcelas)
+            linhas.push(
+                '',
+                `${c.parcelas} pares ficaram FORA desta lista por serem parcela — o valor do`,
+                `documento é fração inteira exata do lançamento (${rs(c.valorParcelas)}).`,
+                'CIMAG R$ 30.600 ÷ 5 = R$ 6.120: o papel confere, só cobre parte da nota.');
+        linhas.push('', 'Ordenado pela diferença, não pelo valor: a retenção de centavos fica no fim.');
+        if (c.divergentesTruncadaEm)
+            linhas.push(`Na tela, os ${c.divergentesTruncadaEm} maiores. O CSV traz os mesmos.`);
+        return linhas.join('\n');
+    }
+
+    // Gera um XLSX local com uma aba para cada pergunta da conferência. Os dados
+    // já foram filtrados pela rota autenticada; aqui apenas são organizados para o
+    // Excel, sem nova chamada ao servidor.
+    function exportarComparacaoXlsx(data) {
+        const XLSX = globalThis.XLSX;
+        if (!XLSX) {
+            showToast('Biblioteca do Excel indisponível. Recarregue a página e tente novamente.', 'error', 5000);
+            return;
+        }
+
+        const c = data.conferencia;
+        const pdfs = data.pdfs?.arquivos || [];
+        const date = v => v ? new Date(v).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '';
+        const money = v => Number(v || 0).toFixed(2);
+        const path = l => l.ondeEsta || l.caminho || l.arquivo || '';
+        // Em que o par se apoia, para o Excel poder ordenar e filtrar. `Sinais` vai
+        // NUMÉRICO de propósito: como texto o Excel ordenaria "10" antes de "2".
+        const sinais = l => (l.forca == null ? '' : l.forca);
+        const sheet = (headers, rows, widths) => {
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            ws['!cols'] = widths.map(w => ({ wch: w }));
+            if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
+            return ws;
+        };
+
+        const encontrados = (c.encontradas || []).map(l => [
+            l.fornecedor || '', l.cnpj || '', l.nf || '', money(l.valor),
+            l.tipo || '', l.arquivo || '', path(l), l.situacao || 'ok',
+            l.periodoDocumento || data.periodo, rotuloOrigem(l), l.via || '',
+            sinais(l), l.empatado ? 'sim' : '',
+        ]);
+        const divergencias = (c.todosDivergentes || c.listaDivergentes || []).map(l => [
+            l.entidade || '', l.nf || '', money(l.valorPlanilha), money(l.valorDocumento),
+            money(l.diferenca), `${l.percentual > 0 ? '+' : '-'}${Math.abs(l.percentual || 0).toFixed(2)}%`,
+            l.arquivo || '', path(l), l.periodoDocumento || data.periodo, rotuloOrigem(l), l.via || '',
+        ]);
+        const faltantes = (c.todosSemDocumento || c.listaSemDocumento || []).map(l => [
+            l.entidade || '', l.nf || '', money(l.valor), date(l.dtLancamento),
+        ]);
+        const naPasta = pdfs.map(a => [
+            a.nome || '', a.pasta || '', a.pasta ? `${a.pasta}/${a.nome}` : (a.nome || ''),
+            a.classe || '', a.categoria || '', a.bytes == null ? '' : a.bytes,
+            a.mtime ? new Date(a.mtime).toLocaleString('pt-BR') : '', a.lido ? 'sim' : 'nao',
+        ]);
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, sheet(
+            ['Fornecedor', 'CNPJ/CPF', 'NF', 'Valor planilha', 'Tipo', 'Arquivo', 'Onde foi achado', 'Situação', 'Pasta/mês', 'Origem', 'Via', 'Sinais', 'Ambíguo'],
+            encontrados, [28, 18, 12, 16, 14, 34, 54, 16, 14, 18, 12, 8, 9]), 'Encontrados na planilha');
+        XLSX.utils.book_append_sheet(wb, sheet(
+            ['Fornecedor', 'NF', 'Valor planilha', 'Valor documento', 'Diferença', 'Percentual', 'Arquivo', 'Onde foi achado', 'Pasta/mês', 'Origem', 'Via'],
+            divergencias, [28, 12, 16, 17, 14, 13, 34, 54, 14, 18, 12]), 'Divergencias');
+        XLSX.utils.book_append_sheet(wb, sheet(
+            ['Fornecedor', 'NF', 'Valor', 'Data lançamento'],
+            faltantes, [32, 14, 18, 18]), 'Faltam na pasta');
+        XLSX.utils.book_append_sheet(wb, sheet(
+            ['Arquivo', 'Subpasta', 'Caminho', 'Classe', 'Categoria', 'Tamanho bytes', 'Modificado', 'Lido pelo OCR'],
+            naPasta, [34, 34, 70, 14, 32, 16, 22, 16]), 'Na pasta');
+
+        XLSX.writeFile(wb, `conferencia-notas-${String(data.periodo || '').replace('.', '-')}.xlsx`);
+    }
+
+    // Monta um relatório de impressão fora do painel para não depender de uma
+    // biblioteca de PDF nem expor dados em uma rota nova. O navegador transforma
+    // esta página em PDF pelo comando padrão de impressão.
+    function exportarComparacaoPdf(data) {
+        const c = data.conferencia;
+        const report = $('pdfExportReport');
+        const escPdf = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+            ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        const money = v => Number(v || 0).toLocaleString('pt-BR',
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const date = v => v ? new Date(v).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '—';
+        const path = l => l.ondeEsta || l.caminho || l.arquivo || '—';
+        const statusClass = situacao => situacao === 'data_invalida'
+            ? 'pdf-status-bad' : situacao === 'fora_do_lugar' ? 'pdf-status-warn' : 'pdf-status';
+        const title = `Conferência de notas — ${data.periodo}`;
+
+        const foundRows = (c.encontradas || []).map(l => `<tr>
+            <td>${escPdf(l.fornecedor || '—')}</td>
+            <td>${escPdf(l.nf || '—')}</td>
+            <td class="pdf-col-valor">R$ ${money(l.valor)}</td>
+            <td>${escPdf(l.arquivo || '—')}</td>
+            <td>${escPdf(path(l))}</td>
+            <td class="${statusClass(l.situacao || 'ok')}">${escPdf(l.situacao || 'ok')}</td>
+            <td>${escPdf(l.periodoDocumento || data.periodo)}</td>
+            <td>${escPdf(rotuloOrigem(l))}${l.forca === 1 ? ' · só valor' : ''}${l.empatado ? ' · ambíguo' : ''}</td>
+        </tr>`).join('');
+
+        const divergentRows = (c.todosDivergentes || c.listaDivergentes || []).map(l => `<tr>
+            <td>${escPdf(l.entidade || '—')}</td>
+            <td>${escPdf(l.nf || '—')}</td>
+            <td class="pdf-col-valor">R$ ${money(l.valorPlanilha)}</td>
+            <td class="pdf-col-valor">R$ ${money(l.valorDocumento)}</td>
+            <td class="pdf-col-valor pdf-difference">${l.diferenca > 0 ? '+' : '−'}R$ ${money(Math.abs(l.diferenca))}<br>${l.percentual > 0 ? '+' : '−'}${Math.abs(l.percentual || 0).toFixed(1)}%</td>
+            <td>${escPdf(l.arquivo || '—')}</td>
+            <td>${escPdf(path(l))}</td>
+        </tr>`).join('');
+
+        const missingRows = (c.todosSemDocumento || c.listaSemDocumento || []).map(l => `<tr>
+            <td>${escPdf(l.entidade || '—')}</td>
+            <td>${escPdf(l.nf || '—')}</td>
+            <td class="pdf-col-valor pdf-missing-value">R$ ${money(l.valor)}</td>
+            <td>${date(l.dtLancamento)}</td>
+        </tr>`).join('');
+
+        const table = (headers, rows, empty) => rows
+            ? `<table><thead><tr>${headers.map(h => `<th class="${h.cls || ''}">${escPdf(h.label)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table>`
+            : `<p class="pdf-empty">${empty}</p>`;
+
+        const foundCount = (c.encontradas || []).length;
+        const divergentCount = (c.todosDivergentes || c.listaDivergentes || []).length;
+        const missingCount = c.lancamentosSemDocumento || 0;
+        report.innerHTML = `<div class="pdf-report-header">
+                <div><div class="pdf-brand">Larsil · Conferência fiscal</div><h1>${escPdf(title)}</h1>
+                <p class="pdf-meta">Gerado em ${escPdf(new Date().toLocaleString('pt-BR'))}</p></div>
+                <div class="pdf-periodo">Período<br>${escPdf(data.periodo)}</div>
+            </div>
+            <div class="pdf-summary">
+                <div class="pdf-kpi"><strong>${foundCount}</strong><span>Encontrados</span></div>
+                <div class="pdf-kpi"><strong>${divergentCount}</strong><span>Discrepâncias</span></div>
+                <div class="pdf-kpi"><strong>${missingCount}</strong><span>Faltantes</span></div>
+            </div>
+            <h2 class="pdf-section-found">Encontrados (${(c.encontradas || []).length})</h2>
+            ${table([
+                { label: 'Fornecedor', cls: 'pdf-col-fornecedor' }, { label: 'NF', cls: 'pdf-col-nf' },
+                { label: 'Valor', cls: 'pdf-col-valor' }, { label: 'Arquivo', cls: 'pdf-col-arquivo' },
+                { label: 'Onde foi achado', cls: 'pdf-col-local' }, { label: 'Situação', cls: 'pdf-col-situacao' },
+                { label: 'Pasta/mês', cls: 'pdf-col-extra' }, { label: 'Origem', cls: 'pdf-col-extra' },
+            ], foundRows, 'Nenhum documento encontrado.')}
+            <h2 class="pdf-section-divergent">Discrepâncias de valor (${(c.todosDivergentes || c.listaDivergentes || []).length})</h2>
+            ${table([
+                { label: 'Fornecedor', cls: 'pdf-col-fornecedor' }, { label: 'NF', cls: 'pdf-col-nf' },
+                { label: 'Planilha', cls: 'pdf-col-valor' }, { label: 'Documento', cls: 'pdf-col-valor' },
+                { label: 'Diferença', cls: 'pdf-col-valor' }, { label: 'Arquivo', cls: 'pdf-col-arquivo' },
+                { label: 'Onde foi achado', cls: 'pdf-col-local' },
+            ], divergentRows, 'Nenhuma discrepância de valor.')}
+            <h2 class="pdf-section-missing">Faltantes (${c.lancamentosSemDocumento || 0})</h2>
+            ${table([
+                { label: 'Fornecedor', cls: 'pdf-col-fornecedor' }, { label: 'NF', cls: 'pdf-col-nf' },
+                { label: 'Valor', cls: 'pdf-col-valor' }, { label: 'Data do lançamento', cls: 'pdf-col-extra' },
+            ], missingRows, 'Nenhum lançamento faltante.')}`;
+
+        const oldTitle = document.title;
+        const cleanup = () => {
+            report.innerHTML = '';
+            document.title = oldTitle;
+            window.removeEventListener('afterprint', cleanup);
+        };
+        document.title = `conferencia-notas-${String(data.periodo || '').replace('.', '-')}`;
+        window.addEventListener('afterprint', cleanup);
+        window.print();
+        // Alguns navegadores não disparam afterprint quando a caixa é cancelada.
+        setTimeout(cleanup, 60000);
+    }
+
+    // CSV com a lista de faltantes que está na tela.
     function baixarFaltantes(c, periodo) {
         const linhas = [['fornecedor', 'nf', 'valor', 'dt_lancamento']];
         for (const l of (c.listaSemDocumento || [])) {
@@ -2497,6 +3798,32 @@ document.addEventListener('wheel', e => {
                 l.dtLancamento ? new Date(l.dtLancamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '',
             ]);
         }
+        baixarCsv(linhas, `sem-documento-${String(periodo || '').replace('.', '-')}.csv`);
+    }
+
+    // Mesma lista de divergências que está na tela. Traz o nome do arquivo, que a
+    // tabela só mostra no title — é por ele que se acha o PDF na pasta.
+    function baixarDivergentes(c, periodo) {
+        const linhas = [['fornecedor', 'nf', 'valor_planilha', 'valor_documento',
+                         'diferenca', 'percentual', 'arquivo', 'caminho', 'pasta_documento',
+                         'origem', 'via']];
+        const n2 = v => (v || 0).toFixed(2).replace('.', ',');
+        // `rotuloOrigem`: `pasta_documento` sozinha não diz se o par veio da própria
+        // pasta do mês ou de uma vizinha.
+        for (const l of (c.listaDivergentes || [])) {
+            linhas.push([
+                l.entidade, l.nf, n2(l.valorPlanilha), n2(l.valorDocumento),
+                n2(l.diferenca), n2(l.percentual), l.arquivo,
+                l.caminho || '', l.periodoDocumento || periodo,
+                rotuloOrigem(l), l.via,
+            ]);
+        }
+        baixarCsv(linhas, `valores-divergentes-${String(periodo || '').replace('.', '-')}.csv`);
+    }
+
+    // Escreve o CSV e dispara o download pelo próprio navegador (Blob), sem passar
+    // pelo servidor — as listas já vieram no JSON da comparação.
+    function baixarCsv(linhas, nomeArquivo) {
         const csv = linhas.map(r => r.map(v => {
             const s = String(v == null ? '' : v);
             return /[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -2506,7 +3833,7 @@ document.addEventListener('wheel', e => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `sem-documento-${String(periodo || '').replace('.', '-')}.csv`;
+        a.download = nomeArquivo;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

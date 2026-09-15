@@ -20,6 +20,11 @@ function loadEnv(string $path): void
         if ($line === '' || str_starts_with($line, '#')) continue;
         if (!str_contains($line, '=')) continue;
         [$k, $v] = array_map('trim', explode('=', $line, 2));
+        // Valores podem vir delimitados por aspas (DB_SERVER="host"). Sem remover, as
+        // aspas entram no valor e o host vira literalmente `"host"` → falha de DNS.
+        if (strlen($v) >= 2 && ($v[0] === '"' || $v[0] === "'") && $v[strlen($v) - 1] === $v[0]) {
+            $v = substr($v, 1, -1);
+        }
         if (!isset($_ENV[$k])) $_ENV[$k] = $v;
     }
 }

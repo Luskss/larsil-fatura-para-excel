@@ -95,10 +95,15 @@ PCP, cai no fallback ou não acha foto — ver `UNICO-PEOPLE-FOTOS.md` §7.
 
 ## Gestão de usuários
 
-Não existe mais aqui. `GET /gestao-usuarios.html` redireciona para
-`<IAM_URL>/admin` e `/api/usuarios.php` responde `410`. O arquivo
-`gestao-usuarios.html` ficou no repositório, mas não é servido — pode ser
-apagado com segurança.
+Não existe mais aqui, nem como atalho: a rota `/gestao-usuarios.html` e o item
+"Usuários" do menu **Gestão** foram removidos. `/api/usuarios.php` continua
+respondendo `410` (lápide para clientes antigos). O arquivo
+`gestao-usuarios.html` ficou no repositório, mas não é servido por nenhuma rota
+— pode ser apagado com segurança.
+
+Quem administra pessoas usa o console direto: `<IAM_URL>/admin` → **Usuários &
+Acessos**. O `/api/me` ainda devolve `iam_admin_url` se alguma tela quiser
+oferecer o link no futuro.
 
 ## Escopo (quando for filtrar dados)
 

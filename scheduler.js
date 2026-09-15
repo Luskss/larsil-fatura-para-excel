@@ -65,9 +65,13 @@ async function initScheduler() {
             const [hh, mm] = h.HORARIO.split(':');
             const cronExpr = `${mm} ${hh} * * *`; // cron: MM HH * * *
 
-            const job = schedule.scheduleJob(h.ID_HORARIO.toString(), cronExpr, async () => {
+            // O .catch() não é decorativo: node-schedule ignora a promise devolvida
+            // pelo callback, então uma rejeição aqui viraria `unhandledRejection` e
+            // (no Node 25) derrubaria o processo inteiro, sem imprimir nada.
+            const job = schedule.scheduleJob(h.ID_HORARIO.toString(), cronExpr, () => {
                 console.log(`[scheduler] executando varredura em ${h.HORARIO}…`);
-                await runScan(monitorPath);
+                runScan(monitorPath, { forceAI: scanAutomaticoUsaIA() })
+                    .catch(e => console.error('[scheduler] varredura falhou:', e && e.stack || e));
             });
 
             _activeJobs.set(h.ID_HORARIO, job);
@@ -78,10 +82,41 @@ async function initScheduler() {
     }
 }
 
+// ── IA no scan automático ────────────────────────────────────────────────────
+// Ligada por padrão (09/09/2026, a pedido): a IA lê a tabela de itens em layouts
+// que quebram a linha do produto, onde o parser local falha — 30% dos DANFEs. Ela
+// NÃO substitui o extrator determinístico: em `analyzeViaAI` o local roda antes e
+// a IA só preenche o que ficou vazio, porque chave e CNPJ do extrator são
+// validados por construção e uma leitura não deve sobrescrever uma prova.
+//
+// O custo é limitado pelo cache: `forceAI` só relê o que ainda NÃO tem origem
+// "IA", então o primeiro scan paga pelo acervo e os seguintes só pelos arquivos
+// novos. `SCAN_AUTOMATICO_IA=false` no .env desliga sem mexer no código.
+//
+// ── 11/09/2026: a IA passou a ser a via ÚNICA, a pedido ──────────────────────
+// `routes/force-scan.js` (o botão "Ler pasta") era o último caminho que chamava
+// `runScan` sem `forceAI` e gravava leitura só de parser local; agora também usa IA.
+//
+// MEDIDO em `_medir/_ia-vs-local-no-valor.js`, comparação PAREADA sobre os 220
+// arquivos que têm leitura das duas vias (mesma dificuldade por construção, porque é
+// o mesmo arquivo): IA melhor em 121, local melhor em 9, empate em 90.
+// A comparação de médias soltas NÃO serve aqui — a IA foi historicamente usada onde o
+// parser local já havia falhado, então as populações não são equivalentes.
+//
+// O caso que motivou: `_nf-itens.js:489` exige NCM para reconhecer linha de item, e
+// NFS-e é nota de SERVIÇO (não tem NCM, tem código da LC 116). O extrator local gravou
+// itens em 0 de 268 NFS-e com texto nativo.
+function scanAutomaticoUsaIA() {
+    return String(process.env.SCAN_AUTOMATICO_IA || 'true').toLowerCase() !== 'false';
+}
+
 /**
  * Executa uma varredura de PDFs na pasta monitorada.
  * @param {string} dirPath
- * @param {{ forceAI?: boolean }} [opts]  forceAI → relê tudo pela IA (botão "Forçar Leitura via IA")
+ * @param {{ forceAI?: boolean, forceLocal?: boolean }} [opts]
+ *        forceAI    → lê pela IA o que ainda não foi lido por ela
+ *        forceLocal → relê TUDO com os parsers locais (usado quando a lógica de
+ *                     extração muda e o cache guardaria dados velhos)
  */
 async function runScan(dirPath, opts = {}) {
     try {

@@ -26,6 +26,9 @@
 'use strict';
 
 const { callOpenAI, callAnthropic, getActiveAiProvider, toFloat, isNumeric, trimStr } = require('./_helpers');
+// A chave que a IA devolve passa pela MESMA validação estrutural da do parser
+// local (UF + modelo 55/57/65) — ver limparChave.
+const { chaveValida } = require('./_nf-parsers');
 
 // As 7 categorias canônicas do sistema (mesmas de _nf-parsers.classify).
 const TIPOS_VALIDOS = ['CONSORCIO', 'CTE', 'FATURA', 'IMPOSTO', 'NF', 'NFS', 'RECIBO'];
@@ -98,6 +101,35 @@ REGRA DE PACOTE MULTI-DOCUMENTO (crítica):
                   Em boleto, é o valor a pagar; em NF, o "VALOR TOTAL DA NOTA".
 
 ════════════════════════════════════════════════════════════════
+3b) CAMPOS FISCAIS DA NOTA (quando o documento for NF/NFS/CTE)
+════════════════════════════════════════════════════════════════
+Preencha estes campos APENAS a partir do que está escrito no documento. Se o
+documento não for uma nota fiscal, ou o campo não existir, devolva "" (ou []).
+⛔ NUNCA invente, deduza ou calcule um valor que não esteja impresso.
+
+• nomeSocial  → NOME FANTASIA do emitente, quando o documento traz um DIFERENTE da
+                razão social (na NF-e é o campo "xFant"; às vezes aparece após uma
+                barra: "BOBIG CONTATTO LTDA / HIDRAUFLEX" → "HIDRAUFLEX").
+                Se a nota não distinguir os dois, devolva "" — NÃO repita a razão social.
+• chaveAcesso → chave de acesso da NF-e/CT-e: EXATAMENTE 44 dígitos, sem espaços.
+                ⛔ NÃO confunda com a LINHA DIGITÁVEL do boleto (47 dígitos, impressa
+                em grupos com pontos). Se não houver chave de 44 dígitos, devolva "".
+• cfop        → CFOP predominante da nota: 4 dígitos começando em 1-7 (ex.: "5102").
+                É o código da OPERAÇÃO, não o NCM (que tem 8 dígitos). Senão "".
+• itens       → produtos/serviços da tabela "DADOS DOS PRODUTOS/SERVIÇOS" ou da
+                "DISCRIMINAÇÃO DOS SERVIÇOS". Para cada item:
+                { "descricao": "FILTRO DE OLEO", "unidade": "PC", "quantidade": 2,
+                  "valorUnitario": 154.13, "valorTotal": 308.26, "ncm": "84212300",
+                  "cfop": "5102" }
+                - unidade: a unidade comercial impressa (UN, PC, KG, L, M, H, SV...).
+                - quantidade/valorUnitario/valorTotal: decimais com PONTO.
+                - vale a regra q × valorUnitario = valorTotal; confira antes de responder.
+                ⛔ NÃO crie item a partir de linhas de TRIBUTO (ISS, PIS, COFINS, ICMS,
+                   "Base de Cálculo", "Valor Total dos Serviços", alíquotas, códigos de
+                   lei/CNAE) nem de linhas que sejam só valores sem descrição própria.
+                Se não houver tabela de itens, devolva [].
+
+════════════════════════════════════════════════════════════════
 4) PARCELADA — carnê com VÁRIOS boletos (regra crítica)
 ════════════════════════════════════════════════════════════════
 • Conte boletos DISTINTOS pelo "NOSSO NÚMERO" / "LINHA DIGITÁVEL" / código de barras DISTINTOS.
@@ -117,12 +149,19 @@ SAÍDA — APENAS JSON válido, sem markdown, sem comentários:
 {
   "tipo": "NF",
   "emitente": "RAZÃO SOCIAL DO EMITENTE LTDA",
+  "nomeSocial": "",
   "cnpj": "12.345.678/0001-90",
+  "chaveAcesso": "",
+  "cfop": "5102",
   "dataEmissao": "10/03/2026",
   "dataVencimento": "",
   "numeroDocumento": "12345",
   "ordemCompra": "",
   "valorTotal": 1234.56,
+  "itens": [
+    { "descricao": "FILTRO DE OLEO", "unidade": "PC", "quantidade": 2,
+      "valorUnitario": 154.13, "valorTotal": 308.26, "ncm": "84212300", "cfop": "5102" }
+  ],
   "parcelada": false,
   "parcelas": []
 }`;
@@ -135,11 +174,28 @@ function vencKey(v) {
 
 const CNPJ_OU_CPF = /\b(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2})\b/;
 // Aceita CNPJ/CPF com ou sem máscara; devolve formatado se reconhecer, senão "".
+// A raiz da própria LARSIL. O prompt já manda ignorar o pagador, mas o filtro é
+// determinístico e não depende de a IA obedecer: em recibo e autorização o único
+// CNPJ do papel é o NOSSO, e gravá-lo como "emitente" faz o campo contradizer o
+// lançamento em todo recibo (medido em 09/09/2026 no parser local — 267 casos).
+const RAIZ_PROPRIA_IA = new Set(['08420245']);
+
+function cnpjInvalido(d) {
+  const s = String(d || '').replace(/\D/g, '');
+  if (s.length === 11) return /^(\d)\1{10}$/.test(s);            // CPF de dígito único
+  if (s.length !== 14) return true;
+  if (/^0{8}/.test(s)) return true;                              // raiz zerada
+  if (/^(\d)\1{13}$/.test(s)) return true;
+  return RAIZ_PROPRIA_IA.has(s.slice(0, 8));
+}
+
 function limparCnpj(v) {
   const s = trimStr(v);
+  const bruto = s.replace(/\D/g, '');
+  if (cnpjInvalido(bruto)) return '';
   const m = s.match(CNPJ_OU_CPF);
   if (m) return m[1];
-  const d = s.replace(/\D/g, '');
+  const d = bruto;
   if (d.length === 14) return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12)}`;
   if (d.length === 11) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
   return '';
@@ -163,6 +219,59 @@ function sanitizeParcelas(arr) {
   return out;
 }
 
+// ── Campos fiscais vindos da IA ──────────────────────────────────────────────
+// A IA lê a tabela de itens melhor que regex quando o layout quebra linhas (o
+// parser local extrai itens em 70% dos DANFEs; os 30% que faltam são justamente
+// esses). Mas ela também alucina com mais facilidade, então tudo que PODE ser
+// verificado é verificado aqui — e o que não passa é descartado, não corrigido.
+const RE_CFOP_IA = /^([1-7])\.?(\d{3})$/;
+
+function limparCfop(v) {
+    const m = trimStr(v).match(RE_CFOP_IA);
+    return m ? m[1] + m[2] : '';
+}
+
+// A chave da IA passa pela MESMA validação estrutural do parser local (UF válida
+// + modelo 55/57/65). Medido: a linha digitável do boleto tem 44 dígitos também,
+// e sem validar a IA devolve uma pela outra.
+function limparChave(v) {
+    const d = trimStr(v).replace(/\D/g, '');
+    return chaveValida(d) ? d : '';
+}
+
+function sanitizeItens(arr) {
+    const out = [];
+    for (const it of (Array.isArray(arr) ? arr : [])) {
+        if (!it || typeof it !== 'object') continue;
+        const descricao = trimStr(it.descricao);
+        if (!descricao) continue;                       // item sem descrição não serve
+        const q = isNumeric(it.quantidade) ? toFloat(it.quantidade) : null;
+        const u = isNumeric(it.valorUnitario) ? toFloat(it.valorUnitario) : null;
+        let t = isNumeric(it.valorTotal) ? toFloat(it.valorTotal) : null;
+
+        // Autoconferência: q × u = t. Quando os três vêm e a conta não fecha, a
+        // IA leu algo errado — preferimos o produto, que é verificável, a aceitar
+        // um total que contradiz os próprios fatores.
+        let confianca = 'media';
+        if (q != null && u != null && t != null) {
+            confianca = Math.abs(q * u - t) <= Math.max(0.02, t * 0.01) ? 'alta' : 'baixa';
+        }
+        const unidade = trimStr(it.unidade).toUpperCase().slice(0, 6);
+        out.push({
+            descricao,
+            ncm: trimStr(it.ncm).replace(/\D/g, '').slice(0, 8),
+            cfop: limparCfop(it.cfop),
+            unidade,
+            quantidade: q,
+            valorUnitario: u,
+            valorTotal: t,
+            confianca,
+        });
+        if (out.length >= 200) break;                   // teto de sanidade
+    }
+    return out;
+}
+
 // Normaliza/valida a saída da IA num formato estável.
 function sanitizeResultado(parsed) {
   const tipoRaw = trimStr(parsed?.tipo).toUpperCase();
@@ -173,6 +282,10 @@ function sanitizeResultado(parsed) {
   return {
     tipo,
     emitente: trimStr(parsed?.emitente),
+    nomeSocial: trimStr(parsed?.nomeSocial),
+    chaveAcesso: limparChave(parsed?.chaveAcesso),
+    cfop: limparCfop(parsed?.cfop),
+    itens: sanitizeItens(parsed?.itens),
     cnpj: limparCnpj(parsed?.cnpj),
     dataEmissao: trimStr(parsed?.dataEmissao),
     dataVencimento: trimStr(parsed?.dataVencimento),

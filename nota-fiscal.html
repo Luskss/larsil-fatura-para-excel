@@ -147,7 +147,6 @@
     <div class="nav-dropdown-wrap">
       <button class="nav-dropdown-btn">Gestão <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
       <div class="nav-dropdown-menu">
-        <a href="gestao-usuarios.html" class="nav-dropdown-item">Usuários</a>
         <a href="configuracoes.html" class="nav-dropdown-item">Configurações</a>
         <a href="#" class="nav-dropdown-item">Feedback</a>
       </div>
@@ -164,15 +163,7 @@
     <button id="btnLogout" class="btn-logout">Sair</button>
   </div>
 </nav>
-<script>
-(function(){
-  document.querySelectorAll('.nav-dropdown-wrap').forEach(function(w){
-    var btn=w.querySelector('.nav-dropdown-btn'),menu=w.querySelector('.nav-dropdown-menu');
-    btn.addEventListener('click',function(e){e.stopPropagation();var open=menu.classList.contains('open');document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});if(!open){menu.classList.add('open');btn.classList.add('open');}});
-  });
-  document.addEventListener('click',function(){document.querySelectorAll('.nav-dropdown-menu').forEach(function(m){m.classList.remove('open');});document.querySelectorAll('.nav-dropdown-btn').forEach(function(b){b.classList.remove('open');});});
-})();
-</script>
+<script src="nav.js" defer></script>
 
 <main class="max-w-[1000px] mx-auto mt-4 px-4 relative z-10">
   <h2 class="section-title">Conversor de Nota Fiscal em Excel</h2>

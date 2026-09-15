@@ -64,3 +64,22 @@ _medir/dia-divergente.txt
 # Planilha de produção — dado real, nunca versionar
 Consulta Delsoft.xlsx
 .env.bak-*
+
+# Dados reais gerados pelos scripts de _medir/ (15/09/2026). Mesma razão das regras
+# acima — nome de fornecedor, CNPJ, valor, número de nota e chave de acesso — mas
+# estas pastas nasceram DEPOIS das regras e não eram cobertas por elas. Todas são
+# regeráveis pelos próprios scripts, então versionar não traz benefício algum.
+#
+# O repositório é PÚBLICO: o que entra aqui fica legível para qualquer um, e
+# remover depois não desfaz (o histórico guarda, e clone/indexação acontecem em
+# minutos).
+_medir/_amostra/
+_medir/_backup-chaves/
+_medir/_backup-orfas/
+
+# Conferência exportada de 03.2026 — planilha com o acervo real do mês.
+exemplos/conferencia-notas-03-2026.xlsx
+routes/conferencia-notas-03-2026.xlsx
+
+# Lista de trabalho com nome de arquivo real (valor de contrato, apólice, cota).
+scratchpad-imagens.txt

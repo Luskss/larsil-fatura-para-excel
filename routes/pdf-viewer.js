@@ -1,7 +1,8 @@
 /**
  * routes/pdf-viewer.js
  * GET: retorna um PDF para visualizar
- * Tenta cache primeiro, depois arquivo na pasta monitorada
+ * Tenta cache primeiro, depois o arquivo em disco — no arquivo permanente
+ * (ARQUIVO_PATH) e, em seguida, na pasta monitorada (MONITOR_PATH).
  */
 'use strict';
 
@@ -36,28 +37,39 @@ module.exports = async function pdfViewerRoute(req, res) {
             return res.send(pdfBuffer);
         }
 
-        // 2) Se não estiver em cache, busca do arquivo na pasta monitorada
-        const monitorPath = process.env.MONITOR_PATH;
-        if (!monitorPath) {
+        // 2) Se não estiver em cache, procura o arquivo no disco.
+        //
+        // São DUAS raízes, e não uma. MONITOR_PATH é a pasta de trabalho que o
+        // scheduler varre e ESVAZIA a cada ciclo; ARQUIVO_PATH é o arquivo permanente,
+        // onde o PDF fica depois de arquivado. A conferência de notas lista o arquivo
+        // permanente (`comparar-notas` varre `ARQUIVO_PATH || MONITOR_PATH`), então o
+        // `pasta` que ela manda — "2026.01.EXTRATOS CONTABILIDADE/B BRASIL/2026.01.09"
+        // — não existe sob MONITOR_PATH: procurar só ali dava 404 em todo "Ver nota",
+        // e a tela mostrava "Arquivo não disponível".
+        //
+        // A ordem é arquivo-primeiro porque é de lá que vem quase todo pedido do
+        // painel; o monitor continua atendendo o PDF recém-chegado, ainda não arquivado.
+        const raizes = [process.env.ARQUIVO_PATH, process.env.MONITOR_PATH].filter(Boolean);
+        if (!raizes.length) {
             return res.status(503).json({ success: false, message: 'Serviço indisponível.' });
         }
 
-        let filePath;
-        if (pasta) {
-            filePath = path.join(monitorPath, pasta, arquivo);
-        } else {
-            filePath = path.join(monitorPath, arquivo);
+        // Cada raiz valida o próprio prefixo (previne directory traversal): um `..` que
+        // escape de uma delas é descartado ali mesmo, sem chance de cair na outra.
+        //
+        // O `replace` no fim da base não é enfeite: numa raiz UNC que é a própria raiz do
+        // compartilhamento ("\\\\host\\SHARE"), `path.resolve` devolve COM barra no fim.
+        // Sem tirá-la, `base + path.sep` vira barra dupla e a comparação reprova todo
+        // caminho legítimo do arquivo permanente — que é exatamente o nosso caso.
+        let realPath = null;
+        for (const raiz of raizes) {
+            const alvo = path.resolve(pasta ? path.join(raiz, pasta, arquivo) : path.join(raiz, arquivo));
+            const base = path.resolve(raiz).replace(/[\\/]+$/, '');
+            if (alvo !== base && !alvo.startsWith(base + path.sep)) continue;
+            if (fs.existsSync(alvo)) { realPath = alvo; break; }
         }
 
-        // Valida que o caminho está dentro de monitorPath (previne directory traversal)
-        const realPath = path.resolve(filePath);
-        const realMonitor = path.resolve(monitorPath);
-        if (!realPath.startsWith(realMonitor)) {
-            return res.status(403).json({ success: false, message: 'Acesso negado.' });
-        }
-
-        // Verifica se o arquivo existe
-        if (!fs.existsSync(realPath)) {
+        if (!realPath) {
             return res.status(404).json({ success: false, message: 'Arquivo não encontrado.' });
         }
 

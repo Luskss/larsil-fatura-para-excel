@@ -44,19 +44,6 @@
     Array.prototype.forEach.call(document.querySelectorAll('a[href]'), function (a) {
       var arq = arquivoDe(a.getAttribute('href'));
 
-      // Gestão de usuários virou o console da TI (IAM): só admin vê, e aponta pra lá.
-      if (arq === 'gestao-usuarios.html') {
-        if (dados.usuario && dados.usuario.admin) {
-          a.setAttribute('href', dados.iam_admin_url);
-          a.setAttribute('target', '_blank');
-          a.setAttribute('rel', 'noopener');
-          a.textContent = 'Usuários (Painel ADM)';
-        } else {
-          a.style.display = 'none';
-        }
-        return;
-      }
-
       if (conhecidas.indexOf(arq) !== -1 && !permitidas[arq]) {
         a.style.display = 'none';
       }
