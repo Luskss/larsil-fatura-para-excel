@@ -33,6 +33,12 @@ const OCR_URL = 'http://127.0.0.1:5001/ocr';
 // devolve o comportamento anterior (só OCR) sem tocar no código.
 const VISAO_ATIVA = String(process.env.VISAO_PDF ?? '1') !== '0';
 
+// ── Âncora do nº da fatura no caminho dos PARSERS LOCAIS ─────────────────────
+// LIGADA (o comportamento de sempre). Desligá-la foi medido e REPROVADO em
+// 17/09/2026 — ver a chamada em `analyzePdf` para os números. O interruptor fica
+// para poder remedir depois que a precedência de campo for consertada.
+const ANCORA_LOCAL = String(process.env.ANCORA_LOCAL ?? '1') !== '0';
+
 // ── Transcrição por IA no lugar do OCR ───────────────────────────────────────
 // Para PDF-imagem, a IA transcreve a página e o texto segue pelo pipeline NORMAL
 // (classify + parsers + FULL_PROMPT). MEDIDO em 16 PDF-imagem
@@ -972,10 +978,41 @@ async function analyzePdf(pdf, opts = {}) {
     // Não roda quando a visão marcou o valor como não-confiável: ali a TRAVA acima já
     // decidiu tirar o número da coluna principal de propósito, e sobrepor essa decisão
     // reintroduziria o bug que a trava existe para impedir.
+    //
+    // ── DESLIGAR A ÂNCORA AQUI FOI MEDIDO E REPROVADO ────────────────────────
+    // A âncora erra feio quando erra: as perdas são múltiplos EXATOS do valor certo
+    // (FLORESTEC 6.442,40 → 19.327,20, 3x), porque ela lê o total de um pacote com
+    // várias notas. Em documento de tabela ela chega a descartar a ocorrência certa
+    // e aceitar a errada: `RE_ROTULO_DOC` não casa onde o dado está (o cabeçalho
+    // "Nº Doc." fica numa seção de legendas) e casa na NFS-e anexa, cuja janela cai
+    // na tabela de serviços — foi assim que o DIMAR MOURA virou R$ 400 (valor
+    // unitário de "Hospedagem Duplo") em vez de R$ 3.600.
+    //
+    // Ainda assim, tirá-la é PIOR. A/B relendo os PDFs com o código de hoje
+    // (`_medir/_testar-ancora-local.js`, 6 períodos, métrica pareada ganho/perda):
+    //
+    //     01.2026  +3    04.2026  +1
+    //     02.2026  −1    05.2026  ±0
+    //     03.2026  −2    06.2026  −8   (0 ganhos, 8 perdas)
+    //     ────────────────────────────
+    //     TOTAL    −7 em 1.700 documentos
+    //
+    // Metade das perdas do A/B é o veto de `_valor-do-pagamento.js:184` rejeitando o
+    // boleto certo quando o `Valor total da nota` é lixo (BOBIG NF 1832: boleto
+    // 5977,98, nota 112,50, grava 112,50). A âncora acertava por outro caminho.
+    //
+    // MAS consertar esse veto NÃO compensa, e isso foi medido depois: em 257 vetos no
+    // acervo, só 3 gravam valor divergente do nome e só 1 seria salvo pelo boleto
+    // (R$ 650). Aquelas perdas descreviam a VARIANTE (âncora desligada), não a
+    // produção. O veto está certo como está. Ver [[total-lixo-veta-boleto-certo]].
+    //
+    // ATENÇÃO ao remedir: `analyzePdf` sem `forceAI` NÃO é gratuito — o bloco de
+    // multi-boleto abaixo chama `extrairBoletosAI` por conta própria (~110 carnês
+    // por mês, e o A/B roda duas passadas).
     if (parserData && !parserData['Valor lido (não confere com o nome)']) {
         parserData = decidirValorPago(parserData, {
             text,
-            numeroDoNome: numeroDoNomeArquivo(pdf.name),
+            numeroDoNome: ANCORA_LOCAL ? numeroDoNomeArquivo(pdf.name) : null,
         });
     }
 

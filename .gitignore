@@ -77,6 +77,15 @@ _medir/_amostra/
 _medir/_backup-chaves/
 _medir/_backup-orfas/
 
+# Backups do CONTEUDO dos relatórios, feitos antes de correção pontual no banco
+# (17/09/2026, `_corrigir-valor-por-ld.js`). São o CSV do acervo inteiro — o dado mais
+# sensível que estes scripts produzem. Ficam no disco para poder desfazer; nunca no git.
+_medir/backup-*/
+
+# Saídas CSV das medições: cada linha traz nome de arquivo (que contém fornecedor e
+# valor), e várias trazem CNPJ. Regeráveis pelos scripts que as produziram.
+_medir/*.csv
+
 # Conferência exportada de 03.2026 — planilha com o acervo real do mês.
 exemplos/conferencia-notas-03-2026.xlsx
 routes/conferencia-notas-03-2026.xlsx
