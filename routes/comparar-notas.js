@@ -112,6 +112,51 @@ const PADROES_NAO_FISCAL = [
 // senão a peneira o esconde. `verificarPeneira()` abaixo checa isso na carga do módulo.
 const PENEIRA_NAO_FISCAL = /GRUPO|FINANC|EMPRESTIMO|DAYCOVAL|GIRO|CRED|FLUTUANTE|PIX|SISPAG|\bVA\b|ISS|FGTS|RCB|DETRAN|MINISTERIO|SALARIO|FERIAS|CHEQUE|TRCT|FOLHA|ADTO|PENSAO|MEI|PREMIO|DIARIA|REEMBOLSO|CIEE|DIF|GUIA|CONTA\s+GARANTIDA|LIQUIDACAO|EVA|SINDICATO|ITAU|BANCO|GOVERNO|PREFEITURA|IPVA|CDC|PAGTO/i;
 
+// ── Repescagem: o documento cortado que PROVA ser o pagamento ────────────────
+// `categoriaNaoFiscal` decide pelo NOME, sozinho, antes de existir lançamento algum.
+// Isso é certo para consórcio e financiamento, e erra para PIX e guia: a planilha lança
+// `DETRAN PR` como fornecedor, e o comprovante do DETRAN é o documento daquele
+// lançamento — cortá-lo deixa o lançamento órfão no painel.
+//
+// Medido regra a regra em 18/09/2026 (jan–jun, varredura bruta de 6.606 documentos):
+// **15 dos 21 padrões custam ZERO pares** e ficam como estão. O custo estava em 6, e o
+// julgamento caso a caso separou par legítimo de colisão:
+//
+//   padrão                          corta  casaria  legítimo
+//   PIX enviado/recebido               71       36     24
+//   Taxa de governo (DETRAN)           51       29     21   ← 29 de 29 do mesmo fornecedor
+//   Guia de governo (RCB 9039xx)      136        7      7
+//   Compensação de cheque              28       14      4
+//   Guia de tributo (GOVERNO/IPVA)    382        4      2
+//   Folha/RH (pgto ...)                99        5      1
+//
+// A regra que separa NÃO é a categoria — é exigir os DOIS sinais fortes contra um
+// lançamento real: mesmo fornecedor (token em comum) E mesmo valor. Desligar um padrão
+// inteiro reprova: sem o PIX entram 11 pares falsos junto com os 24 bons, e sem o CHEQUE
+// entra o `TRACADO EQUIP. R$ 22.456,93 × JONAS BONFIM CHEQUE`, colisão de valor redondo
+// que se repete nos 6 meses.
+//
+// Efeito medido com o motor real: **+73 pares, 0 perdas**, 78,2% → 79,8% de pares que
+// conferem pelo fornecedor. As 26 trocas são todas melhora — o comprovante legítimo
+// tomando o lugar de um par falso (`PATRICIA LIMA` sai de `KATRINY PEREIRA` e vai para
+// `PIX ENVIADO PATRICIA LIMA`).
+//
+// O corte continua valendo para a CONTAGEM da pasta: estes documentos não são nota
+// fiscal e não entram em `porMes`. A repescagem é só para o PAREAMENTO, onde a pergunta
+// é outra — "este lançamento tem papel?", não "este papel é nota fiscal?".
+function admiteNoPareamento(doc, lancamentos) {
+    const vDoc = doc.valorAlt != null ? doc.valorAlt : doc.valor;
+    if (vDoc == null) return false;               // sem valor não há segundo sinal
+    const tks = pareamento.tokens(doc.arquivo);
+    for (const l of lancamentos) {
+        if (Math.abs(Math.abs(l.valor || 0) - Math.abs(vDoc)) >= TOL_VALOR_REPESCAGEM) continue;
+        for (const t of pareamento.tokens(l.entidade)) if (tks.has(t)) return true;
+    }
+    return false;
+}
+// Mesma tolerância de centavos que o pareamento usa para dizer "é o mesmo valor".
+const TOL_VALOR_REPESCAGEM = 0.02;
+
 // Devolve o rótulo da categoria não-fiscal, ou '' se o nome parece nota fiscal.
 function categoriaNaoFiscal(nome) {
     const n = String(nome || '');
@@ -1744,16 +1789,34 @@ module.exports = async function compararNotasRoute(req, res) {
                 // fornecedor ("ARPESEG" por ARPSEG). Medido: +48 pares e precisão
                 // de 88,9% para 90,9% (TIPOS-IGNORADOS §11).
                 const ocrPorArquivo = (b && b.ocrPorArquivo) || {};
+                // Os lançamentos vêm ANTES dos documentos: a repescagem
+                // (`admiteNoPareamento`) precisa deles para decidir quais documentos
+                // cortados provam ser o pagamento.
+                const lancamentos = (itensPlanilha || []).map(pareamento.lancamentoDaPlanilha);
+                const documentoDe = (a) => pareamento.enriquecerComOcr(
+                    pareamento.documentoDoArquivo(a.nome, a.rel),
+                    ocrDoDocumento(ocrPorArquivo, a.nome, a.rel));
                 const documentosPorMes = {};
                 for (const off of [0, ...pareamento.VIZINHANCA]) {
                     const alvo = pareamento.deslocarPeriodo(periodo, off);
                     const arquivos = (pastaBruta && pastaBruta.arquivosPorMes[alvo]) || [];
-                    documentosPorMes[alvo] = arquivos.map(a =>
-                        pareamento.enriquecerComOcr(
-                            pareamento.documentoDoArquivo(a.nome, a.rel),
-                            ocrDoDocumento(ocrPorArquivo, a.nome, a.rel)));
+                    const docs = arquivos.map(documentoDe);
+                    // Repescagem dos não-fiscais que provam fornecedor E valor. A lista
+                    // crua (`todosPorMes`) é a mesma varredura, então não custa I/O; os
+                    // repescados vão marcados para a tela poder distingui-los.
+                    for (const a of ((pastaBruta && pastaBruta.todosPorMes[alvo]) || [])) {
+                        // `classe` vem da própria varredura: só 'nao_fiscal' é candidato.
+                        // Anexo e sem-data continuam de fora — não são documento de
+                        // pagamento, e sem data o pareamento não tem como situá-los.
+                        if (a.classe !== 'nao_fiscal') continue;
+                        const categoria = a.categoria;
+                        const d = documentoDe(a);
+                        if (!admiteNoPareamento(d, lancamentos)) continue;
+                        d.repescadoDe = categoria;
+                        docs.push(d);
+                    }
+                    documentosPorMes[alvo] = docs;
                 }
-                const lancamentos = (itensPlanilha || []).map(pareamento.lancamentoDaPlanilha);
                 const r = pareamento.conferirPeriodo(lancamentos, documentosPorMes, periodo);
                 const porVia = [...r.pares, ...r.paresVizinhos].reduce((acc, p) => {
                     acc[p.via] = (acc[p.via] || 0) + 1;
@@ -1780,6 +1843,13 @@ module.exports = async function compararNotasRoute(req, res) {
                         deslocamento: p.deslocamento ?? null,
                         via: p.via,
                         forca: p.forca,
+                        // Documento que `categoriaNaoFiscal` havia cortado e voltou pela
+                        // repescagem (ver `admiteNoPareamento`): traz o RÓTULO da
+                        // categoria, ou null. Não é nota fiscal — é comprovante de
+                        // pagamento (PIX, guia do DETRAN, cheque) que prova fornecedor E
+                        // valor. Quem confere merece saber que o papel é de outra
+                        // natureza, mesmo o par sendo legítimo.
+                        repescadoDe: p.documento.repescadoDe || null,
                         // Outro documento servia para este mesmo lançamento com força
                         // igual, e quem desempatou foi o nome do arquivo — não o mérito.
                         // A lista `listaEmpatados` já mostra isso, mas ela é truncada em

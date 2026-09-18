@@ -512,8 +512,8 @@ function emissaoDiverge(l, d) {
 // evidência de erro, e barrar aí só perderia par bom.
 //
 // `entidadeDispensa` afrouxa o veto quando o par também tem a ENTIDADE batendo —
-// aí são dois sinais, não um, e a data deixa de ser a única defesa. Vale SÓ na
-// passada das pastas vizinhas (ver `conferirPeriodo`): medido em 08/09/2026,
+// aí são dois sinais, não um, e a data deixa de ser a única defesa. Vale só para o
+// documento vindo de pasta VIZINHA (ver `conferirPeriodo`): medido em 08/09/2026,
 // jan–jun/2026,
 //
 //   variante                              pares  2º campo  piora  MACPONTA
@@ -521,12 +521,18 @@ function emissaoDiverge(l, d) {
 //   relaxar em TODA passada                2.106    91,7%     6      acha
 //   relaxar só nas vizinhas                2.104    91,7%     0      acha   <- aplicada
 //
-// Relaxar também no mês corrente parece melhor pelo total, mas troca 6 pares por
-// piores, e a auditoria no disco mostrou o porquê: nesses casos o documento de
-// força 3 (número idêntico) está na pasta +1 e o de força 2 no mês corrente
-// (LOCALIZA `FAT 315637` em 04/2026 × `FAT 307515` em 03/2026). Como a passada
-// vizinha só recebe quem ficou pendente, afrouxar no mês faz o lançamento fechar
-// cedo com o documento pior, e o melhor nunca chega a ser considerado.
+// Relaxar também no mês corrente trocava 6 pares por piores, e a auditoria no disco
+// mostrou o porquê: nesses casos o documento de força 3 (número idêntico) está na
+// pasta +1 e o de força 2 no mês corrente (LOCALIZA `FAT 315637` em 04/2026 ×
+// `FAT 307515` em 03/2026).
+//
+// ATUALIZAÇÃO 18/09/2026: aquele "fechar cedo com o documento pior" era o defeito
+// da SEQUÊNCIA de passadas, não da dispensa — e foi consertado em `conferirPeriodo`,
+// que agora roda mês e vizinhança juntos ordenados por força. A dispensa continua
+// restrita à origem vizinha por outro motivo, que permanece válido: no próprio mês a
+// data é evidência real (a pasta e o lançamento são do mesmo período), enquanto na
+// vizinhança a distância é estrutural. O caso LOCALIZA hoje resolve sozinho — o
+// documento de força 3 da pasta +1 ganha do de força 2 do mês pela ordenação.
 function dentroDaJanela(l, d, entidadeDispensa) {
     if (entidadeDispensa && entidadeBate(l, d)) return true;
     const dist = distanciaDias(l, d);
@@ -593,12 +599,19 @@ const forcaDoPar = (l, d) =>
  *
  * @param {Array} lancamentos  saída de lancamentoDaPlanilha
  * @param {Array} documentos   saída de documentoDoArquivo
+ * @param {boolean|function} entidadeDispensaJanela  `true` dispensa para TODOS; uma
+ *        função `(documento) => boolean` dispensa POR DOCUMENTO. A forma por documento
+ *        existe porque mês e vizinhança passaram a correr numa passada só (ver
+ *        `conferirPeriodo`) e a dispensa é propriedade da PASTA de onde o papel veio,
+ *        não da passada: no mês a data é evidência, na vizinhança é ruído estrutural.
  */
 function parear(lancamentos, documentos, entidadeDispensaJanela) {
+    const dispensa = typeof entidadeDispensaJanela === 'function'
+        ? entidadeDispensaJanela : () => !!entidadeDispensaJanela;
     const candidatos = [];
     for (let i = 0; i < lancamentos.length; i++) {
         for (let j = 0; j < documentos.length; j++) {
-            const via = casa(lancamentos[i], documentos[j], entidadeDispensaJanela);
+            const via = casa(lancamentos[i], documentos[j], dispensa(documentos[j]));
             if (via) candidatos.push({ i, j, via, forca: forcaDoPar(lancamentos[i], documentos[j]) });
         }
     }
@@ -610,6 +623,13 @@ function parear(lancamentos, documentos, entidadeDispensaJanela) {
         const db = distanciaDias(lancamentos[b.i], documentos[b.j]);
         const na = da == null ? Infinity : da, nb = db == null ? Infinity : db;
         if (na !== nb) return na - nb;
+        // Força E data empatadas: o documento DA PRÓPRIA PASTA ganha. Quando mês e
+        // vizinhança correm juntos, sem isto um papel de outro mês tomaria o lugar de
+        // um do mês por puro desempate de nome — e o par do mês é o mais provável,
+        // porque a planilha lança no mês em que a pasta foi montada.
+        const va = documentos[a.j].deslocamento ? 1 : 0;
+        const vb = documentos[b.j].deslocamento ? 1 : 0;
+        if (va !== vb) return va - vb;
         // Desempate final pelo CONTEÚDO, não pelo índice: índice muda quando a planilha
         // ou a pasta chega em outra ordem, e aí o total passa a depender dessa ordem
         // (medido: ±1 par entre sementes). Nome do arquivo é único dentro do mês, e
@@ -782,44 +802,67 @@ const VIZINHANCA = [-1, 1, 2, 3];
  * @param {string} periodo          "MM.AAAA" do mês consultado
  */
 function conferirPeriodo(lancamentos, documentosPorMes, periodo) {
-    const noMes = parear(lancamentos, documentosPorMes[periodo] || []);
-
-    const casados = new Set(noMes.pares.map(p => p.lancamento));
-    const pendentes = lancamentos.filter(l => !casados.has(l));
-
-    // Todas as pastas vizinhas entram numa ÚNICA passada, não uma por vez.
-    // Rodar pasta a pasta faz a ordem dos offsets decidir o casamento: um documento
-    // de +1 é consumido por um lançamento que teria par melhor em +2, e o total passa
-    // a variar com a ordem de entrada (medido: ±1 par entre sementes diferentes).
-    // Com uma passada só, quem ordena é a força do par, como no mês corrente.
-    const docsVizinhos = [];
+    // ── UMA passada só, mês e vizinhança juntos ──────────────────────────────
+    // Até 18/09/2026 esta função rodava DUAS passadas em sequência: o mês fechava
+    // os pares, e a vizinhança só recebia quem sobrava. `parear` ordena por força
+    // DENTRO de uma passada, mas ninguém ordenava ENTRE elas — então um lançamento
+    // que fecharia força 3 (`numero+entidade+valor`) numa pasta vizinha ficava com
+    // a força 1 por valor do próprio mês, e o papel certo virava órfão.
+    //
+    // O defeito apareceu duas vezes por caminhos independentes (o par BOM CLIMA que
+    // caiu de f3 para f1, e a medição de passada única de §17.3). Cotejo do motor de
+    // HEAD contra este, mesmos dados e mesmo processo, jan–jun/2026:
+    //
+    //                              antes   depois
+    //   pares                      2.151   2.154    +3
+    //   força 3                    1.487   1.618  +131
+    //   força 1                      161     132   −29
+    //   conferem pelo fornecedor    76,9%   78,2%
+    //   PERDAS                         —       0
+    //
+    // 164 pares trocaram de documento: 142 sobem de força, 0 descem. O −99 de força 2
+    // é promoção, não perda. A fila de conferência cai de 161 para 132.
+    //
+    // A passada única de §17.3 tinha REPROVADO porque afrouxava a janela para todos.
+    // Aqui a dispensa acompanha a ORIGEM do documento — é o que `parear` recebe como
+    // função em vez de booleano.
+    const todos = [];
+    for (const d of (documentosPorMes[periodo] || []))
+        todos.push(d);                       // do mês: sem cópia, o cotejo de órfãos é por caminho
     for (const off of VIZINHANCA) {
         const alvo = deslocarPeriodo(periodo, off);
         for (const d of (documentosPorMes[alvo] || []))
-            docsVizinhos.push({ ...d, periodoDocumento: alvo, deslocamento: off });
+            todos.push({ ...d, periodoDocumento: alvo, deslocamento: off });
     }
-    // `true`: nas pastas vizinhas o veto de data cede quando a entidade bate. A
-    // distância entre a pasta e o lançamento é ESTRUTURAL aqui — o papel é
-    // arquivado quando chega e a planilha lança no pagamento —, então a data diz
-    // pouco, e valor + entidade já são dois sinais. Ver `dentroDaJanela`.
-    const rViz = parear(pendentes, docsVizinhos, true);
-    const emVizinhas = rViz.pares.map(p => ({
-        ...p,
-        periodoDocumento: p.documento.periodoDocumento,
-        deslocamento: p.documento.deslocamento,
-    }));
-    const casadosViz = new Set(emVizinhas.map(p => p.lancamento));
-    const semDocumento = pendentes.filter(l => !casadosViz.has(l));
 
-    // ── Órfãos do mês, contados depois das DUAS passadas ────────────────────
-    // `noMes` não enxerga o que a passada vizinha fez: um documento desta pasta
-    // pode ter virado par (ou irmão de par) de um lançamento de outro mês. Contar
-    // só por `noMes` marcaria esse documento como órfão, que é justamente o erro
-    // que este bloco corrige — o caso MACPONTA cai aqui, porque o lançamento é de
-    // fevereiro e o maço está na pasta de janeiro.
+    // Nas pastas vizinhas o veto de data cede quando a entidade bate: a distância
+    // entre a pasta e o lançamento é ESTRUTURAL — o papel é arquivado quando chega e
+    // a planilha lança no pagamento —, então a data diz pouco e valor + entidade já
+    // são dois sinais. No próprio mês a data continua valendo. Ver `dentroDaJanela`.
+    const r = parear(lancamentos, todos, d => !!d.deslocamento);
+
+    const noMesPares = [], emVizinhas = [];
+    for (const p of r.pares) {
+        if (p.documento.deslocamento) emVizinhas.push({
+            ...p,
+            periodoDocumento: p.documento.periodoDocumento,
+            deslocamento: p.documento.deslocamento,
+        });
+        else noMesPares.push(p);
+    }
+    const noMes = { pares: noMesPares };
+    const casadosTodos = new Set(r.pares.map(p => p.lancamento));
+    const semDocumento = lancamentos.filter(l => !casadosTodos.has(l));
+
+    // ── Órfãos do mês ───────────────────────────────────────────────────────
+    // Órfão é o documento DESTA pasta que não virou par nem irmão de par. O caso
+    // MACPONTA cai aqui: o lançamento é de fevereiro e o maço está na pasta de
+    // janeiro, então quem conta os órfãos de janeiro tem de enxergar o par de
+    // fevereiro para não marcar o maço como sem dono.
     //
-    // A passada vizinha roda com CÓPIAS dos documentos (`{...d}`), então o cotejo é
-    // pelo caminho, que identifica o arquivo dentro da pasta.
+    // O cotejo é pelo CAMINHO, não pela identidade do objeto: o documento vizinho
+    // entra na passada como cópia (`{...d}`), e o caminho identifica o arquivo
+    // dentro da pasta.
     const doMes = documentosPorMes[periodo] || [];
     const reivindicados = new Set();
     for (const p of [...noMes.pares, ...emVizinhas]) {
@@ -837,7 +880,9 @@ function conferirPeriodo(lancamentos, documentosPorMes, periodo) {
         fracos: noMes.pares.filter(p => p.forca === 1).length
               + emVizinhas.filter(p => p.forca === 1).length,
         // Pares em que outro documento disputava o mesmo lançamento com força igual.
-        // Vale para os dois grupos: o empate acontece dentro de cada passada.
+        // Com a passada única o empate passou a ser disputado também ENTRE pastas:
+        // um papel do mês e um da vizinhança com a mesma força concorrem de verdade,
+        // e o desempate por origem (ver `parear`) dá o mês como vencedor.
         empatados: noMes.pares.filter(p => p.empatado).length
                  + emVizinhas.filter(p => p.empatado).length,
         // "Sem documento" já considera as vizinhas — é o número que interessa a quem

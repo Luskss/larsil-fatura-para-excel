@@ -2140,3 +2140,258 @@ para a colisão acontecer.
 **Balanço: +3 pares, +14 de força 3, 0 perdas, 1 troca ruim.** Aplicado. A troca é conhecida
 e tem causa identificada — e é a segunda evidência independente de que a sequência de
 passadas custa pares, depois de §17.3.
+
+---
+
+## 17.15 A sequência de passadas — o defeito estrutural, consertado (18/09/2026)
+
+A pendência que §17.3 diagnosticou e §17.14 deixou aberta, com duas evidências
+independentes: a passada do mês rodava **antes** da passada vizinha, e quem fechava par no
+mês nunca chegava a ver a vizinhança.
+
+### O defeito, no código
+
+`parear` ordena os candidatos por **força** — é a decisão que faz o resultado não depender
+da ordem em que o Delsoft exportou as linhas. Mas `conferirPeriodo` chamava `parear` **duas
+vezes em sequência**: primeiro com os documentos do mês, depois com os vizinhos, passando só
+os lançamentos que sobraram.
+
+A força ordenava **dentro** de cada passada. Nada ordenava **entre** elas. Um lançamento com
+força 1 por valor no próprio mês fechava ali e nunca era oferecido ao documento de força 3
+(`numero+entidade+valor`) arquivado na pasta seguinte.
+
+### O pool, medido antes de mexer
+
+**143 dos 1.179 pares do mês (12,1%)** tinham candidato mais forte na vizinhança:
+
+| salto | n |
+|---|---|
+| 2 → 3 | 110 |
+| 1 → 3 | 21 |
+| 1 → 2 | 12 |
+
+### Por que a passada única de §17.3 tinha reprovado
+
+Ela afrouxava a janela de data para **todos** os documentos. O veto de 15 dias existe para o
+par sustentado só por valor; relaxá-lo no mês corrente deixa entrar colisão de valor redondo,
+e foi o que produziu os 4 ganhos falsos em 6.
+
+O conserto correto separa as duas coisas: **a dispensa da janela é propriedade da PASTA de
+onde o papel veio, não da passada.** No mês a data é evidência real — a pasta e o lançamento
+são do mesmo período. Na vizinhança a distância é estrutural: o papel é arquivado quando
+chega, a planilha lança no pagamento.
+
+### O desenho
+
+`parear` passou a aceitar a dispensa como **função `(documento) => boolean`**, além do
+booleano de sempre. `conferirPeriodo` monta **uma lista só** (mês + vizinhos, cada vizinho
+marcado com `deslocamento`), chama `parear` uma vez com `d => !!d.deslocamento`, e separa
+`pares` de `paresVizinhos` **depois**, pela marca.
+
+A ordenação ganhou um desempate novo: com força **e** data empatadas, o documento **do
+próprio mês** vence. Sem isso um papel de outro mês tomaria o lugar por puro desempate de
+nome de arquivo.
+
+**O contrato de retorno não mudou** — `comparar-notas.js` não precisou de uma única linha.
+
+### O efeito real
+
+Cotejo do motor de `HEAD` contra o da árvore de trabalho, mesmos dados, mesmo processo (o
+antigo compilado em memória a partir de `git show HEAD:routes/_pareamento.js`):
+
+| | antes | depois | Δ |
+|---|---|---|---|
+| pares | 2.151 | 2.154 | **+3** |
+| **força 3** | 1.487 | **1.618** | **+131** |
+| força 2 | 503 | 404 | −99 |
+| **força 1** | 161 | **132** | **−29** |
+| conferem pelo fornecedor | 76,9% | **78,2%** | +1,3pp |
+| **perdas** | — | — | **0** |
+
+**164 pares trocaram de documento: 142 sobem de força, 0 descem.** O −99 de força 2 é
+promoção, não perda.
+
+**A fila de conferência cai de 161 para 132 (−18%)**, e cai em todos os seis meses.
+
+O caso LOCALIZA que o comentário de `dentroDaJanela` descrevia desde 08/09 — `FAT 315637`
+em 04/2026 contra `FAT 307515` em 03/2026 — resolve sozinho: o documento de força 3 da pasta
+vizinha agora ganha do de força 2 do mês pela ordenação.
+
+### A lição de método: simulação não é medição
+
+**A simulação previa −47 pares. A implementação deu 0 perdas.**
+
+A simulação chamava `parear` uma vez **por documento**, para não reimplementar `casa` e
+`forcaDoPar` — precaução correta, aprendida em §17.x. Mas chamar o motor em fatias **muda o
+conjunto de candidatos** que o algoritmo guloso vê, e portanto muda o resultado.
+
+Três das medições de ontem e hoje classificaram essas 47 perdas com cuidado (41 eram par
+falso, 4 eram troca lateral entre irmãos do maço, 2 eram perda real). **Todo esse trabalho
+foi sobre um artefato do simulador.** A conclusão — "vale implementar" — estava certa; o
+número, não.
+
+**A regra:** a simulação decide **se** vale implementar. Só o motor real dá o número que se
+publica. Para cotejar, compile o motor antigo a partir do git no mesmo processo, e dê
+documentos **frescos** a cada motor — o pareamento anota `deslocamento` nas cópias, e
+reaproveitar a lista contamina o segundo.
+
+### Achado de passagem, não consertado
+
+`irmaosAgrupados` devolve **0** em todos os seis meses — e devolve 0 em `HEAD 9af0489`
+também, conferido por `git stash`. **É pré-existente, não regressão**, e por isso não foi
+misturado neste conserto. Investigado em §17.16.
+
+---
+
+## 17.16 Por que `irmaosAgrupados` é zero — e por que fica assim (18/09/2026)
+
+Duas respostas pareciam possíveis: o agrupamento de maço está **quebrado**, ou é **recurso
+morto**. A resposta é uma terceira, e as duas hipóteses que levantei estavam erradas.
+
+### A cascata
+
+Minha suspeita era `d.valor` nulo. Errada — `documentoDoArquivo` define
+`valor: valorDoNome(nome)`, que lê o nome do arquivo, não o extrator. Medindo as quatro
+condições do bloco em cascata:
+
+| condição | n | % do anterior |
+|---|---|---|
+| documentos do mês | 3.132 | |
+| não usados por par | 2.095 | 66,9% |
+| (a) com maço (prefixo NNN) | 2.095 | 100% |
+| (b) com valor no nome | 2.086 | 99,6% |
+| **(c) cujo maço é de um PAR** | **3** | **0,1%** |
+| (d) e o valor bate → irmão | 0 | 0% |
+
+**O gargalo é (c), e a causa é estrutural:** o prefixo `NNN` é **sequencial dentro da
+pasta-dia** — cada documento tem o seu. Como o maço é `` `${pasta}|${prefixo}` ``, **99,4%
+dos maços têm um documento só** (3.085 de 3.103).
+
+### O bloco funciona
+
+Dos 18 maços com 2+ documentos, **9 têm valores diferentes e são recusados com razão** —
+são as apólices BRADESCO que §16 usou justamente para justificar a exigência de mesmo valor,
+mais LOCALIZA e JOHN DEERE. Sobram **7 candidatos reais em todo o acervo**, o que confirma
+por outro caminho a medição de §16 ("só 7 elegíveis em 4.290").
+
+E o agrupamento acontece: o maço MACPONTA junta certo — `031.DOC- ... MACPONTA PEDIDO` é o
+par, `031.DOC- ... MACPONTA.pdf` é o irmão. Nos outros 6 maços **nenhum documento casou com
+lançamento nenhum**: sem par âncora não há irmão a formar, que é o comportamento correto.
+
+### O defeito real, medido e não consertado
+
+`irmaosAgrupados` é `orfaosBruto − orfaosDoMes`, e os dois se calculam sobre `doMes` — a
+pasta do mês **consultado**. O irmão do MACPONTA está na pasta de **janeiro** e o lançamento
+é de **fevereiro**, então o desconto se perde nas duas pontas:
+
+- consultando **02**: o par existe e tem irmão, mas nenhum dos dois arquivos está em
+  `doMes(02)` — não entram na subtração;
+- consultando **01**: os arquivos estão em `doMes(01)`, mas o lançamento é de fevereiro e
+  não está em `lancamentos` — o par não se forma, e os dois contam como órfãos.
+
+O painel de janeiro mostra 2 documentos sem dono onde há 1 pagamento com 2 papéis.
+
+**Teto do conserto: 1 documento em 6 meses.** Não implementado — mexer na contagem de órfãos
+do painel para corrigir um caso não paga o risco. Se um dia a equipe passar a repetir
+prefixo, o conserto é contar irmão e órfão **sobre a pasta do documento**, não sobre a
+consultada.
+
+### A lição
+
+"Está quebrado" e "é recurso morto" eram as duas saídas que imaginei; a verdade era
+"funciona, é estruturalmente raro, e tem um defeito de contagem que não vale consertar".
+**Medir a cardinalidade da chave** — quantos maços têm 2+ documentos? — respondeu em um
+script o que a cascata de condições levou três para cercar. Antes de caçar por que um
+recurso não dispara, meça se existem casos para ele disparar.
+
+---
+
+## 17.17 O filtro não-fiscal, afinado regra a regra (18/09/2026)
+
+A pendência 3 de §17.9: "o filtro custa 84 pares e R$ 789 mil e nunca foi afinado regra a
+regra". Medido, e o número agregado escondia a melhor notícia.
+
+### 15 dos 21 padrões custam ZERO
+
+Cada padrão medido isoladamente sobre a varredura **bruta** (6.606 documentos, jan–jun).
+Consórcio (corta 682), financiamento, empréstimo, FGTS, SISPAG, EVA Card, sindicato,
+TED/DOC — **nada do que cortam casaria** com lançamento sem documento. Essas regras estão
+certas e saem da discussão.
+
+O custo inteiro está em 6 padrões. Julgando os 100 casos um a um (mesmo fornecedor **e**
+mesmo valor = par legítimo):
+
+| padrão | corta | casaria | legítimo |
+|---|---|---|---|
+| PIX enviado/recebido | 71 | 36 | **24** |
+| Taxa de governo (DETRAN) | 51 | 29 | **21** |
+| Guia de governo (RCB 9039xx) | 136 | 7 | **7** |
+| Compensação de cheque | 28 | 14 | **4** |
+| Guia de tributo (GOVERNO/IPVA) | 382 | 4 | **2** |
+| Folha/RH (pgto ...) | 99 | 5 | **1** |
+
+### O DETRAN é o filtro brigando consigo mesmo
+
+Dos 29 casos, **os 29 são do mesmo fornecedor** — lançamento `DETRAN PR` × arquivo
+`DETRAN` — e 21 batem o valor no centavo. O comentário do padrão diz que a entidade é
+"inequívoca, nenhuma nota de serviço": verdade, mas **a planilha lança o DETRAN como
+fornecedor**, e cortar o papel deixa o lançamento órfão. Os 8 que não batem valor são guia
+parcelada (R$ 658,11 = 199,89 + 199,89 + 258,33, mesmo RCB 906257), que é `ehCarne`.
+
+### O cheque parece caro e não é
+
+R$ 1,08 mi em 14 casos, mas 6 deles são **o mesmo caso repetido 6× em 6 meses**: `TRACADO
+EQUIP. R$ 22.456,93` casando por VALOR com `JONAS BONFIM CHEQUE` — fornecedor diferente,
+valor redondo idêntico todo mês. Par falso clássico.
+
+### A regra que separa não é a categoria
+
+É exigir os **dois sinais fortes** contra um lançamento real: mesmo fornecedor (token em
+comum) E mesmo valor. **Desligar um padrão inteiro reprova** — sem o PIX entram 11 pares
+falsos junto com os 24 bons; sem o CHEQUE entra o TRACADO×JONAS seis vezes.
+
+Daí `admiteNoPareamento` (comparar-notas.js): o documento cortado volta ao **pareamento**
+se provar as duas coisas. O corte continua valendo para a **contagem** da pasta — estes
+documentos não são nota fiscal e não entram em `porMes`. São perguntas diferentes: "este
+lançamento tem papel?" não é "este papel é nota fiscal?".
+
+### O efeito, com o código real
+
+| | antes | depois | Δ |
+|---|---|---|---|
+| pares | 2.154 | **2.227** | **+73** |
+| conferem pelo fornecedor | 78,2% | **79,8%** | +1,6pp |
+| **perdas** | — | — | **0** |
+| **painel** | 70,5% | **72,8%** | **+2,3pp** |
+
+226 documentos admitidos, 98 viraram par. As **26 trocas são todas melhora**: `PATRICIA
+LIMA` sai de `KATRINY PEREIRA` e vai para `PIX ENVIADO PATRICIA LIMA`; `DETRAN 78,10` sai
+de `SENATRAN` (f1) para `DETRAN RCB 903308` (f3); `SAMUEL JUNIOR` sai de `J A FERREIRA` e
+vai para `PIX ENVIADO SAMUEL JUNIOR`.
+
+Invariantes conferidas: nenhum repescado entrou sem os dois sinais, e a contagem da pasta
+não mudou.
+
+### A tela precisa dizer que o papel não é nota
+
+98 pares do painel passam a vir de documento que **não é nota fiscal**. O par é legítimo —
+provou fornecedor e valor —, mas quem confere abriria o PDF esperando uma nota e acharia um
+comprovante de PIX. Esconder isso seria ganhar número à custa de confiança.
+
+Então `repescadoDe` (o rótulo da categoria) vai do servidor até a tela e aparece em quatro
+lugares, seguindo o padrão dos sinais já existentes:
+
+- **glifo 📎 no selo de força**, com a explicação no `title` (o glifo sozinho não é lido por
+  leitor de tela nem sobrevive a uma cópia para o Excel);
+- **pílula no resumo** — "N por comprovante 📎", clicável como as outras;
+- **filtro próprio** no seletor de confirmação, como eixo separado: fica **fora** de "merece
+  conferência" de propósito, porque não pede decisão, pede ciência;
+- **coluna no export XLSX** ("Comprovante (não é NF)"), vazia quando é nota fiscal.
+
+### Uma correção minha, no meio do caminho
+
+Um dos 73 ganhos não confere pelo fornecedor: `DETRAN PR R$ 716,55 ← 015.DOC- 258,33 ...
+DRETRAN`. Diagnostiquei como "buraco do desenho" — a admissão ser por documento e o
+casamento livre. **Errado:** fui verificar e `categoriaNaoFiscal` devolve `''` para esse
+arquivo. O `DRETRAN` (erro de digitação de DETRAN) nunca foi cortado pelo filtro, já era
+fiscal, e o ganho veio do rearranjo geral. A repescagem tem contaminação **zero**.

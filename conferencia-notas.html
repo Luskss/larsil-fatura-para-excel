@@ -2793,13 +2793,23 @@ document.addEventListener('wheel', e => {
                     ? `\n\nOutro documento servia para este lançamento com a mesma força; o desempate foi pelo nome do arquivo.`
                     : `\n\nVários papéis do MESMO fornecedor e MESMO valor disputavam este lançamento — é um lote (ex.: 12 faturas iguais da mesma operadora). São intercambiáveis: qualquer um deles serve, não há o que decidir.`)
                   + (l.candidatosEmpatados?.length ? `\nTambém serviam: ${l.candidatosEmpatados.join(' | ')}` : '');
+            // O papel NÃO é nota fiscal: é comprovante de pagamento (PIX, guia do
+            // DETRAN, cheque) que o filtro corta por padrão e a repescagem devolveu
+            // porque prova fornecedor E valor. O par é legítimo — o que muda é a
+            // natureza do documento, e quem confere precisa saber antes de abrir o PDF
+            // esperando uma nota.
+            const rep = l.repescadoDe
+                ? `\n\n📎 O documento NÃO é nota fiscal: ${l.repescadoDe}. Entrou no pareamento`
+                  + ` porque o fornecedor e o valor batem com o lançamento.`
+                : '';
             // O glifo vai TAMBÉM para o title: sozinho ele não é lido por leitor de
             // tela nem sobrevive a uma cópia da tabela para o Excel.
             // O ⚖ fica reservado ao empate que PEDE DECISÃO. No lote intercambiável a
             // explicação continua no title, mas sem glifo: marcar 308 linhas com um
             // sinal de alerta que não pede ação é o que fazia o alerta perder valor.
-            return `<span class="cf-sit ${s.cls}" title="${esc(s.dica + agrava + emp)}">${s.rot}${
-                emissaoAgrava(l) ? ' ⚠' : ''}${empatePedeDecisao(l) ? ' ⚖' : ''}</span>`;
+            return `<span class="cf-sit ${s.cls}" title="${esc(s.dica + agrava + emp + rep)}">${s.rot}${
+                emissaoAgrava(l) ? ' ⚠' : ''}${empatePedeDecisao(l) ? ' ⚖' : ''}${
+                l.repescadoDe ? ' 📎' : ''}</span>`;
         };
         const resumoLocal = (cc) => {
             const ps = cc.porSituacao || {};
@@ -2842,6 +2852,10 @@ document.addEventListener('wheel', e => {
             const empDecide = enc.filter(empatePedeDecisao).length;
             const empLote = emp - empDecide;
             const conferir = enc.filter(l => l.forca === 1 || empatePedeDecisao(l)).length;
+            // Pares cujo papel é comprovante (PIX, guia, cheque) e não nota fiscal —
+            // repescados do corte não-fiscal por provarem fornecedor E valor. Não entram
+            // em `conferir`: o par é legítimo, o que muda é a natureza do documento.
+            const repescados = enc.filter(l => l.repescadoDe).length;
             const pilula = (cls, txt, filtro) =>
                 `<span class="cf-sit ${cls} cf-filtra" data-conf="${filtro}" role="button" tabindex="0"
                        title="Clique para ver só estes">${txt}</span>`;
@@ -2852,6 +2866,7 @@ document.addEventListener('wheel', e => {
                 ${emisDiv ? pilula('sit-warn', `${emisDiv} com emissão divergente ⚠`, 'emissao_diverge') : ''}
                 ${empDecide ? pilula('sit-warn', `${empDecide} com concorrente ⚖`, 'empatado_decide') : ''}
                 ${empLote ? pilula('sit-neu', `${empLote} em lote do mesmo fornecedor`, 'empatado_lote') : ''}
+                ${repescados ? pilula('sit-neu', `${repescados} por comprovante 📎`, 'repescado') : ''}
                 ${conferir ? `<span class="cf-sit-acao cf-filtra" data-conf="conferir" role="button" tabindex="0"
                                     title="Clique para ver só estes">${conferir} merece${conferir > 1 ? 'm' : ''} conferência</span>`
                            : `<span class="cf-sit-acao ok">todos confirmados por 2+ sinais</span>`}
@@ -2892,6 +2907,7 @@ document.addEventListener('wheel', e => {
                             <option value="1">Só valor</option>
                             <option value="emissao_diverge">⚠ Só valor + emissão não bate</option>
                             <option value="empatado">Com documento concorrente</option>
+                            <option value="repescado">📎 Comprovante, não nota fiscal</option>
                         </select>
                     </div>
                     <div id="filtroEncontradasCount" class="cf-encontradas-count"></div>
@@ -2912,6 +2928,7 @@ document.addEventListener('wheel', e => {
                                         data-empatado="${l.empatado ? '1' : ''}"
                                         data-motivo-empate="${esc(l.motivoEmpate || '')}"
                                         data-emissao="${l.forca === 1 && l.emissaoDiverge === true ? 'diverge' : ''}"
+                                        data-repescado="${l.repescadoDe ? '1' : ''}"
                                         ${l.detalhe ? `class="cf-linha-detalhe" data-encontrada="${i}" tabindex="0" title="Clique para ver itens, valor e CFOP"` : ''}>
                                         <td>${esc(l.tipo || 'Não identificado')}</td>
                                         <td><div class="cf-ent" title="${esc(l.fornecedor)}">${esc(l.fornecedor) || '—'}</div></td>
@@ -3158,12 +3175,17 @@ document.addEventListener('wheel', e => {
                 const f = tr.dataset.forca, emp = !!tr.dataset.empatado;
                 const empDecide = emp && EMPATE_DECIDE.includes(tr.dataset.motivoEmpate || '');
                 const emisDiv = tr.dataset.emissao === 'diverge';
+                // `repescado` é eixo próprio, não nível de confiança: o par é legítimo
+                // (provou fornecedor E valor), mas o papel é comprovante, não nota.
+                // Fica fora de "conferir" de propósito — não pede decisão, pede ciência.
+                const repescado = tr.dataset.repescado === '1';
                 const passaConf = !confianca
                     || (confianca === 'conferir' ? (f === '1' || empDecide)
                       : confianca === 'empatado' ? emp
                       : confianca === 'empatado_decide' ? empDecide
                       : confianca === 'empatado_lote' ? (emp && !empDecide)
                       : confianca === 'emissao_diverge' ? emisDiv
+                      : confianca === 'repescado' ? repescado
                       : f === confianca);
                 const valoresLinha = valoresNormalizadosPorLinha.get(tr) || [];
                 const passaColunas = [...filtrosColuna.entries()].every(([coluna, valores]) =>
@@ -3742,6 +3764,9 @@ document.addEventListener('wheel', e => {
             l.tipo || '', l.arquivo || '', path(l), l.situacao || 'ok',
             l.periodoDocumento || data.periodo, rotuloOrigem(l), l.via || '',
             sinais(l), l.empatado ? 'sim' : '',
+            // A natureza do papel: vazio = nota fiscal; senão, a categoria do
+            // comprovante que a repescagem admitiu (PIX, guia do DETRAN, cheque).
+            l.repescadoDe || '',
         ]);
         const divergencias = (c.todosDivergentes || c.listaDivergentes || []).map(l => [
             l.entidade || '', l.nf || '', money(l.valorPlanilha), money(l.valorDocumento),
@@ -3759,8 +3784,8 @@ document.addEventListener('wheel', e => {
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, sheet(
-            ['Fornecedor', 'CNPJ/CPF', 'NF', 'Valor planilha', 'Tipo', 'Arquivo', 'Onde foi achado', 'Situação', 'Pasta/mês', 'Origem', 'Via', 'Sinais', 'Ambíguo'],
-            encontrados, [28, 18, 12, 16, 14, 34, 54, 16, 14, 18, 12, 8, 9]), 'Encontrados na planilha');
+            ['Fornecedor', 'CNPJ/CPF', 'NF', 'Valor planilha', 'Tipo', 'Arquivo', 'Onde foi achado', 'Situação', 'Pasta/mês', 'Origem', 'Via', 'Sinais', 'Ambíguo', 'Comprovante (não é NF)'],
+            encontrados, [28, 18, 12, 16, 14, 34, 54, 16, 14, 18, 12, 8, 9, 24]), 'Encontrados na planilha');
         XLSX.utils.book_append_sheet(wb, sheet(
             ['Fornecedor', 'NF', 'Valor planilha', 'Valor documento', 'Diferença', 'Percentual', 'Arquivo', 'Onde foi achado', 'Pasta/mês', 'Origem', 'Via'],
             divergencias, [28, 12, 16, 17, 14, 13, 34, 54, 14, 18, 12]), 'Divergencias');
