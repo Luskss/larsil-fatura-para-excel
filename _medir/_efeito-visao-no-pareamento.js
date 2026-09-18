@@ -24,8 +24,14 @@ const p = require('../routes/_pareamento');
 const { indexar } = require('./ocr');
 
 const PERIODO = process.argv[2] || '03.2026';
-const CACHE_ANTES = process.argv[3] ||
-    'C:/Users/LUCAS~1.PER/AppData/Local/Temp/claude/c--Users-lucas-pereira-Herd-larsil-fatura-para-excel-master/7cdbf091-bbba-4e0b-8cbb-2beee2c83536/scratchpad/ocr-antes.json';
+// O índice ANTES é um retrato do banco, salvo antes da releitura. O padrão fica em
+// `_medir/.cache/` (dentro do projeto, ignorado pelo git) e NÃO no scratchpad da
+// sessão: o caminho anterior trazia um ID de sessão de 10/09/2026 embutido, e bastou
+// a sessão acabar para o script depender de um arquivo que ninguém consegue recriar.
+//
+// Para tirar um retrato novo antes de reler um mês:
+//   node -e "require('./_medir/ocr').indexar().then(o=>require('fs').writeFileSync('_medir/.cache/ocr-antes.json',JSON.stringify(o)))"
+const CACHE_ANTES = process.argv[3] || path.join(__dirname, '.cache', 'ocr-antes.json');
 
 function rodar(pasta, planilha, ocr) {
     const docsPorMes = {};
@@ -36,14 +42,34 @@ function rodar(pasta, planilha, ocr) {
     }
     const lancs = ((planilha[PERIODO] || {}).itens || []).map(p.lancamentoDaPlanilha);
     const r = p.conferirPeriodo(lancs, docsPorMes, PERIODO);
+
+    // `conferirPeriodo` devolve DOIS campos parecidos e de tipos diferentes:
+    //   lancamentosSemDocumento → NÚMERO (a contagem)
+    //   semDocumento            → a LISTA
+    // Ler o número como se fosse lista é o defeito que este script teve até 18/09/2026:
+    // `semDoc` recebia a contagem e a comparação ANTES×DEPOIS imprimia o mesmo valor nos
+    // dois lados. Pior que quebrar — o script terminava com "+0" e cara de medição boa,
+    // justamente no indicador que a pendência de 03.2026 mandava conferir.
+    // A invariante abaixo falha alto se `conferirPeriodo` trocar os tipos de novo.
+    if (typeof r.lancamentosSemDocumento !== 'number' || !Array.isArray(r.semDocumento)) {
+        throw new Error('_pareamento mudou: esperado lancamentosSemDocumento:number e semDocumento:array');
+    }
+    if (r.semDocumento.length !== r.lancamentosSemDocumento) {
+        throw new Error(`contagem ≠ lista: ${r.lancamentosSemDocumento} × ${r.semDocumento.length}`);
+    }
+
     // Chave estável do lançamento, para saber QUAIS mudaram de estado.
+    // Conferido em 03.2026: 628 lançamentos, 628 chaves distintas — não colide.
     const chave = l => `${l.entidade}|${l.nf}|${l.valor}`;
     const casados = new Set([...r.pares, ...r.paresVizinhos].map(x => chave(x.lancamento)));
     return {
         totalLanc: lancs.length,
         pares: r.pares.length,
         vizinhos: r.paresVizinhos.length,
-        semDoc: r.lancamentosSemDocumento,
+        semDoc: r.semDocumento.length,
+        // A lista, para dizer QUAIS lançamentos ficaram sem papel — a contagem sozinha
+        // não distingue "trocou de estado" de "nada mudou".
+        semDocLista: r.semDocumento,
         fracos: r.fracos,
         docsSemLanc: r.documentosSemLancamento,
         casados,
@@ -61,7 +87,13 @@ const brl = v => 'R$ ' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigit
     const { pasta, planilha } = h.carregar();
 
     if (!fs.existsSync(CACHE_ANTES)) {
-        console.error('cache ANTES não encontrado:', CACHE_ANTES);
+        console.error(`\ncache ANTES não encontrado: ${CACHE_ANTES}\n`);
+        console.error('Este script compara DOIS retratos do banco, e o "antes" tem de ter');
+        console.error('sido salvo ANTES da releitura — depois dela, não há como recriá-lo.\n');
+        console.error('Para tirar o retrato antes de reler um mês:');
+        console.error(`  node -e "require('./_medir/ocr').indexar().then(o=>require('fs').writeFileSync('_medir/.cache/ocr-antes.json',JSON.stringify(o)))"\n`);
+        console.error('Se a releitura JÁ aconteceu, este script não serve. Compare os meses');
+        console.error('entre si — os que nunca tiveram o defeito são a linha de base (§17.7).\n');
         process.exit(1);
     }
     const ocrAntes = JSON.parse(fs.readFileSync(CACHE_ANTES, 'utf8'));
@@ -101,6 +133,24 @@ const brl = v => 'R$ ' + (v || 0).toLocaleString('pt-BR', { minimumFractionDigit
         (perdeu.length ? '   ← regressão, investigar' : '   (nenhuma regressão)'));
     for (const l of perdeu.slice(0, 20))
         console.log(`    ${String(l.entidade).slice(0, 30).padEnd(30)} NF ${String(l.nf).padEnd(9)} ${brl(Math.abs(l.valor))}`);
+
+    // ── Conferência cruzada: dois caminhos independentes para o mesmo número ────
+    // O delta de "sem documento" (contagem) tem de bater com perdeu − ganhou (lista).
+    // Se divergirem, um dos dois está errado e o relatório acima não vale — foi
+    // exatamente assim que o defeito de `semDoc` passou despercebido: ele imprimia
+    // "+0" enquanto os pares mudavam, e nada no script contestava.
+    const deltaContagem = D.semDoc - A.semDoc;
+    const deltaLista = perdeu.length - ganhou.length;
+    console.log(`\n── conferência cruzada ──`);
+    console.log(`   delta de "sem documento" : ${deltaContagem >= 0 ? '+' : ''}${deltaContagem}`);
+    console.log(`   perdeu − ganhou          : ${deltaLista >= 0 ? '+' : ''}${deltaLista}`);
+    if (deltaContagem !== deltaLista) {
+        console.log(`   ⚠ DIVERGEM — o relatório acima não é confiável.`);
+        console.log(`     Causa provável: um lançamento trocou de documento sem trocar de estado,`);
+        console.log(`     ou a chave do lançamento colidiu. Investigue antes de concluir nada.`);
+    } else {
+        console.log(`   ✓ batem`);
+    }
 
     process.exit(0);
 })();

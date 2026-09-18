@@ -448,7 +448,18 @@ function contarNoCsv(csvs) {
                     const campo = camposOcr(campos[iParser]);
                     if (campo) {
                         const at = ocrPorArquivo[chave] || (ocrPorArquivo[chave] = {});
-                        for (const k of ['numero', 'emitente', 'valor', 'dtEmissao'])
+                        // `retencao` entrou aqui em 18/09/2026. Faltava, e a falta era
+                        // INVISÍVEL: `camposOcr` calculava o objeto {bruto, liquido,
+                        // retido} corretamente, `enriquecerComOcr` (_pareamento.js:393)
+                        // já sabia usá-lo como valor de casamento — e esta fusão o
+                        // descartava no meio do caminho, porque a lista só tinha quatro
+                        // campos. O comentário de CHAVES_VALOR ("retencaoDoParser já põe
+                        // o bruto em out.retencao e enriquecerComOcr o usa") descrevia
+                        // uma cadeia que nunca se completou.
+                        // Achado ao gravar a retenção de 15 NFS-e e o painel não mudar:
+                        // o dado estava no banco, o cálculo estava certo, e o índice não
+                        // levava. Ver §17.13.
+                        for (const k of ['numero', 'emitente', 'valor', 'dtEmissao', 'retencao'])
                             if (at[k] == null && campo[k] != null) at[k] = campo[k];
                         // `detalhe` é só exibição (CFOP/Itens/valor da nota/código da
                         // receita) — não participa do pareamento, então não segue a

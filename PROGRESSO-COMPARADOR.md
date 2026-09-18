@@ -3,10 +3,12 @@
 Estado do trabalho sobre `routes/comparar-notas.js` e o painel de comparação em
 `conferencia-notas.html`. Complementa `ANALISE-COMPARADOR.md` (a auditoria original).
 
-- **Última atualização:** 08/09/2026
+- **Última atualização:** 18/09/2026 (§17 — os quatro dias que faltavam, 14 a 18/09)
 - **Situação:** itens 1–9 e 12–14 da auditoria aplicados e medidos. A regra de
   corroboração (6.1) foi **decidida e medida**; 6.2 e 6.3 foram **apurados**. Restam os
   itens de decisão de negócio (10, 11, filiais) e dois pontos novos na seção 6.
+- **Pendência mais antiga de pé:** a escolha de valor de §16 (11/09) nunca foi ao banco —
+  o ganho de 54% → 71% existe como número, não como dado. Ver §17.9.
 
 > **Estado do motor vivo (08/09/2026): 2.110 pares, 91,5% confirmados por 2º campo.**
 > Última mudança em `TIPOS-IGNORADOS-COMPARADOR.md` §20 — o veto de data (`JANELA_DIAS`)
@@ -1672,3 +1674,469 @@ conferência possa AUDITAR a escolha em vez de confiar nela.
 3. **Os outros cinco meses nunca foram relidos** (01, 02, 04, 05 e 06/2026).
 4. **Nada foi commitado desde `a685dea` (03/09)**: o trabalho dos dias 09, 10 e 11 está
    todo na árvore de trabalho da branch `comparador-ocr-segundo-sinal`.
+
+---
+
+### §17 — Os quatro dias que este documento não tinha (14–18/09/2026)
+
+Escrito em 18/09. O documento parou em §16.9 (11/09) enquanto o trabalho seguiu por mais
+quatro dias, e o commit `be8c511` ("2.0.0 — Alguma hora...") engoliu tudo em 185 arquivos
+sem mensagem. Esta seção recupera o que foi **decidido**, que é o que a mensagem de commit
+perdeu. Três dos cinco dias terminaram em REPROVAÇÃO — e duas das reprovações vieram
+depois de uma tabela agregada que dizia "aprove".
+
+#### §17.1 — O parser de tipo não rodava no modo IA (15/09)
+
+O defeito estrutural do período, achado ao investigar por que as retenções de §15.4 não
+apareciam no banco. `analyzePdf` tem dois caminhos, e **só o caminho local chamava o
+parser específico do tipo** (`parseNfse`, `parseDanfe`, `parseCte`, `parseImposto`). O
+caminho de IA não chamava.
+
+Como o modo IA é o de produção desde §16.1, o efeito era total: os campos que só o parser
+de tipo produz **nunca chegavam ao banco, em documento nenhum, de mês nenhum**. Medido em
+12 NFS-e reais de 03.2026, depois da releitura:
+
+| campo | no papel | no banco |
+|---|---|---|
+| retenção (ISS 4,80 · COFINS 690,38 · PIS 149,89 …) | 5 | **0** |
+| `Valor do serviço` | 11 | **0** |
+
+E a IA não supria a falta: o schema do `extrairNotaAI` **não tem campo algum de retenção**.
+§15.4 media R$ 13.019,88 em retenções em jan–jun — nada disso estava sendo gravado.
+
+Corrigido em `process-folder.js:464`, com precedência conservadora: o parser de tipo
+preenche **só o que está vazio**. Chave de acesso e linha digitável são validadas por
+construção (DV mod-11, fator de vencimento) e leitura nenhuma substitui prova aritmética.
+
+**A lição é de método:** `o-erro-mora-onde-a-funcao-nao-roda` já registrava este padrão, e
+ele reincidiu. Uma função pode estar perfeita, testada e medida, e simplesmente não ser
+chamada no caminho que a produção usa. Nenhuma medição de QUALIDADE do parser acharia
+isso — só perguntar "ele roda aqui?".
+
+#### §17.2 — A data de emissão: confirma o par, mas não casa (15/09)
+
+`_medir/_data-como-sinal.js` mediu jan–jun, 2.108 pares. A emissão que a planilha registra
+× a que o extrator leu da nota:
+
+| força do par | as duas emissões coincidem |
+|---|---|
+| força 3 | **70,7%** |
+| força 2 | 56,6% |
+| força 1 | **3,3%** |
+
+Razão de 20×. E o número que mais importa: dos 171 pares fracos, 122 têm as duas datas e
+**118 divergem**. É a evidência independente — vinda de um campo que não participou do
+casamento — de que **o par por valor sozinho é, quase sempre, colisão**. §17.3 e a memória
+`precisao-multicampo-comparador` diziam a mesma coisa por outros caminhos; aqui um quarto
+campo confirma.
+
+**Virar 4º sinal foi medido e REPROVADO** (`_medir/_data-quarto-sinal.js`): −4 pares bons,
++2 duvidosos. A causa é sutil e vale guardar — somar força a quem TEM o campo **penaliza o
+documento cuja emissão não foi lida**. A ausência de dado virava desvantagem competitiva, e
+o par de força 3 perdia para o de força 2.
+
+Ficou como **rótulo**, em `_pareamento.js:500` e `comparar-notas.js:1768`, com três estados
+que o painel pinta: `true` divergem (suspeito) · `false` coincidem (confirmado por um campo
+que não casou) · `null` falta uma das duas (o sinal se cala). Tolerância de 1 dia, porque
+planilha digitada e leitura de papel não podem divergir por fuso.
+
+#### §17.3 — A passada única: a tabela aprovou, a inspeção reprovou (15/09)
+
+Dois lançamentos de março tinham valor E entidade batendo com documento do próprio mês e
+não casavam, mortos no veto de 15 dias — que no mês corrente não aceita `entidadeDispensa`.
+O diagnóstico apontava defeito de SEQUÊNCIA, não de limiar: se mês e vizinhas entrassem
+numa passada só, `parear` ordenaria por força e o melhor documento venceria independente da
+pasta.
+
+A tabela agregada aprovou com folga:
+
+| variante | pares | 2º campo | fracos |
+|---|---|---|---|
+| A produção | 2.108 | 91,9% | 171 |
+| C passada única | **2.115** | **93,2%** | **143** |
+
+**A inspeção dos 6 ganhos reprovou.** 3 bons (ERPO força 2, JESSICA força 2, IGUAÇU força
+2) contra 4 falsos — todos força 1, fornecedor diferente casado só pelo valor, **três deles
+em R$ 100,00**. Dois lançamentos distintos (BOA VISTA e JOHN LENON) casaram com o **mesmo**
+documento. Assinatura de colisão de valor redondo.
+
+Líquido negativo. **Por que o índice enganou:** "2º campo" é a PROPORÇÃO de pares com dois
+sinais — acrescentar pares fracos e bons ao mesmo tempo pode subir a proporção enquanto a
+qualidade cai. É `media-agregada-esconde-par-falso` reencarnado num experimento novo, e por
+isso `_data-quarto-sinal.js`, escrito logo depois, **imprime cada par trocado**.
+
+#### §17.4 — Cobertura × precisão, e o filtro que engole par bom (14–15/09)
+
+`_estado-do-acervo.js` nasceu de "quais campos ele salva sem problema?" e separa duas
+perguntas que o acervo mistura: **cobertura** (o campo está preenchido?) e **precisão** (o
+que está lá está certo?). Um campo com 100% de cobertura e 50% de precisão é pior que um
+com 60% e 95% — o primeiro **mente em silêncio**.
+
+`_onde-melhorar.js` respondeu se o 63% era limite do sistema ou idade do dado, e a resposta
+foi idade: linhas do parser local antigo convivem com linhas de IA, e as melhorias de 09–11
+só alcançaram o que foi relido. Daí a releitura, que é o que entregou valor em 17/09.
+
+`_custo-beneficio-do-filtro.js` achou o custo do `categoriaNaoFiscal`: **84 pares de 2+
+sinais cortados em jan–jun, R$ 789.671,72** — documentos que existem, são lidos, e nunca
+chegam ao pareamento, vários de força 3. O filtro não está errado por isso (ele existe para
+tirar o papel que não é nota de fornecedor), mas o benefício declarado é um **limite
+superior**: "não casaria" ≠ "não é documento", porque o PIX ao fornecedor pode não casar
+simplesmente por o lançamento já ter casado com a nota.
+
+#### §17.5 — O carnê que não era carnê (16/09)
+
+`004.DOC-430000,00-PIX ENVIADO Macponta.pdf` virou **45 parcelas de R$ 6.798,65 do
+DAYCOVAL**, espalhadas até 12.2029 sob o nome da MACPONTA. A IA achou um carnê anexado e
+dividiu o documento errado.
+
+O que distingue o caso ruim do carnê legítimo não é "valor do nome ≠ valor gravado" — em
+consórcio o nome traz a parcela, e divergir é esperado. É a **soma**: no carnê legítimo a
+parcela do nome é uma das gravadas; aqui o valor do nome não bate com nenhuma nem com o
+total.
+
+E o conserto expôs um defeito do upsert: a limpeza de parcelas só alcança o período em que
+está gravando, e as 45 parcelas estavam em 45 períodos. Reprocessar só 04.2026 deixaria 44
+sobras — mesmo defeito de `parcelas-pn-sobram-no-upsert`, por outra via. Daí
+`_reprocessar-pix-macponta.js`, que **primeiro remove o PDF de todos os períodos**, depois
+grava.
+
+#### §17.6 — O commit de 17/09: releitura entrega, extração não
+
+Ver a mensagem de `f5efa23`, que é detalhada. Em resumo: **748 documentos relidos com
+`forceAI`, 0 erros**, cobertura de IA subindo de 12,2% para 69,5% em junho, e em nenhum mês
+a releitura piorou linha que o parser local já tinha.
+
+E **quatro variantes de extração de valor medidas, nenhuma implementada** — a linha
+digitável como precedência global (o banco prometia +150, a releitura deu +1 em 68), duas
+proteções do valor na linha 630, e o prompt conferir o valor contra a LD (0 ganhos, e mais
+instável).
+
+O defeito de `process-folder.js:630` **é real e está provado**: é a única sobrescrita
+incondicional de `Valor total`, e apaga a linha digitável validada. Fica documentado e não
+corrigido, porque os consertos medidos rendem ~1 caso e um deles perde em guia pública,
+onde a LD diverge do pago por bom motivo.
+
+A única mudança de código foi o interruptor `ANCORA_LOCAL` (`process-folder.js:38`),
+**ligado** — desligar a âncora reprovou: **−7 em 1.700 documentos**, com junho sozinho
+fazendo 0 ganhos e 8 perdas.
+
+#### §17.7 — Duas pendências encerradas sem gastar nada (18/09)
+
+Ambas estavam abertas há dias descrevendo problemas que **já não existiam**. As duas foram
+fechadas com consultas ao banco, zero chamadas de API.
+
+**A regressão de 03.2026 (§15.16) não está mais lá.** A releitura aconteceu entre 10 e
+14/09 e ninguém fechou o item. Três verificações independentes:
+
+1. o código tem as duas correções (`comparar-notas.js:504` e `:724-729`);
+2. o travessão — o dano que só a releitura desfaz, porque foi GRAVADO — sumiu: março tem
+   **0 em Emitente, 0 em Valor**, 5 em Número (0,1%), contra 2,5% em abril e 1,9% em junho.
+   Março é o mês **mais limpo** dos seis;
+3. a via voltou acima do patamar: `numero+entidade` por mês dá 01=262 · 02=248 ·
+   **03=296** · 04=254 · 05=286 · 06=262. Março **lidera**. A regressão media 29 contra 41.
+
+**A armadilha:** o `Emitente: "ARPESEG"` (erro de digitação da equipe) continua no banco de
+março e parece o segundo sintoma. Não é — aparece igual em 01, 05 e 06/2026, que nunca
+tiveram o bug, e é o comportamento intencional de `emitente-nao-vem-do-extrator`. **Escolher
+o sintoma errado faz uma pendência parecer viva para sempre.** O sintoma tem de ser algo que
+só a releitura desfaz; "número na chave errada" não serve, porque a correção do LEITOR o
+curou sem tocar no banco.
+
+**A variante "a visão não é sobreposta pela transcrição" tem teto de ganho ZERO.** A
+medição estava pausada em 16/30 por viés de amostra, com plano de retomada escrito. A conta
+de população respondeu antes de gastar API:
+
+| | documentos | com linha digitável |
+|---|---|---|
+| PDF-texto | 4.537 | 1.189 (26,2%) |
+| **PDF-imagem** | **306** | **8 (2,6%)** |
+
+**Boleto chega como PDF de texto.** O que chega como imagem é recibo (162) e consórcio (92).
+O cruzamento onde a variante agiria são 8 documentos em 4.843 — e **7 já estão certos**,
+três deles gravando `Origem do valor pago = "linha digitável (corrigido)"`, o que prova que
+a guarda de `_nf-visao.js:311` funciona em produção. O oitavo não tem gabarito legível no
+nome.
+
+De quebra, o diagnóstico anterior do viés estava errado: eu o atribuíra à marca `Valor lido
+(não confere com o nome)`, e ela explica só 34 dos 306. Filtrar por ela — o plano de
+retomada — teria produzido **outra rodada de inativos e outra conta de API**.
+
+#### §17.8 — O método que estes cinco dias endureceram
+
+Três reprovações vieram de tabelas que aprovavam, e duas pendências custaram dias por
+descreverem dano morto. O que ficou:
+
+1. **Dimensione o pool antes de medir.** Ganho possível = documentos que a variante toca −
+   os que já estão certos. Se der ~0, não meça. Custa duas consultas; a medição custa API e
+   horas.
+2. **Inspecione os ganhos, um a um.** Média agregada aprovou a passada única e a IA×local;
+   abrir os deltas reprovou as duas. Todo script novo de 15/09 em diante imprime os casos.
+3. **Pergunte se a função roda no caminho de produção**, antes de medir a qualidade dela.
+4. **Escolha um sintoma que só o conserto desfaz** — o que foi gravado, não o que a leitura
+   corrige sozinha.
+5. **Compare com os vizinhos.** 5 travessões em março pareceriam dano residual; ao lado de
+   78 em abril, são ruído normal.
+
+#### §17.9 — Pendências ao fim de 18/09/2026
+
+1. **A escolha de valor de §16 continua sem ir ao banco.** O módulo decide na leitura; as
+   linhas já gravadas seguem com a escolha antiga. O ganho medido (54% → 71%) segue sendo
+   número, não dado. **É a pendência mais antiga ainda de pé** — desde 11/09.
+   **Dimensionada em §17.14:** vale 1.306 linhas fiscais, não as 8.600 brutas.
+2. **O defeito de `process-folder.js:630`** está provado e não corrigido, por decisão
+   medida (§17.6).
+3. **O filtro `categoriaNaoFiscal` custa 84 pares e R$ 789 mil** (§17.4) e nunca foi
+   afinado regra a regra.
+4. ~~`_efeito-visao-no-pareamento.js` não roda mais~~ — **consertado em §17.10**, e o
+   conserto achou outra coisa.
+5. **01, 02 e 03/2026 não foram relidos** com o código atual — 04, 05 e 06 foram, em 17/09.
+   ~~§17.10 dá o primeiro motivo concreto para reler março~~ — **esse motivo foi atendido em
+   §17.13 pela releitura dirigida**, sem reler mês nenhum.
+
+#### §17.14 — O que falta, dimensionado (18/09)
+
+Feito o balanço ao fim do dia, com números em vez de intuição. **O painel hoje: 3.057
+lançamentos, 2.150 com documento (70,3%), 907 sem — R$ 4,69 milhões (23,2% do valor).**
+
+**O buraco, por causa:**
+
+| causa | n | valor | % |
+|---|---|---|---|
+| ESCOPO — não tem nota de fornecedor | 152 | R$ 2.583.819 | **54,0%** |
+| SEM PAPEL — não existe no acervo | 550 | R$ 1.840.968 | 38,5% |
+| MOTOR — papel existe com o mesmo valor | 235 | R$ 363.142 | **7,6%** |
+
+**O motor responde por 7,6%, e quase todo ele é ilusório:** os candidatos da classe MOTOR
+são fornecedor diferente com valor redondo igual (R$ 150 J M MEDARDO × LETICIA, R$ 100
+BORRACHARIA × RIO DOCE). Casar isso PIORA a conferência — é a assinatura que reprovou a
+passada única (§17.3) e que inflou três contas neste dia (§17.11, §17.12).
+
+**Março é 46% do buraco e está explicado:** FOLHA DE PAGAMENTO (R$ 669.745) e MACPONTA
+(R$ 660.000) são metade, e nenhum é defeito do sistema.
+
+**Conclusão que orienta o que vem depois:** o trabalho técnico de extração e pareamento está
+perto do teto. **54% do que falta não tem nota por natureza**, e o motor já recusa
+corretamente quase tudo que sobra. O que resta com retorno real:
+
+1. **Marcar o que o sistema não sabe.** O rótulo `emissaoDiverge` de §17.2 é o modelo:
+   separa par bom de duvidoso (70,7% × 3,3%) sem casar nada. Transformar os 161 pares
+   fracos em fila de conferência humana dirigida vale mais que inventar regra nova.
+2. **A sequência de passadas** — mês antes de vizinha — já custou pares em DUAS medições
+   independentes (§17.3 e a troca do BOM CLIMA em §17.13). É o defeito estrutural mais bem
+   documentado ainda aberto. A passada única reprovou como está; o que falta é ordenar por
+   força ANTES de fechar par, não fundir as passadas cegamente.
+3. **Decisão de negócio, não técnica:** se folha, cartão, tributo e pessoa física saíssem da
+   conta por definição, o painel iria de 70% para perto de 85% — e o número passaria a
+   significar "falta papel" em vez de misturar isso com "nunca houve papel".
+
+**Dimensionamento da pendência 1** (a escolha de valor de §16): 80,5% de precisão onde
+`Origem do valor pago` existe contra **40,8% onde não existe** — a decisão funciona. Mas das
+8.600 linhas sem ela que erram o valor, só **1.306 estão dentro da conferência**; 7.294 são
+consórcio e financiamento que `categoriaNaoFiscal` filtra, e boa parte das 1.306 é `#pN`
+(parcela de carnê), onde divergir do nome é esperado. **Releitura de escopo médio, ganho
+incerto** — menos atraente do que o número bruto sugeria.
+
+#### §17.10 — O script de efeito mentia, e ao consertá-lo março reabriu (18/09)
+
+Eu tinha registrado que `_efeito-visao-no-pareamento.js` "não rodava por falta de cache".
+**Estava errado em dois níveis**, e os dois valem mais que o conserto em si.
+
+**Primeiro:** o cache existia. O script rodava.
+
+**Segundo, o defeito real:** a linha `semDoc: r.lancamentosSemDocumento` lia o campo
+errado. `conferirPeriodo` devolve dois campos parecidos e de tipos diferentes —
+`lancamentosSemDocumento` é a **contagem** e `semDocumento` é a **lista**. O script
+comparava a contagem consigo mesma e imprimia **"SEM DOCUMENTO 227 → 227, +0"** enquanto
+os pares mudavam embaixo (214→211 no mês, 187→190 nas vizinhas).
+
+**Isso é pior que quebrar.** Um script que falha manda consertá-lo; este terminava com
+`+0` e cara de medição limpa — **exatamente no indicador que a pendência de 03.2026 mandava
+conferir** ("deve mostrar perderam documento: 0"). Se alguém tivesse rodado em 10/09 para
+validar a releitura, teria lido "nenhuma regressão".
+
+Consertado, e com três defesas que o script não tinha:
+- **invariante de tipo** — falha alto se `_pareamento` trocar contagem por lista de novo;
+- **conferência cruzada** — o delta de "sem documento" tem de bater com `perdeu − ganhou`,
+  dois caminhos independentes para o mesmo número. É o que teria denunciado o bug;
+- **o cache saiu do scratchpad** para `_medir/.cache/ocr-antes.json`. O caminho anterior
+  tinha um **ID de sessão de 10/09 embutido**; bastou a sessão acabar para o script
+  depender de um arquivo que ninguém sabia recriar. E o guarda agora explica como tirar um
+  retrato novo, e diz quando o script **não serve** (depois da releitura não há "antes").
+
+**E aí o conserto achou o que a medição escondia.** Rodando de verdade: 7 lançamentos
+ganharam documento, **7 perderam** — e três dos que perderam são as ARPSEG NF 530/531/534,
+as mesmas de §15.16. O número está certo no banco e o documento está na pasta de março:
+
+| NF | lançamento | documento | diferença |
+|---|---|---|---|
+| 530 | R$ 10.393,97 | R$ 10.034,63 | 3,46% |
+| 531 | R$ 5.514,00 | R$ 5.323,37 | 3,46% |
+| 534 | R$ 827,00 | R$ 798,41 | 3,46% |
+
+**Percentual constante: é retenção na fonte** (§15). A planilha lança o BRUTO e o nome do
+arquivo registra o LÍQUIDO. E os três documentos **não têm campo de retenção nenhum** —
+nem `Valor do serviço`, nem ISS/PIS/COFINS. São NFS-e lidas pelo caminho da IA **antes do
+conserto de §17.1**, quando esse caminho não chamava `parseNfse`.
+
+Ou seja: a regressão de §15.16 está mesmo encerrada (a via de número voltou, §17.7), mas
+**março tem um problema diferente, ainda aberto** — e o conserto dele já existe no código
+desde 15/09. Falta reler. É o primeiro motivo concreto para a pendência 5, e diferente das
+variantes reprovadas de 17/09: aqui não se inventa regra nova, só se aplica um parser que
+já roda.
+
+**A lição de método:** eu afirmei que o script estava quebrado sem rodá-lo — por dedução, a
+partir de um caminho de arquivo que parecia morto. Rodar custou um comando. `sucesso-
+silencioso-engana-vigilancia` e `o-erro-mora-onde-a-funcao-nao-roda` são a mesma família:
+**um número plausível não prova que a função rodou, e "está quebrado" não se deduz do
+código, se verifica executando.**
+
+#### §17.11 — A conta de população da retenção: 12 pares, e o parser já os resolve (18/09)
+
+Medida antes de decidir a releitura, como §17.8 manda.
+
+**Lado 1 — a população.** NFS-e sem nenhum campo de retenção gravado:
+
+| mês | NFS-e | com retenção | SEM |
+|---|---|---|---|
+| 01 | 81 | 40 | 41 |
+| 02–06 | 437 | **0** | 437 |
+| **total** | **525** | **40** | **485** |
+
+Os 40 de janeiro vêm de uma releitura antiga. Fora deles, **nenhuma NFS-e do acervo tem
+retenção gravada**.
+
+**Lado 2 — quanto isso custa em pares.** Lançamento sem documento cujo valor bate com um
+documento da pasta a menos de uma retenção plausível (0,5%–10%), exigindo 2º sinal. E aqui
+a separação por via foi decisiva:
+
+| critério | lançamentos | valor |
+|---|---|---|
+| qualquer sinal (número OU entidade) | 152 | R$ 492.195,83 |
+| **só por NÚMERO** | **12** | **R$ 33.205,64** |
+
+**A coluna larga é quase toda colisão** — CEMAVI × BOBIG, EVOLUTION × SAVANA, CLAYTON ×
+SKILLHUB: fornecedores diferentes cujo valor casualmente cai na faixa de "uma retenção de
+distância". Entidade + valor aproximado casa qualquer coisa. É a armadilha de §17.3 de novo,
+e por pouco não reportei R$ 492 mil como oportunidade.
+
+**Os 12 por número têm assinatura limpa:** ARPSEG a 3,27–3,52% e KUHNEN a 4,53% —
+percentual estável por fornecedor, exatamente o que §15 descreve e o que reprovou adivinhar
+alíquota.
+
+**Lado 3 — a releitura entrega?** Rodei o `parseNfse` de hoje sobre os PDFs reais:
+
+    Valor do serviço   10.393,97   ← o BRUTO que a planilha lança
+    ISS retido            359,34   ← a diferença, ao centavo
+
+**7 de 7.** Os campos estão no texto nativo e o parser já os lê — só não foram gravados,
+porque estas linhas são anteriores a §17.1. **Não falta código: falta reler.**
+
+**E um erro meu no caminho, que vale mais que o resultado.** Na primeira tentativa chamei
+`pf.extractText`, que **não é exportada** por `process-folder.js`. `await undefined(...)`
+caiu no `catch`, o script imprimiu **"⚠ SEM TEXTO NATIVO"** para os 7 PDFs, e eu quase
+concluí que a releitura não resolveria — a conclusão oposta à verdadeira. Sete linhas
+idênticas e plausíveis, produzidas por uma função que nunca rodou. A API correta é a classe
+`PDFParse` (`process-folder.js:308`), e a regra que teria me salvado é a de sempre: **use a
+mesma chamada que a produção usa, não uma parecida.**
+
+#### §17.12 — "Só tem em março?" Não: todos os meses, e 7 fornecedores (18/09)
+
+Pergunta do usuário depois de §17.11, e ela corrigiu o recorte — eu tinha medido março
+como se fosse o caso.
+
+**A população é uniforme.** NFS-e sem retenção gravada, por mês:
+
+| mês | NFS-e | sem retenção | pares recuperáveis |
+|---|---|---|---|
+| 01 | 81 | 41 | 2 |
+| 02 | 54 | **54** | 0 |
+| 03 | 100 | **100** | 4 |
+| 04 | 84 | **84** | 3 |
+| 05 | 92 | **92** | 3 |
+| 06 | 107 | **107** | 3 |
+| **total** | **525** | **485** | **15** |
+
+Março não é exceção — é o mês com mais NFS-e. Os 41 de janeiro com retenção vêm de uma
+releitura antiga; nos outros cinco meses a cobertura é **zero**.
+
+**A conta larga enganou pela terceira vez no dia.** Medindo pelo lado do documento, 236
+NFS-e não casaram com lançamento nenhum, e 177 delas tinham um lançamento livre "a uma
+retenção de distância" — R$ 640 mil. **Exigindo o número igual, caem para 8.** Os
+descartados eram MAQNELSON 28172001 × AGRIPONTA 1591, TORNEARIA ZAFENATE 987 × NATALY 7:
+fornecedores diferentes cujo valor casualmente cai na faixa de 0,5–10%.
+
+É a terceira vez em um dia que "valor aproximado + sinal fraco" produz um número grande e
+falso (§17.3 na passada única, §17.11 na retenção por entidade, agora esta). **A faixa
+percentual não é evidência de nada sozinha** — ela só estreita candidatos, quem decide é o
+número.
+
+**Os 15 pares vêm de 7 fornecedores, e 10 deles de dois:**
+
+| | pares | valor | alíquotas |
+|---|---|---|---|
+| ARPSEG | 7 | R$ 27.987,12 | 3,27 · 3,32 · 3,46 · 3,52% |
+| KUHNEN E CHAVES | 3 | R$ 2.500,00 | 4,53 · 4,80% |
+| outros 5 | 5 | R$ 11.538,52 | 1,57 – 8,17% |
+
+A alíquota varia **dentro do mesmo fornecedor** (ARPSEG entre 3,27% e 3,52%, por mês) —
+confirmação independente de por que §15 reprovou adivinhar alíquota: o ISS é municipal e a
+base muda. Só ler o que a nota escreve funciona, e é o que `parseNfse` faz.
+
+**O que isto muda na decisão:** a releitura não precisa ser do acervo inteiro nem de um mês
+inteiro. **15 pares em 7 fornecedores** é escopo de releitura dirigida — as NFS-e desses
+CNPJs, em seis meses. E como o mecanismo está provado (§17.11: o parser extrai em 7 de 7), o
+risco é baixo. Ainda assim é ganho modesto: **R$ 42.025,64 em R$ 4,69 milhões sem
+documento, ou 0,9% do buraco.**
+
+#### §17.13 — A releitura executada, e o elo que faltava no índice (18/09)
+
+Releitura dirigida dos 15, com `_medir/_reler-retencao.js` (novo): relê ANTES de tocar no
+banco, backup do CSV de 17 períodos, e invariantes que abortam se o documento voltar sem
+`Valor do serviço` ou se o `Valor total` deixar de ser o líquido. **15/15 gravados, 0 erros.**
+
+**E o painel não mudou.** 2.147 pares antes, 2.147 depois.
+
+O dado estava no banco — conferido linha a linha: `Valor do serviço 10.393,97`, `ISS retido
+359,34`. `camposOcr` sobre esse mesmo JSON devolvia `retencao = {bruto, liquido, retido}`
+corretamente. E `enriquecerComOcr` (`_pareamento.js:393`) já sabia usá-lo como valor de
+casamento, com o líquido preservado em `valorAlt`.
+
+**O elo quebrado estava no meio:** `contarNoCsv` monta o índice `ocrPorArquivo` copiando
+campo a campo, e a lista era
+
+    for (const k of ['numero', 'emitente', 'valor', 'dtEmissao'])
+
+`retencao` **não estava nela**. O cálculo acontecia e o resultado era descartado na fusão.
+O comentário de `CHAVES_VALOR` afirmava que "`retencaoDoParser` já põe o bruto em
+`out.retencao` e `enriquecerComOcr` o usa" — descrevendo uma cadeia que nunca se completou.
+Três peças certas, uma linha de ligação ausente, e **nenhum erro em lugar nenhum**: é
+`o-erro-mora-onde-a-funcao-nao-roda` na sua forma mais silenciosa.
+
+**Com `'retencao'` na lista, o A/B sobre os mesmos dados:**
+
+| | A (hoje) | B (fix) | delta |
+|---|---|---|---|
+| pares | 2.148 | 2.151 | **+3** |
+| força 3 | 1.473 | 1.487 | **+14** |
+| força 2 | 515 | 503 | −12 |
+| força 1 | 160 | 161 | +1 |
+| perdas | — | — | **0** |
+
+Os −12 de força 2 são **promoção**, não perda: viraram força 3. O ganho está na categoria
+certa — 14 pares a mais com os três sinais concordando. Dos 15 alvos, **14 casaram** (o
+JOÃO PAULO NF 1 casou por outra via, sem precisar da retenção; só o MARANHÃO ficou de fora,
+e é um dos dois cuja nota não declara retenção).
+
+**A ressalva honesta: 1 piora.** O lançamento BOM CLIMA de 01.2026 (R$ 1.040,00, NF 814)
+casava em força 3 com `026.DOC- ... BOM CLIMA. NFS 814`, arquivado em 02.2026. Agora casa em
+força 1 com `014.DOC- 988,00 ... TORNEARIA . NF 1001`, do próprio mês — porque o bruto da
+TORNEARIA é **exatamente R$ 1.040,00**, o líquido do BOM CLIMA.
+
+Não é defeito da retenção: é o **defeito de SEQUÊNCIA** que §17.3 já havia diagnosticado. A
+passada do mês corrente roda antes da vizinha, então um par fraco do próprio mês fecha antes
+de o par forte da pasta vizinha ser considerado. A retenção só criou mais uma oportunidade
+para a colisão acontecer.
+
+**Balanço: +3 pares, +14 de força 3, 0 perdas, 1 troca ruim.** Aplicado. A troca é conhecida
+e tem causa identificada — e é a segunda evidência independente de que a sequência de
+passadas custa pares, depois de §17.3.
