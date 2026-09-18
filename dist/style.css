@@ -606,8 +606,8 @@ body::after {
 }
 
 /* Os blobs assentam numa posição final em vez de ficar em loop infinito:
-   numa tela parada (login) o movimento perpétuo parece que a página está
-   recarregando a animação sem parar. */
+     numa tela parada (login) o movimento perpétuo parece que a página está
+     recarregando a animação sem parar. */
 
 @keyframes blobDrift {
   from {
@@ -671,6 +671,22 @@ body::after {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Foco visível padrão em todo elemento interativo — teclado only.
+     Anel verde da marca, offset para não encostar na borda do controle. */
+
+:focus-visible {
+  outline: 2px solid #6cd47e;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Campos com anel próprio (box-shadow no :focus) não precisam do outline duplo. */
+
+.login-input:focus-visible,
+  .glass-input:focus-visible {
+  outline: none;
 }
 
 .container {
@@ -845,11 +861,11 @@ body::after {
 }
 
 .glass-input::-moz-placeholder {
-  color: rgba(255,255,255,.35);
+  color: rgba(255,255,255,.55);
 }
 
 .glass-input::placeholder {
-  color: rgba(255,255,255,.35);
+  color: rgba(255,255,255,.55);
 }
 
 .glass-input:focus {
@@ -881,12 +897,13 @@ body::after {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
-  background: linear-gradient(135deg, #2e6b2b, #4db55e);
+  /* Verde escurecido nas duas pontas: texto branco fica ≥5:1 (WCAG AA) em toda a extensão do gradiente. */
+  background: linear-gradient(135deg, #1f5a1d, #2f7d3c);
   box-shadow: 0 6px 24px rgba(77,181,94,.25);
 }
 
 .btn-primary:hover:not(:disabled) {
-  opacity: .9;
+  opacity: .92;
   box-shadow: 0 8px 32px rgba(77,181,94,.40);
 }
 
@@ -921,12 +938,12 @@ body::after {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
   padding: 12px 26px;
-  background: #4db55e;
+  background: #2f7d3c;
   box-shadow: 0 4px 16px rgba(77,181,94,.30);
 }
 
 .btn-export:hover {
-  background: #3a9e4d;
+  background: #256b2e;
   box-shadow: 0 6px 24px rgba(77,181,94,.40);
 }
 
@@ -945,7 +962,7 @@ body::after {
   margin-bottom: 1.75rem;
   font-size: 0.875rem;
   line-height: 1.25rem;
-  color: rgba(255,255,255,.50);
+  color: rgba(255,255,255,.62);
 }
 
 /* File item */
@@ -1168,11 +1185,11 @@ body::after {
 }
 
 .login-input::-moz-placeholder {
-  color: rgba(255,255,255,.35);
+  color: rgba(255,255,255,.55);
 }
 
 .login-input::placeholder {
-  color: rgba(255,255,255,.35);
+  color: rgba(255,255,255,.55);
 }
 
 .login-input:focus {
@@ -1237,10 +1254,6 @@ body::after {
   display: flex;
 }
 
-.modal-overlay.\!open {
-  display: flex;
-}
-
 /* Modal box */
 
 /* Export dropdown menu */
@@ -1262,10 +1275,6 @@ body::after {
 }
 
 .export-menu.open {
-  display: block;
-}
-
-.export-menu.\!open {
   display: block;
 }
 
@@ -1325,10 +1334,6 @@ body::after {
   transform: rotate(180deg);
 }
 
-.nav-dropdown-btn.\!open svg {
-  transform: rotate(180deg) !important;
-}
-
 .nav-dropdown-menu {
   display: none;
   position: absolute;
@@ -1350,11 +1355,6 @@ body::after {
 .nav-dropdown-menu.open {
   display: block;
   animation: fadeIn .15s ease both;
-}
-
-.nav-dropdown-menu.\!open {
-  display: block !important;
-  animation: fadeIn .15s ease both !important;
 }
 
 .nav-dropdown-item {
@@ -1421,6 +1421,8 @@ body::after {
 .nav-btn-conferencia.active {
   box-shadow: 0 4px 20px rgba(77,181,94,.50), 0 0 0 2px rgba(77,181,94,.30);
 }
+
+/* ── Botão hambúrguer (injetado por JS; escondido no desktop) ────────── */
 
 .pointer-events-none {
   pointer-events: none;
@@ -1687,8 +1689,12 @@ body::after {
   width: 100%;
 }
 
-.max-w-3xl {
-  max-width: 48rem;
+.max-w-4xl {
+  max-width: 56rem;
+}
+
+.max-w-5xl {
+  max-width: 64rem;
 }
 
 .max-w-\[1000px\] {
@@ -1713,10 +1719,6 @@ body::after {
 
 .max-w-full {
   max-width: 100%;
-}
-
-.max-w-lg {
-  max-width: 32rem;
 }
 
 .max-w-sm {
@@ -1762,8 +1764,16 @@ body::after {
   cursor: pointer;
 }
 
-.grid-cols-1 {
-  grid-template-columns: repeat(1, minmax(0, 1fr));
+.select-none {
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+}
+
+.select-all {
+  -webkit-user-select: all;
+     -moz-user-select: all;
+          user-select: all;
 }
 
 .grid-cols-2 {
@@ -2091,14 +2101,13 @@ body::after {
   text-align: center;
 }
 
+.text-right {
+  text-align: right;
+}
+
 .text-2xl {
   font-size: 1.5rem;
   line-height: 2rem;
-}
-
-.text-3xl {
-  font-size: 1.875rem;
-  line-height: 2.25rem;
 }
 
 .text-\[\.74rem\] {
@@ -2440,6 +2449,87 @@ body::after {
 
 /* ── Reusable component classes ──────────────────────────────────── */
 
+/* ── Navbar responsiva ─────────────────────────────────────────────────
+   Até 767px: a linha de ações vira um painel vertical acionado pelo
+   hambúrguer. Os dropdowns internos passam a ser blocos empilhados. */
+
+@media (max-width: 767px) {
+  .navbar {
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 3.5rem;
+    padding: 10px 14px;
+    row-gap: 10px;
+  }
+
+  .nav-mobile-toggle {
+    display: flex;
+  }
+
+  .navbar > div:last-child {
+    display: none;
+    order: 3;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,.12);
+  }
+
+  .navbar.mobile-open > div:last-child {
+    display: flex;
+  }
+
+  .navbar .nav-dropdown-wrap {
+    position: static;
+    width: 100%;
+  }
+
+  .navbar .nav-dropdown-btn {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .navbar .nav-dropdown-menu {
+    position: static;
+    transform: none;
+    width: 100%;
+    min-width: 0;
+    margin: 2px 0 6px;
+    box-shadow: none;
+    background: rgba(255,255,255,.05);
+  }
+
+  .navbar .nav-dropdown-menu.open {
+    animation: none;
+  }
+
+  .navbar #navUser {
+    margin: 4px 0 0;
+    padding: 0 4px;
+  }
+
+  .navbar .btn-logout,
+  .navbar .nav-btn-conferencia {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .navbar .btn-theme-toggle {
+    align-self: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-dropdown-menu.open,
+  .nav-dropdown-btn svg {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════
    TEMA CLARO  —  html.light
    Navbar mantida igual (escura) em ambos os temas.
@@ -2682,10 +2772,6 @@ html.light .horario-chip .chip-time {
 }
 
 @media (min-width: 640px) {
-  .sm\:grid-cols-3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .sm\:grid-cols-4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }

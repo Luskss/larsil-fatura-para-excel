@@ -1440,9 +1440,34 @@ function motivoDoEmpate(p) {
                 : { codigo: 'mesmo_fornecedor_val', texto: 'mesmo fornecedor, valores diferentes' };
     }
 
-    // O caso mais comum (a maioria dos 207): valor idêntico, fornecedores distintos.
-    // R$ 1.000,00 é um valor que muita gente recebe, e quando o lançamento não tem NF
-    // no papel o valor é o único sinal — e ele não distingue.
+    // Os papéis são do mesmo fornecedor ENTRE SI, ainda que a entidade da planilha não
+    // case com todos? O teste acima compara cada arquivo com a ENTIDADE, e basta UM
+    // nome que não tokenize para o grupo inteiro cair aqui como "fornecedor diferente".
+    //
+    // Achado em 18/09/2026: `060.DOC- 75,00-2026.01.12.BIOSNET . FT 248613.pdf` — com
+    // "BIOSNET" grudado — não gera o token `BIOS`, e sozinho jogava para `colisao_valor`
+    // lotes inteiros da BIOS NETWORKS em que todos os outros arquivos casavam. Medido:
+    // 31 dos 90 `colisao_valor` são o mesmo fornecedor entre si. Não é ambiguidade, é
+    // lote (a ordem de compra coletiva de §16.5) — e mandar conferir manda abrir 12 PDFs
+    // idênticos para não decidir nada.
+    //
+    // Compara par a par em vez de contra a entidade: a pergunta "estes papéis são da
+    // mesma empresa?" não depende de como a planilha escreveu o nome dela.
+    if (mesmoValor) {
+        const nomes = [p.documento.arquivo, ...cands.map(d => d.arquivo)];
+        const tks = nomes.map(n => pareamento.tokens(n));
+        const compartilham = (a, b) => { for (const t of a) if (b.has(t)) return true; return false; };
+        let todosEntreSi = true;
+        for (let i = 0; i < tks.length && todosEntreSi; i++)
+            for (let j = i + 1; j < tks.length; j++)
+                if (!compartilham(tks[i], tks[j])) { todosEntreSi = false; break; }
+        if (todosEntreSi)
+            return { codigo: 'mesmo_fornecedor', texto: 'mesmo fornecedor, papéis de valor igual' };
+    }
+
+    // O caso mais comum: valor idêntico, fornecedores distintos. R$ 1.000,00 é um valor
+    // que muita gente recebe, e quando o lançamento não tem NF no papel o valor é o
+    // único sinal — e ele não distingue.
     if (mesmoValor) return { codigo: 'colisao_valor', texto: 'mesmo valor, fornecedor diferente' };
     return { codigo: 'outro', texto: 'valores diferentes, casou por NF+fornecedor' };
 }
@@ -1763,6 +1788,21 @@ module.exports = async function compararNotasRoute(req, res) {
                         // `ehParcela` desconta o carnê, senão todo pagamento parcelado
                         // apareceria como ambíguo (ver a função).
                         empatado: !!p.empatado && !ehParcelamento(p),
+                        // POR QUE empatou — o mesmo `motivoDoEmpate` que a tabela de
+                        // empates já usava, agora também por linha, para a tela poder
+                        // separar o empate que PEDE DECISÃO do que não pede.
+                        //
+                        // MEDIDO em 18/09/2026: dos 310 empates, 308 têm TODOS os
+                        // candidatos do mesmo fornecedor e mesmo valor — num lote da
+                        // BIOS NET, 12 arquivos de R$ 75,00 disputam 12 lançamentos de
+                        // R$ 75,00 da BIOS NET. São intercambiáveis: qualquer atribuição
+                        // está certa, e mandar conferir faz abrir 12 PDFs para não
+                        // decidir nada. É a ordem de compra coletiva de §16.5.
+                        // Só 2 empates são ambiguidade real entre fornecedores.
+                        //
+                        // `null` quando não há empate — a tela testa a presença.
+                        motivoEmpate: (p.empatado && !ehParcelamento(p))
+                            ? motivoDoEmpate(p).codigo : null,
                         // Conferência do par por um campo que NÃO casou: a data de
                         // emissão da planilha × a que o extrator leu da nota. Três
                         // estados — true = divergem (suspeito), false = coincidem

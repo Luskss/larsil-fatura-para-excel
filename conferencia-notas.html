@@ -2753,6 +2753,22 @@ document.addEventListener('wheel', e => {
         // CRUZAMENTO: força 1 + emissão divergente = 118 pares com DOIS motivos
         // independentes de desconfiança, contra só 4 que a emissão inocenta.
         const emissaoAgrava = l => l.forca === 1 && l.emissaoDiverge === true;
+        // ── O empate que PEDE DECISÃO, e o que é só lote ────────────────────────
+        // MEDIDO em 18/09/2026, jan–jun: dos 310 empates, 308 têm TODOS os candidatos do
+        // mesmo fornecedor e do mesmo valor. É o lote — 12 faturas da BIOS NET de
+        // R$ 75,00 para 12 lançamentos de R$ 75,00 da BIOS NET (a ordem de compra
+        // coletiva de §16.5). Os papéis são intercambiáveis: qualquer atribuição está
+        // certa, e mandar conferir faz abrir 12 PDFs para não decidir nada. Só 2 são
+        // ambiguidade real entre fornecedores.
+        //
+        // `mesmo_fornecedor_val` (valores DIFERENTES) fica dentro dos que pedem decisão:
+        // ali a escolha muda o valor conferido, então há o que decidir.
+        //
+        // Uma lista só, usada pela pílula, pelo filtro e pelo glifo — três cópias
+        // divergiriam no primeiro motivo novo que o servidor passasse a devolver.
+        const EMPATE_DECIDE = ['nf_em_outro', 'colisao_valor', 'mesmo_fornecedor_val', 'outro'];
+        const empatePedeDecisao = l => !!l.empatado && EMPATE_DECIDE.includes(l.motivoEmpate);
+
         const seloForca = l => {
             const s = CONFIRMACAO[l.forca];
             if (!s) return '—';
@@ -2770,14 +2786,20 @@ document.addEventListener('wheel', e => {
             // O empate é um eixo SEPARADO da força: acontece também em par de dois e
             // de três sinais. Por isso entra como sufixo da mesma pílula, e não como
             // um quarto nível — que exigiria mais uma coluna para dizer a mesma coisa.
-            const emp = l.empatado
-                ? `\n\nOutro documento servia para este lançamento com a mesma força; o desempate foi pelo nome do arquivo.`
-                  + (l.candidatosEmpatados?.length ? `\nTambém serviam: ${l.candidatosEmpatados.join(' | ')}` : '')
-                : '';
+            // O empate se lê de dois jeitos, e dizer "confira" nos dois gasta atenção
+            // onde não há decisão. Ver EMPATE_DECIDE.
+            const emp = !l.empatado ? ''
+                : (empatePedeDecisao(l)
+                    ? `\n\nOutro documento servia para este lançamento com a mesma força; o desempate foi pelo nome do arquivo.`
+                    : `\n\nVários papéis do MESMO fornecedor e MESMO valor disputavam este lançamento — é um lote (ex.: 12 faturas iguais da mesma operadora). São intercambiáveis: qualquer um deles serve, não há o que decidir.`)
+                  + (l.candidatosEmpatados?.length ? `\nTambém serviam: ${l.candidatosEmpatados.join(' | ')}` : '');
             // O glifo vai TAMBÉM para o title: sozinho ele não é lido por leitor de
             // tela nem sobrevive a uma cópia da tabela para o Excel.
+            // O ⚖ fica reservado ao empate que PEDE DECISÃO. No lote intercambiável a
+            // explicação continua no title, mas sem glifo: marcar 308 linhas com um
+            // sinal de alerta que não pede ação é o que fazia o alerta perder valor.
             return `<span class="cf-sit ${s.cls}" title="${esc(s.dica + agrava + emp)}">${s.rot}${
-                emissaoAgrava(l) ? ' ⚠' : ''}${l.empatado ? ' ⚖' : ''}</span>`;
+                emissaoAgrava(l) ? ' ⚠' : ''}${empatePedeDecisao(l) ? ' ⚖' : ''}</span>`;
         };
         const resumoLocal = (cc) => {
             const ps = cc.porSituacao || {};
@@ -2812,7 +2834,14 @@ document.addEventListener('wheel', e => {
             // O cruzamento força 1 + emissão divergente — o subconjunto dos "só por
             // valor" que tem evidência independente de estar errado. Ver `emissaoAgrava`.
             const emisDiv = enc.filter(l => l.forca === 1 && l.emissaoDiverge === true).length;
-            const conferir = enc.filter(l => l.forca === 1 || l.empatado).length;
+            // O empate deixou de contar inteiro em 18/09/2026: o lote intercambiável sai
+            // da conta do que exige trabalho humano (ver `empatePedeDecisao`). Antes,
+            // "N merecem conferência" somava os 310 empates e mandava o conferente abrir
+            // PDF de lote — a fila de 402 vira ~92 ao tirar o que não tem decisão, e um
+            // número que significa algo vale mais que um número grande.
+            const empDecide = enc.filter(empatePedeDecisao).length;
+            const empLote = emp - empDecide;
+            const conferir = enc.filter(l => l.forca === 1 || empatePedeDecisao(l)).length;
             const pilula = (cls, txt, filtro) =>
                 `<span class="cf-sit ${cls} cf-filtra" data-conf="${filtro}" role="button" tabindex="0"
                        title="Clique para ver só estes">${txt}</span>`;
@@ -2821,7 +2850,8 @@ document.addEventListener('wheel', e => {
                 ${pilula('sit-neu', `${n(2)} com 2 sinais`, '2')}
                 ${n(1) ? pilula('sit-warn', `${n(1)} só por valor`, '1') : ''}
                 ${emisDiv ? pilula('sit-warn', `${emisDiv} com emissão divergente ⚠`, 'emissao_diverge') : ''}
-                ${emp ? pilula('sit-neu', `${emp} com concorrente ⚖`, 'empatado') : ''}
+                ${empDecide ? pilula('sit-warn', `${empDecide} com concorrente ⚖`, 'empatado_decide') : ''}
+                ${empLote ? pilula('sit-neu', `${empLote} em lote do mesmo fornecedor`, 'empatado_lote') : ''}
                 ${conferir ? `<span class="cf-sit-acao cf-filtra" data-conf="conferir" role="button" tabindex="0"
                                     title="Clique para ver só estes">${conferir} merece${conferir > 1 ? 'm' : ''} conferência</span>`
                            : `<span class="cf-sit-acao ok">todos confirmados por 2+ sinais</span>`}
@@ -2880,6 +2910,7 @@ document.addEventListener('wheel', e => {
                                         data-situacao="${esc(l.situacao || 'ok')}"
                                         data-forca="${l.forca || 0}"
                                         data-empatado="${l.empatado ? '1' : ''}"
+                                        data-motivo-empate="${esc(l.motivoEmpate || '')}"
                                         data-emissao="${l.forca === 1 && l.emissaoDiverge === true ? 'diverge' : ''}"
                                         ${l.detalhe ? `class="cf-linha-detalhe" data-encontrada="${i}" tabindex="0" title="Clique para ver itens, valor e CFOP"` : ''}>
                                         <td>${esc(l.tipo || 'Não identificado')}</td>
@@ -3107,19 +3138,31 @@ document.addEventListener('wheel', e => {
                 const s = tr.dataset.situacao || 'ok';
                 const passaSit = !situacao
                     || (situacao === 'acao' ? (s === 'fora_do_lugar' || s === 'data_invalida') : s === situacao);
-                // "conferir" junta os dois motivos de desconfiança, que são
-                // independentes: o par apoiado num sinal só, e o par que tinha
-                // concorrente de força igual (onde quem decidiu foi o nome do
-                // arquivo). Medido em 01–06/2026: 163 + 167 = 330 pares, 15,6%.
+                // "conferir" junta os motivos de desconfiança que são independentes: o
+                // par apoiado num sinal só, e o par cujo empate PEDE DECISÃO.
+                //
+                // O empate deixou de contar inteiro em 18/09/2026, e isso foi medido:
+                // dos 310 empates de jan–jun, 308 têm todos os candidatos do MESMO
+                // fornecedor e MESMO valor — 12 arquivos da BIOS NET de R$ 75,00 para 12
+                // lançamentos de R$ 75,00 da BIOS NET. São papéis intercambiáveis, e
+                // mandar conferir isso faz abrir 12 PDFs para não decidir nada. Antes a
+                // fila tinha 402 itens; separado o lote, ~92 pedem decisão de verdade.
+                //
+                // `empatado_lote` continua acessível como filtro próprio: o caso não some
+                // da tela, só sai da conta do que exige trabalho humano.
+                //
                 // `emissao_diverge` é o CRUZAMENTO, não um terceiro motivo solto: só
                 // vale para o par de força 1 cuja emissão desmente o casamento. O
                 // atributo já nasce assim na linha (vazio quando a força não é 1), então
                 // aqui basta testá-lo. Ver `emissaoAgrava` e a medição citada lá.
                 const f = tr.dataset.forca, emp = !!tr.dataset.empatado;
+                const empDecide = emp && EMPATE_DECIDE.includes(tr.dataset.motivoEmpate || '');
                 const emisDiv = tr.dataset.emissao === 'diverge';
                 const passaConf = !confianca
-                    || (confianca === 'conferir' ? (f === '1' || emp)
+                    || (confianca === 'conferir' ? (f === '1' || empDecide)
                       : confianca === 'empatado' ? emp
+                      : confianca === 'empatado_decide' ? empDecide
+                      : confianca === 'empatado_lote' ? (emp && !empDecide)
                       : confianca === 'emissao_diverge' ? emisDiv
                       : f === confianca);
                 const valoresLinha = valoresNormalizadosPorLinha.get(tr) || [];
