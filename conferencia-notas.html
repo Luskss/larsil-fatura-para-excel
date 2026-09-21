@@ -302,6 +302,19 @@
            do padrão forçavam scroll horizontal. O `title` continua com o caminho todo. */
         .cf-encontradas-table .cf-cam { max-width: 15rem; }
         .cf-encontradas-table .cf-origem { white-space: nowrap; font-size: .68rem; color: rgba(255,255,255,.5); }
+        /* "Ver nota" é a ação da linha e não pode depender de rolar até o fim da
+           tabela: a coluna fica colada à direita. Fundo opaco porque as células
+           que passam por baixo apareceriam através do translúcido do tema. */
+        .cf-encontradas-table .cf-col-acoes {
+            position: sticky; right: 0; z-index: 2;
+            background: #16321c; text-align: right;
+            box-shadow: -8px 0 10px -8px rgba(0,0,0,.55);
+        }
+        .cf-encontradas-table tr:hover td.cf-col-acoes { background: #1b3a21; }
+        .cf-encontradas-table tr.cf-linha-detalhe:hover td.cf-col-acoes { background: #1d4024; }
+        /* No cruzamento com o cabeçalho sticky do topo a célula precisa vencer
+           as duas dimensões, senão a linha rolada passa por cima dela. */
+        .cf-encontradas-table th.cf-col-acoes { z-index: 3; background: #14301a; }
         /* Pílulas do resumo de confiança: são atalhos para o filtro, não rótulos. */
         .cf-filtra { cursor: pointer; user-select: none; }
         .cf-filtra:hover { filter: brightness(1.25); }
@@ -348,6 +361,10 @@
         html.light .cf-encontradas-table tr:hover td { background: rgba(0,0,0,.03); }
         html.light .cf-encontradas-table .cnpj { color: rgba(0,0,0,.52); }
         html.light .cf-encontradas-table .cf-origem { color: rgba(0,0,0,.5); }
+        html.light .cf-encontradas-table .cf-col-acoes { background: #fff; box-shadow: -8px 0 10px -8px rgba(0,0,0,.18); }
+        html.light .cf-encontradas-table th.cf-col-acoes { background: #eef4ee; }
+        html.light .cf-encontradas-table tr:hover td.cf-col-acoes { background: #f4f7f4; }
+        html.light .cf-encontradas-table tr.cf-linha-detalhe:hover td.cf-col-acoes { background: #eaf5ec; }
         html.light .cf-encontradas-table tr.cf-linha-detalhe:hover td { background: rgba(22,163,74,.08); }
         html.light .cf-encontradas-table tr.cf-linha-detalhe:focus-visible td { background: rgba(22,163,74,.12); }
 
@@ -2916,7 +2933,7 @@ document.addEventListener('wheel', e => {
                             <colgroup>${Array.from({ length: 9 }, (_, i) => `<col data-column="${i}">`).join('')}</colgroup>
                             <thead><tr>
                                 ${['Tipo', 'Fornecedor', 'CNPJ', 'CFOP', 'Confirmação', 'Origem', 'Localização', 'Onde está', 'Ações']
-                                    .map((label, i) => `<th data-filter-col="${i}"><div class="cf-th-label"><span>${label}</span><button type="button" class="cf-th-filter" aria-label="Filtrar por ${label}" title="Filtrar por ${label}">⌄</button></div><span class="cf-th-resizer" role="separator" aria-label="Redimensionar coluna ${label}" title="Arrastar para redimensionar"></span></th>`).join('')}
+                                    .map((label, i, todas) => `<th data-filter-col="${i}"${i === todas.length - 1 ? ' class="cf-col-acoes"' : ''}><div class="cf-th-label"><span>${label}</span><button type="button" class="cf-th-filter" aria-label="Filtrar por ${label}" title="Filtrar por ${label}">⌄</button></div><span class="cf-th-resizer" role="separator" aria-label="Redimensionar coluna ${label}" title="Arrastar para redimensionar"></span></th>`).join('')}
                             </tr></thead>
                             <tbody id="encontradasBody">
                                 ${(c.encontradas || []).map((l, i) => `
@@ -2938,7 +2955,7 @@ document.addEventListener('wheel', e => {
                                         <td class="cf-origem" title="${esc(l.periodoDocumento || '')}">${esc(rotuloOrigem(l))}</td>
                                         <td>${selo(l)}</td>
                                         <td><div class="cf-cam" title="${esc(l.ondeEsta || l.caminho || '')}">${esc(l.arquivo) || '—'}</div></td>
-                                        <td><button type="button" class="cf-ver-doc" data-encontrada-doc="${i}" title="Visualizar ${esc(l.arquivo || l.caminho || 'nota')}"${l.caminho || l.arquivo ? '' : ' disabled'}>Ver nota</button></td>
+                                        <td class="cf-col-acoes"><button type="button" class="cf-ver-doc" data-encontrada-doc="${i}" title="Visualizar ${esc(l.arquivo || l.caminho || 'nota')}"${l.caminho || l.arquivo ? '' : ' disabled'}>Ver nota</button></td>
                                     </tr>`).join('')}
                             </tbody>
                         </table>
@@ -3268,15 +3285,20 @@ document.addEventListener('wheel', e => {
             });
         });
         const tabelaEncontradas = el.querySelector('.cf-encontradas-table');
-        const envoltorioTabela = el.querySelector('.cf-encontradas-wrap');
         const colunasEncontradas = [...tabelaEncontradas.querySelectorAll('col[data-column]')];
         const chaveLarguras = 'conferencia-notas:larguras-tabela-encontradas';
+        // A largura da tabela é SEMPRE a soma das colunas. Antes ela era
+        // `Math.max(clientWidth do wrap, soma)`: quando a soma passava da largura
+        // do wrap, a tabela ficava presa no tamanho do container, o overflow nunca
+        // acontecia e o wrap não ganhava barra de rolagem — as últimas colunas
+        // ("Onde está" e o botão "Ver nota") ficavam cortadas sem como alcançá-las.
+        // Deixar a tabela estourar é o que faz o `overflow: auto` do wrap rolar.
         const atualizarLarguras = (larguras, larguraTotal = null) => {
             larguras.forEach((largura, indice) => {
                 colunasEncontradas[indice].style.width = `${largura}px`;
             });
             const somaLarguras = larguras.reduce((total, largura) => total + largura, 0);
-            tabelaEncontradas.style.width = `${Math.max(envoltorioTabela.clientWidth, larguraTotal || somaLarguras)}px`;
+            tabelaEncontradas.style.width = `${larguraTotal || somaLarguras}px`;
         };
         try {
             const largurasSalvas = JSON.parse(localStorage.getItem(chaveLarguras) || 'null');
@@ -3293,11 +3315,12 @@ document.addEventListener('wheel', e => {
                 const th = resizer.closest('th');
                 const indice = Number(th.dataset.filterCol);
                 const largurasIniciais = colunasEncontradas.map(coluna => coluna.getBoundingClientRect().width);
-                const larguraTabelaInicial = tabelaEncontradas.getBoundingClientRect().width;
                 const mover = evento => {
                     const larguras = [...largurasIniciais];
                     larguras[indice] = Math.max(72, largurasIniciais[indice] + evento.clientX - e.clientX);
-                    atualizarLarguras(larguras, Math.max(larguraTabelaInicial, larguras.reduce((total, largura) => total + largura, 0)));
+                    // Sem piso na largura inicial: estreitar uma coluna precisa
+                    // estreitar a tabela junto, senão sobra um vão morto no fim.
+                    atualizarLarguras(larguras);
                 };
                 const soltar = () => {
                     document.removeEventListener('mousemove', mover);

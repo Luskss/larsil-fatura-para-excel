@@ -1879,14 +1879,15 @@ descreverem dano morto. O que ficou:
 
 #### §17.9 — Pendências ao fim de 18/09/2026
 
-1. **A escolha de valor de §16 continua sem ir ao banco.** O módulo decide na leitura; as
-   linhas já gravadas seguem com a escolha antiga. O ganho medido (54% → 71%) segue sendo
-   número, não dado. **É a pendência mais antiga ainda de pé** — desde 11/09.
-   **Dimensionada em §17.14:** vale 1.306 linhas fiscais, não as 8.600 brutas.
+1. ~~**A escolha de valor de §16 continua sem ir ao banco.**~~ — **medida e REPROVADA em
+   §17.19.** As "1.306 linhas fiscais" de §17.14 eram **94** ao perguntar quem GANHARIA
+   em vez de quem poderia ser relido, e a âncora salva 1 delas. A releitura como está
+   vale **−16**. A pendência mais antiga do projeto fecha sem gastar API.
 2. **O defeito de `process-folder.js:630`** está provado e não corrigido, por decisão
    medida (§17.6).
-3. **O filtro `categoriaNaoFiscal` custa 84 pares e R$ 789 mil** (§17.4) e nunca foi
-   afinado regra a regra.
+3. ~~**O filtro `categoriaNaoFiscal` custa 84 pares e R$ 789 mil** (§17.4) e nunca foi
+   afinado regra a regra.~~ — **feito em §17.17**: 15 dos 21 padrões custam ZERO, e a
+   repescagem por fornecedor+valor rendeu +73 pares com 0 perdas.
 4. ~~`_efeito-visao-no-pareamento.js` não roda mais~~ — **consertado em §17.10**, e o
    conserto achou outra coisa.
 5. **01, 02 e 03/2026 não foram relidos** com o código atual — 04, 05 e 06 foram, em 17/09.
@@ -2395,3 +2396,229 @@ DRETRAN`. Diagnostiquei como "buraco do desenho" — a admissão ser por documen
 casamento livre. **Errado:** fui verificar e `categoriaNaoFiscal` devolve `''` para esse
 arquivo. O `DRETRAN` (erro de digitação de DETRAN) nunca foi cortado pelo filtro, já era
 fiscal, e o ganho veio do rearranjo geral. A repescagem tem contaminação **zero**.
+
+---
+
+## 17.18 O balanço ao fim de 18/09/2026 — o que sobrou
+
+§17.14 fez o balanço de manhã; o dia mudou o número e fechou dois dos três itens. Este
+substitui aquele.
+
+### O painel
+
+**2.227 de 3.057 lançamentos com documento — 72,8%**, contra 70,3% na abertura do dia.
+Os +2,5pp vieram de três frentes que se somaram, todas com **zero perdas**:
+
+| §  | o quê | efeito |
+|---|---|---|
+| 17.13 | a retenção não chegava ao índice | +3 pares, +14 de força 3 |
+| 17.15 | a sequência de passadas | +3 pares, **+131 de força 3** |
+| 17.17 | a repescagem do filtro não-fiscal | **+73 pares** |
+
+A fila de conferência caiu de 161 para 132 (−18%).
+
+### Os três itens de §17.14, revisitados
+
+1. **Marcar o que o sistema não sabe** — feito. A fila saiu de 311 para 211 separando o
+   empate em lote, e §17.17 acrescentou o 📎 para o par cujo papel não é nota fiscal.
+2. **A sequência de passadas** — feito em §17.15. Era o defeito estrutural mais bem
+   documentado, com duas evidências independentes, e rendeu o maior ganho de qualidade
+   do dia (+131 de força 3).
+3. **Cortar folha/cartão/tributo da conta do painel** — **medido e REPROVADO.** Eu havia
+   afirmado três vezes que levaria o painel de 70% a ~85%. Vale **+0,4pp**, e a folha TEM
+   documento arquivado (`014.DOC- 2472,00 pgto PRESTADOR SERVIÇO`). Errei por fator de 35:
+   li uma estatística de VALOR e propus uma ação de CONTAGEM.
+
+### O que resta, honestamente
+
+1. **A releitura de §16** — a escolha de valor nunca foi ao banco. Pendência mais antiga
+   (11/09), dimensionada em 1.306 linhas fiscais. Custa API, retorno incerto. **É a única
+   que ainda pode mover o número.**
+2. **`process-folder.js:630`** — defeito provado, 3 consertos medidos, todos rendendo ~1
+   caso. Decisão tomada: não mexer.
+3. **`irmaosAgrupados`** — investigado em §17.16. O bloco funciona; o defeito de contagem
+   vale 1 documento em 6 meses. Decisão tomada: não mexer.
+4. **Persistir o conferido** — medido: a fila é de ~35 por mês, não urgente.
+
+### A leitura
+
+O buraco que sobra é **68% papel que não existe no acervo** e **7,7% motor** — e o pedaço
+do motor é quase todo colisão de valor redondo, que casar PIORARIA a conferência.
+
+Três coisas que investiguei hoje reprovaram ou renderam quase nada (o corte de escopo, os
+irmãos, o `630`), e as três que renderam vieram de defeitos **já documentados** esperando
+conserto. Isso é sinal de que o trabalho de motor chegou ao teto: o retorno agora está em
+executar o que já foi medido, não em procurar regra nova.
+
+### O método, em três lições do dia
+
+1. **Simulação decide SE implementar; só o motor real dá o número.** A passada única foi
+   simulada com −47 perdas e implementada com **0**. Chamar o motor em fatias muda o
+   conjunto de candidatos que o algoritmo guloso vê.
+2. **Meça a cardinalidade da chave antes de caçar o bug.** `irmaosAgrupados` parecia
+   quebrado; 99,4% dos maços têm um documento só. Não havia bug, havia ausência de casos.
+3. **Percentual do painel é por CONTAGEM; o buraco é por VALOR.** Não traduza um no outro:
+   3 lançamentos podem ser metade do dinheiro e 0,1% do número.
+
+---
+
+#### §17.19 — A releitura de §16, medida e reprovada (18/09)
+
+A pendência mais antiga do projeto — aberta em §16.9 (11/09), repetida em §17.9 item 1 e
+dimensionada em §17.14 como "1.306 linhas fiscais, custa API, ganho incerto". Testada
+hoje **sem gastar um centavo de API**, e reprovada.
+
+**Como se mede uma releitura sem reler.** `decidirValorPago` é PURA: recebe o
+`dados_parser` já gravado mais o texto do PDF e devolve um pd novo. Então dá para
+aplicá-la sobre o banco e comparar os dois valores com o gabarito do nome do arquivo.
+`_medir/_medir-precedencia-local.js --todos` já fazia exatamente isso — o instrumento
+existia desde 17/09 e nunca tinha sido apontado para a pendência.
+
+**O A/B, em 2.519 linhas-alvo** (sem `Origem do valor pago`, com gabarito no nome):
+
+| configuração | ganho | perda | líquido |
+|---|---|---|---|
+| como está (âncora + regra de campo) | 1 | **17** | **−16** |
+| só a regra de campo (`--sem-ancora`) | 0 | 4 | −4 |
+| regra de campo, com a trava corrigida | 0 | **0** | **+0** |
+
+**A releitura, como está, PIORA.** E não é ruído: 17 perdas contra 1 ganho.
+
+##### As 13 perdas da âncora: ela pega o TOTAL do carnê, não a parcela
+
+Inspecionadas no texto real dos PDFs, não na tabela. O número da fatura fica colado no
+*valor original*, e a parcela que se paga está na tabela logo abaixo:
+
+    13314  4.097,40  NÚMERO VALOR ORIGINAL ... VALOR LÍQUIDO 4.097,40
+    DUPLICATAS  001 25/12/2025  2.048,70   002 24/01/2026  2.048,70
+
+FLORESTEC 4.097,40 = 2 × 2.048,70. COMERCIAL 5.203,00 = 4 × 1.300,75. FLORESTEC de março
+19.327,20 = 3 × 6.442,40. No DIMAR MOURA a âncora devolve **400,00**, porque o "3478"
+reaparece na discriminação do serviço ao lado de `400,00 9,00 Hospedagem Duplo`.
+
+A âncora foi construída em §16.5 para o BIOS NET — ordem de compra coletiva, um PDF para
+12 pontos, só o número distingue. **Ela resolve esse caso e cria outro**: onde o documento
+é carnê, o vizinho do número é o total, não a parcela. O cabeçalho de
+`_medir-precedencia-local.js` já avisava (`--sem-ancora`, −7 medido antes); agora está
+quantificado nos seis meses.
+
+##### As 4 perdas da regra: uma trava desligada por `null`
+
+`valorPorPrecedencia` trazia:
+
+```js
+if (bol != null && (nota == null || bol < nota)) return { valor: bol, origem: 'boleto' };
+```
+
+Com `nota == null`, a trava do boleto **não agia**. No caminho da IA isso quase não
+acontece; nas linhas gravadas pelos parsers locais, **132 das 2.519** têm boleto sem
+`Valor total da nota`.
+
+Medida a população exposta (boleto MAIOR que o valor atual, que é quando a trava vetaria):
+**exatamente 4** — e são exatamente as 4 perdas do A/B. Sem cauda escondida.
+
+Uma delas é o **SENATRAN R$ 78,09 → R$ 130,16**, que é *o caso citado em §16.5 para
+justificar a existência desta trava*. **A trava existia e não pegou o próprio caso que a
+criou** — porque o caso que a criou veio da IA, e a linha que a testou veio do parser
+local.
+
+**Corrigido**: sem nota, o `Valor total` já gravado serve de base — é o número que o
+boleto está tentando substituir. Os 28 casos de `_testar-valor-do-pagamento.js` passam, e
+o A/B foi de −4 para **0**.
+
+##### O teto real: 94 linhas em 8.632, e a âncora salva 1
+
+Aplicando o oráculo de §16.3 (existe ALGUM número no `dados_parser` que bate com o
+gabarito?) sobre as 8.632 linhas únicas dos seis meses:
+
+| | n |
+|---|---|
+| `#pN` — parcela, o gabarito não se aplica | 4.415 |
+| sem gabarito no nome / sem valor | 914 |
+| **CERTAS hoje** | **3.191** — releitura só pode piorar |
+| erram, mas o valor certo JÁ está num campo | 18 — é escolha, não precisa de IA |
+| **erram e o valor não está em campo nenhum** | **94** ← o teto real |
+
+**As "1.306 linhas" de §17.14 eram 94.** A conta antiga mediu quem *poderia ser relido*;
+a pergunta certa (§: `dimensionar-o-pool-antes-de-medir`) é **ganho possível = candidatos
+− já certos**.
+
+E das 94, rodando a âncora uma a uma: **acerta 1**, erra 3, **cala 79**, e 11 não têm
+texto nativo.
+
+Os 3 "erros" não são do motor — são **defeito do gabarito**. A âncora devolve 3.544,76
+onde o nome diz 3.544,74, e 10.044 onde o nome diz 10.440: **dígito trocado pela
+contabilidade ao nomear o arquivo**. A âncora leu o papel certo e a régua é que está
+errada — a mesma armadilha de §17.11 (`gabarito-frouxo-inventa-erro`).
+
+##### O que fica
+
+- **Uma linha de código** em `routes/_valor-do-pagamento.js:184`, que vale para leituras
+  NOVAS. **Nada foi regravado no banco.**
+- A pendência mais antiga do projeto, **fechada por medição em vez de execução**.
+- Se alguém quiser reabrir: o alvo são as **11 sem texto nativo**, e mesmo elas esbarram
+  em §17.7 (visão em PDF-imagem: 8 em 4.843, 7 já certos).
+
+**A lição, que é a de sempre e desta vez custou zero:** o número que dimensiona uma
+pendência precisa ser o do GANHO, não o do escopo. "1.306 linhas para reler" e "94 linhas
+que melhorariam" descrevem o mesmo trabalho e levam a decisões opostas — e a diferença
+entre os dois é uma tarde de medição contra uma semana de API.
+
+---
+
+#### §17.20 — "Algumas NFS caíram como fatura", e o conserto que teria estragado 205 (18/09)
+
+Pergunta do usuário, olhando o painel. Procede na observação e não no diagnóstico — e a
+investigação quase produziu um conserto que PIORARIA o acervo.
+
+**O rótulo.** Conferindo o tipo gravado contra o que a contabilidade escreveu no nome,
+nos 6 meses: 676 documentos com nome dizendo NF, 225 dizendo RECIBO e 55 dizendo NFS
+foram gravados como `FATURA`. São 956, não "algumas". Todos com `evidencia: IA:` —
+nenhum passou pelo `classify()` local.
+
+Mas não é defeito. É a REGRA DE PACOTE de `_nf-ai-full.js:67-75`, escrita de propósito:
+num PDF que junta nota + boleto há UM documento principal, o que está sendo PAGO. Quase
+todo nome da lista termina em `+ BOL`. E o `tipo` **não decide par nenhum**:
+`_pareamento.js` não o consulta, só o carrega para exibir. **Custo do rótulo: zero.**
+
+**O que parecia ser o achado real.** Conferindo se o pacote também troca o NÚMERO,
+apareceram 606 linhas com `Nº da NF-e` === `Ordem de Compra` — a OCP 9015xx, que é papel
+da LARSIL. Como `comparar-notas.js:560` lê `Nº da NF-e` primeiro, o índice recebe o
+pedido interno como se fosse o número do fornecedor. Medido, restrito a documentos do mês
+com valor do índice = valor do nome: **40,3% × 32,5%** de pareamento.
+
+Eu propus o conserto ali, antes de dimensioná-lo. **Era um erro.** Dos 372 casos únicos:
+
+| | |
+|---|---|
+| nome do arquivo dá OUTRO número | 58 |
+| **nome dá o MESMO número — legítimo** | **205** ← apagar destruiria |
+| nome não dá número nenhum | 109 ← apagar deixa sem nada |
+
+Os 205 são `RCB 901561`, `FAT 901580`, `RCB 901725`: para concessionária e recibo **a OCP
+É a referência**, porque nota do fornecedor não existe. O conserto ingênuo trocaria 205
+números que funcionam por nada.
+
+**E os 58 também caem.** O número que a contabilidade digitou não está no papel. O texto
+do SANESUL é só a ordem de compra —
+
+    Nº ORDEM DE COMPRA - OCP 901583 ... Total do pedido 258,38
+
+— e a fatura 833922 do nome nunca foi arquivada. 45 dos 58 não têm o número em lugar
+nenhum. Os 13 que um teste frouxo ("os dígitos aparecem no texto?") confirmava caíram
+todos ao exigir fronteira de dígito: em `HDI RCB 6` o único "6" é `-- 6 of 16 --`, o
+contador de página; `NASCIMENTO 97073` e `LETICIA 505202` dão **zero** ocorrências,
+casavam como substring da própria OCP (`897073`); `JEFFERSON 9` e `LETICIA 50` são coluna
+da tabela de autorização de pagamento. É §17.11 ao contrário: **régua frouxa inventa
+confirmação, não só erro.**
+
+**O veredito.** Documentos com a OCP no campo do número pareiam **60,6% (195 de 322)**,
+contra **29,6% (830 de 2.802)** do resto do acervo. É um dos grupos mais bem pareados que
+existem, porque a OCP é exatamente o que a planilha carrega para esses fornecedores.
+
+**Nada foi alterado.** Nem `Ordem de Compra`, nem `CHAVES_NUMERO`, nem a regra de pacote.
+
+**A lição:** os 8pp que eu media eram DIFICULDADE, não motor — no grupo de número
+divergente há carnê e documento de mês sem lançamento. E a pergunta que salvou o acervo
+não foi "quantos estão errados" e sim "o que existe no lugar, e quem depende dele". Um
+campo que parece ocupado indevidamente pode ser o único dado que aquele papel tem.

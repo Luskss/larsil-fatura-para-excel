@@ -35,12 +35,38 @@ const TIPO_DOC_RE = /\b(RCB|RC|RECIBO|FAT|FT|FATURA|NFS|NFE|NF|BOL|BOLETO|GUIA|D
 function limpaBordas(s) {
     return s.replace(/^[\s.,\-]+|[\s.,\-]+$/g, '').trim();
 }
+// A DATA no nome do arquivo, em duas formas, porque a ordem importa.
+//
+// MEDIDO em 21/09/2026 (`_medir/_emitente-conserto-v*.js`): 203 dos 4.541 nomes
+// (4,5%) produziam emitente com resto de data/valor na frente — "00-2026.01.05.
+// JANICE", "01-19- MACPONTA". Como o comparador casa POR ESTE CAMPO
+// ([[emitente-nao-vem-do-extrator]]), o lixo atrapalha o pareamento, não só a tela.
+//
+// Eram duas causas, e a segunda é a dominante:
+//   • separador: o arquivista escreve `2026.01-19` e `2026-01-12`, não só pontos;
+//   • ALTERNÂNCIA: a regex antiga tinha o ano solto (`\b20\d{2}`) na MESMA
+//     alternância das datas completas, e a alternância casa o que estiver mais à
+//     ESQUERDA. Em "2000,00-2026.01.05.JANICE" o "2000" dos CENTAVOS vem antes da
+//     data real, então o corte acontecia ali e sobrava ",00-2026.01.05.".
+//
+// Por isso a data completa é buscada PRIMEIRO, em varredura própria, e o ano solto
+// só entra quando nenhuma completa casa (nomes como "2026.ALGAR", que existem).
+// Separador repetível e mês/dia de 1-2 dígitos toleram o nome torto ("2026..02.27",
+// "2026.2.10"), que é como 12 deles estão escritos.
+//
+// Resultado medido: 178 corrigidos, **0 regressões**, lixo de 203 → 25. O que
+// sobra tem ano corrompido ("202.01.23", "202,6.02.02") e exigiria adivinhar.
+const DATA_COMPLETA_RE = /(?:20\d{2}[.\-\/]+\d{1,2}[.\-\/]+\d{1,2}|(?<![\d,.])\d{1,2}[.\-\/]+\d{1,2}[.\-\/]+20\d{2})[.\-]?/;
+// O ano sozinho: NÃO pode ser a parte inteira de um valor. O lookbehind rejeita
+// "2300.00" e o lookahead rejeita "2000,00" — ambos apareciam como falsa data.
+const ANO_SOLTO_RE = /(?<![\d,.])20\d{2}(?![,\d])[.\-]?/;
+
 function extrairEmitente(filename = '') {
     const t = norm(String(filename).replace(/\.pdf$/i, ''));
-    // 1) corta tudo até (e incluindo) a DATA do documento. Aceita a data completa
-    //    (YYYY.MM.DD / DD.MM.YYYY) ou apenas o ANO solto (ex.: "2026.ALGAR").
+    // 1) corta tudo até (e incluindo) a DATA do documento. A data COMPLETA tem
+    //    precedência sobre o ano solto — ver o comentário acima.
     let resto = t;
-    const data = t.match(/(?:20\d{2}\.\d{2}\.\d{2}|\d{2}\.\d{2}\.20\d{2}|\b20\d{2})\.?/);
+    const data = t.match(DATA_COMPLETA_RE) || t.match(ANO_SOLTO_RE);
     if (data) resto = t.slice(data.index + data[0].length);
     else {
         const pref = t.match(/^\d{1,4}\.?DOC[-\s]*[\d.,]*\s*-?\s*/);
@@ -81,7 +107,17 @@ const CTE_STRONG_RE     = STRONG[1][1];
 const TRANSPORT_HINT_RE = /\bEXPRESSO\b|\bTRANSPORTES?\b|TRANSPORTADORA|RODOVIARIO|\bLOGISTICA\b|TRANSPORTE DE CARGA/;
 
 const WEAK = [
-    ['IMPOSTO', /\bGUIA\b|\bDCTFWEB\b|\bINSS\b|\bFGTS\b|\bDARF\b|\bGPS\b/],
+    // `\bGUIA\b` SOLTO foi removido em 21/09/2026: casava com "guia" em texto
+    // corrido e classificava como IMPOSTO fatura de locação (LOCALIZA), recibo de
+    // imobiliária e taxa de DETRAN. Medido (`_medir/_tipo-guia-fraco.js`) sobre o
+    // acervo: 6 documentos dependiam só dele, TODOS falso positivo — nenhum parece
+    // tributo pelo nome. Os tributos legítimos não perdem nada, porque são pegos
+    // pelos termos inequívocos abaixo (12 docs), pelo marcador FORTE (DARF,
+    // GUIA DA PREVIDENCIA, GUIA DO FGTS, que continuam lá) ou pelo emitente
+    // público (52 docs).
+    // "GUIA" permanece aceito COM CONTEXTO, que é o que distingue a guia de
+    // arrecadação da palavra solta.
+    ['IMPOSTO', /GUIA DE (?:RECOLHIMENTO|ARRECADACAO)|\bDCTFWEB\b|\bINSS\b|\bFGTS\b|\bDARF\b|\bGPS\b/],
     ['NFS',     /NOTA FISCAL DE SERVICOS?/],
     ['FATURA',  /\bFATURA\b/],
     ['NF',      /NOTA FISCAL/],

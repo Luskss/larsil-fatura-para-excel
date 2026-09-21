@@ -181,7 +181,17 @@ function valorPorPrecedencia(pd) {
 
     // O boleto é a parcela que se paga — mas só quando MENOR que o total da nota.
     // Boleto maior é multa/juros somados, e trocar ali seria piorar.
-    if (bol != null && (nota == null || bol < nota)) return { valor: bol, origem: 'boleto' };
+    //
+    // ATUALIZAÇÃO 18/09/2026 — o `nota == null` deixava a trava DESLIGADA quando a
+    // chave não foi lida. No caminho da IA isso quase não acontece; nas linhas já
+    // gravadas pelos parsers locais, 132 das 2.519 têm boleto sem nota, e ali o
+    // boleto entrava sem ninguém para desmenti-lo. Medido: as 4 únicas expostas
+    // (boleto MAIOR que o valor atual) eram as 4 perdas do A/B da releitura —
+    // inclusive o SENATRAN 78,09 → 130,16, que é o caso que motivou esta trava em
+    // §16.5. Sem nota, o `Valor total` já gravado serve de referência: é o número
+    // que o boleto está tentando substituir.
+    const base = nota != null ? nota : paraNumero(pd['Valor total']);
+    if (bol != null && (base == null || bol < base)) return { valor: bol, origem: 'boleto' };
 
     const total = paraNumero(pd['Valor total']);
     if (total != null) return { valor: total, origem: 'valor total' };

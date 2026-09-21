@@ -178,6 +178,15 @@ function valorBate(valorBanco, nota) {
     return { ok: false, base: null };
 }
 
+// Marcador de ACESSÓRIO no nome do arquivo: o papel de pagamento que ACOMPANHA o
+// documento fiscal ("NF 96309 + BOL" = nota MAIS boleto). Não classifica nada — só
+// identifica o pacote nota+boleto, onde a IA e a contabilidade discordam de qual
+// dos dois papéis é "o documento". Ver tipoBate.
+const ACESSORIO_NO_NOME_RE = /\+\s*(BOL|BOLETO|AUT|AUTORIZACAO|PV|COMP|COMPROVANTE)\b|\bBOL\b\s*$/;
+function temAcessorioNoNome(arquivo) {
+    return ACESSORIO_NO_NOME_RE.test(norm(arquivo));
+}
+
 // VALIDA o tipo. Só compara quando a planilha tem um TIPO mapeável (tipoBanco)
 // e o banco classificou algo conhecido. Retorna true se compatível ou se não há
 // base para comparar (não inventa divergência).
@@ -195,6 +204,25 @@ function tipoBate(tipoBanco, nota, rowB) {
     // Não é divergência. (Antes restringíamos a docs "FT..." pelo NOME do arquivo, mas
     // por decisão do usuário o nome do arquivo não é usado para determinar tipo.)
     if (tp === 'FATURA' && (tb === 'NF' || tb === 'NFS')) return true;
+    // O INVERSO do caso acima: a planilha lança NF/NFS e o banco classificou FATURA.
+    // Causa medida (21/09/2026): a REGRA DE PACOTE do FULL_PROMPT (_nf-ai-full.js:67-75)
+    // manda a IA eleger como principal "o que está sendo PAGO", então num PDF
+    // "NF 96309 + BOL" ela devolve FATURA. A contabilidade lança a NOTA. Ambos
+    // descrevem o mesmo papel — não é divergência.
+    //
+    // RESTRITO ao marcador de acessório de propósito. Medido sobre jan–jun/2026
+    // (`_medir/_tipobate-simetrico.js`, 4 variantes): a simetria IRRESTRITA mata 152
+    // alertas falsos mas CEGA 8 procedentes — 7 deles "FAT"/"FT" sem boleto, que são
+    // fatura de verdade divergindo da planilha, e isso é notícia real. Com o filtro,
+    // a troca vai a 147 falsos mortos por 1 cegado, e a precisão do alerta sobe de
+    // 7,1% para 28,1%.
+    //
+    // Ler o nome aqui NÃO viola "o tipo é 100% por conteúdo": o tipo já foi decidido,
+    // e o nome não muda nenhum. Ele só diz que os dois rótulos descrevem um pacote,
+    // onde discordar é esperado. Confirmado independente do tipo no acervo (4.541
+    // arquivos): FATURA tem 31,2% de acessório contra 92,9% de NF e 97,8% de NFS.
+    if (tb === 'FATURA' && (tp === 'NF' || tp === 'NFS') && temAcessorioNoNome(rowB && rowB.arquivo))
+        return true;
     return false;
 }
 

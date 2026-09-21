@@ -13,6 +13,9 @@ const path = require('path');
 const h = require('./harness');
 
 const arquivoBase = s => String(s || '').replace(/#p\d+$/i, '');
+// Linha de PARCELA de carnê ("...pdf#p3"), que traz o valor daquela parcela e não
+// o do documento. Distinguir as duas é o que a regra de fusão precisa saber.
+const ehParcela = s => /#p\d+$/i.test(String(s || ''));
 
 function separarCsv(linha) {
     const out = [];
@@ -66,8 +69,42 @@ function primeiro(obj, chaves) {
 /**
  * Devolve { "arquivo.pdf": { numero, emitente, valor, cnpj, dtEmissao } }
  * Chave é o nome do arquivo SEM o sufixo #pN (carnê tem uma linha por parcela).
- * Quando o mesmo arquivo aparece em várias linhas, os campos são fundidos —
- * a parcela traz valor da parcela, o cabeçalho traz o valor da nota.
+ *
+ * ── A REGRA DE FUSÃO (corrigida em 21/09/2026) ──────────────────────────────
+ * Um carnê gera N+1 linhas: a do DOCUMENTO e uma por PARCELA (`#p1`…`#pN`), com
+ * valores legitimamente diferentes. A versão anterior removia o sufixo e ficava
+ * com o PRIMEIRO valor visto — e as parcelas vêm antes no CSV, então o índice
+ * descrevia o documento com o valor da parcela.
+ *
+ * O estrago era real e me custou um dia: medindo com esse índice eu "achei" 58
+ * documentos com valor errado, rastreei até uma trava em `_valor-do-pagamento.js`,
+ * implementei um conserto e só descobri o engano ao testar o carnê. A linha do
+ * documento já estava certa no banco ([[trava-do-boleto-maior-barra-a-ld]]).
+ *
+ * A regra agora separa dois tipos de campo:
+ *
+ *   IDENTIDADE (numero, cnpj, emitente, dtEmissao) — não varia entre as parcelas
+ *     do mesmo documento, então qualquer linha serve; ordena documento primeiro
+ *     só para desempatar.
+ *
+ *   VALOR — varia, e só a linha de DOCUMENTO tem o valor do documento. Quando o
+ *     grupo só tem parcelas (637 casos: o carnê gerou parcelas e nenhuma linha de
+ *     documento), usa a PRIMEIRA parcela.
+ *
+ * A última cláusula foi MEDIDA, não escolhida: nos 637 órfãos, o valor lançado na
+ * planilha bate com a 1ª parcela em 20 casos e com a SOMA das parcelas em 4. Somar
+ * parece mais "correto" e é pior — a variante que soma estraga 13 pares
+ * (`_medir/_harness-sem-a-soma.js`).
+ *
+ * Medido contra o valor lançado, jan–jun/2026, repetido 2× com resultado idêntico:
+ *
+ *   variante                      CURA  ESTRAGA  força3  valorOK
+ *   só linha de documento           15      14      -8       -1
+ *   por campo + SOMA nos órfãos     27      13      +2      +14
+ *   ESTA (por campo + 1ª parcela)   15       1      -1      +15
+ *
+ * O único "estragado" não é regressão: é um lançamento de R$ 3.340 (2× R$ 1.670)
+ * migrando entre dois documentos gêmeos, e o grupo nem tem parcelas.
  */
 async function indexar() {
     const cache = path.join(h.CACHE, 'ocr.json');
@@ -78,7 +115,10 @@ async function indexar() {
     const rs = await pool.request().input('tipo', 'M')
         .query('SELECT CONTEUDO FROM nfs.RELATORIOS_CONFERENCIA WHERE TIPO = @tipo');
 
-    const idx = {};
+    // 1ª passada: junta as linhas por arquivo, PRESERVANDO se é parcela e a ordem
+    // em que apareceram. Sem guardar isso não dá para escolher a fonte depois.
+    const grupos = new Map();
+    let ordem = 0;
     for (const row of rs.recordset) {
         const csv = row.CONTEUDO;
         if (!csv) continue;
@@ -92,28 +132,64 @@ async function indexar() {
 
         for (let i = 1; i < ls.length; i++) {
             const campos = separarCsv(ls[i]);
-            const arq = arquivoBase(campos[iArq] || '').trim();
-            if (!arq) continue;
+            const arqExato = String(campos[iArq] || '').trim();
+            if (!arqExato) continue;
+            const arq = arquivoBase(arqExato);
 
             let d = {};
             const bruto = iParser >= 0 ? (campos[iParser] || '').trim() : '';
             if (bruto.startsWith('{')) { try { d = JSON.parse(bruto); } catch (e) { d = {}; } }
 
-            const numero = primeiro(d, ['Nº da NF-e', 'Nº da NF-e (chave)', 'Número do documento', 'Numero da NF']);
-            const emitente = primeiro(d, ['Emitente', 'Razão social', 'Nome do emitente']);
-            const valor = primeiro(d, ['Valor total da nota', 'Valor total', 'Valor do boleto']);
-            const cnpjP = primeiro(d, ['CNPJ emitente', 'CNPJ / CPF', 'CNPJ']);
-            const cnpjC = iCnpj >= 0 ? (campos[iCnpj] || '').trim() : '';
-            const dtEmi = primeiro(d, ['Data de emissão', 'Data emissao']);
+            if (!grupos.has(arq)) grupos.set(arq, []);
+            grupos.get(arq).push({
+                ordem: ordem++,
+                parcela: ehParcela(arqExato),
+                d,
+                cnpjCol: iCnpj >= 0 ? (campos[iCnpj] || '').trim() : '',
+            });
+        }
+    }
 
-            const at = idx[arq] || (idx[arq] = {});
+    // 2ª passada: para cada arquivo, escolhe a fonte de cada campo (ver o cabeçalho).
+    const idx = {};
+    for (const [arq, grupo] of grupos) {
+        // documento antes de parcela; dentro de cada tipo, a ordem original
+        const ordenado = grupo.slice().sort((a, b) =>
+            (a.parcela ? 1 : 0) - (b.parcela ? 1 : 0) || a.ordem - b.ordem);
+
+        const at = {};
+        // IDENTIDADE: primeira linha que tiver o campo, documento tendo preferência
+        for (const l of ordenado) {
+            const numero = primeiro(l.d, ['Nº da NF-e', 'Nº da NF-e (chave)', 'Número do documento', 'Numero da NF']);
+            const emitente = primeiro(l.d, ['Emitente', 'Razão social', 'Nome do emitente']);
+            const cnpjP = primeiro(l.d, ['CNPJ emitente', 'CNPJ / CPF', 'CNPJ']);
+            const dtEmi = primeiro(l.d, ['Data de emissão', 'Data emissao']);
             if (numero && !at.numero) at.numero = soDigitos(numero);
             if (emitente && !at.emitente) at.emitente = String(emitente);
-            if (valor != null && at.valor == null) { const v = paraNumero(valor); if (v) at.valor = v; }
-            const cn = soDigitos(cnpjP || cnpjC);
+            const cn = soDigitos(cnpjP || l.cnpjCol);
             if (cn.length >= 11 && !at.cnpj) at.cnpj = cn;
             if (dtEmi && at.dtEmissao == null) { const t = paraData(dtEmi); if (t) at.dtEmissao = t; }
         }
+
+        // VALOR: só da linha de DOCUMENTO. Sem ela, a PRIMEIRA parcela (medido:
+        // somar as parcelas estraga 13 pares, ver o cabeçalho).
+        const CHAVES_VALOR = ['Valor total da nota', 'Valor total', 'Valor do boleto'];
+        let v = null;
+        for (const l of ordenado) {
+            if (l.parcela) continue;
+            const x = paraNumero(primeiro(l.d, CHAVES_VALOR));
+            if (x) { v = x; break; }
+        }
+        if (v == null) {
+            for (const l of ordenado) {
+                if (!l.parcela) continue;
+                const x = paraNumero(primeiro(l.d, CHAVES_VALOR));
+                if (x) { v = x; break; }
+            }
+        }
+        if (v != null) at.valor = v;
+
+        if (Object.keys(at).length) idx[arq] = at;
     }
     fs.writeFileSync(cache, JSON.stringify(idx));
     return idx;
