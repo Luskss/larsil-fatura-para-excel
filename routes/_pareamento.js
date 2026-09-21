@@ -574,6 +574,39 @@ function dentroDaJanela(l, d, entidadeDispensa) {
  *
  * O veto de janela NÃO se aplica a esta via, e é o ponto: ele existe para o par
  * sustentado só por valor. Com o número junto, a data deixa de ser a única defesa.
+ *
+ * ── A via do VALOR SOZINHO foi DESLIGADA em 21/09/2026 ──────────────────────
+ * Ela devolvia `'valor'` e produzia os pares de força 1. Medido sobre jan–jun/2026
+ * (`_medir/_fornecedor-nao-bate-no-par.js`, `_forca1-regua-corrigida.js`,
+ * `_forca1-veredito.js`), conferindo se o fornecedor do lançamento aparece no
+ * documento:
+ *
+ *   força   pares   fornecedor bate   NÃO bate   acerto
+ *     3      1546        1478            68       95,6%
+ *     2       431         344            79       79,8%
+ *     1       147           4           142        2,7%   ← esta via
+ *
+ * 142 dos 147 casavam lançamento e documento sem relação nenhuma — valor redondo
+ * (R$ 70, R$ 75, R$ 100) entre empresas alheias:
+ *
+ *   AUTO POSTO CAROLINE × "ADRIANO CIRILO. FAT 902708.pdf"
+ *   DETRAN PR           × "SENATRAN. RCB ..."
+ *   JOEL SPELINO        × "BIOS NET. FAT ..."
+ *
+ * E 87 documentos estavam pareados com 2+ fornecedores distintos ao mesmo tempo.
+ * O CNPJ confirma: dos 133 com nome incompatível, 81 têm CNPJ DISCORDANDO e
+ * ZERO têm CNPJ igual — não é nome fantasia, é par errado.
+ *
+ * Efeito medido (repetido 2×, idêntico): −142 pares falsos, −5 legítimos,
+ * precisão do painel 86,3% → 92,5%, cobertura 69,5% → 64,8%. As forças 2 e 3
+ * ficam INTACTAS (1546 e 431 antes e depois).
+ *
+ * Os 5 legítimos perdidos são siglas curtas que `compartilhaToken` não liga:
+ * TCO (R$ 65.000), THR (2×), TRACKPLUS/"TRACKPUS", GM & S. Recuperá-los pede
+ * melhorar a tokenização, não reabrir a via — que traria 142 falsos junto.
+ *
+ * A cobertura cair NÃO é piora: o lançamento que perdeu um par falso já não
+ * tinha documento de verdade. Ver [[forca-1-e-quase-toda-par-falso]].
  */
 function casa(l, d, entidadeDispensaJanela) {
     if (numeroBate(l, d) && entidadeBate(l, d))
@@ -581,7 +614,7 @@ function casa(l, d, entidadeDispensaJanela) {
     if (numeroBate(l, d) && valorBate(l, d))
         return 'numero+valor';
     if (valorBate(l, d) && dentroDaJanela(l, d, entidadeDispensaJanela))
-        return entidadeBate(l, d) ? 'valor+entidade' : 'valor';
+        return entidadeBate(l, d) ? 'valor+entidade' : null;
     return null;
 }
 

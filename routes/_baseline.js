@@ -182,7 +182,20 @@ function valorBate(valorBanco, nota) {
 // documento fiscal ("NF 96309 + BOL" = nota MAIS boleto). Não classifica nada — só
 // identifica o pacote nota+boleto, onde a IA e a contabilidade discordam de qual
 // dos dois papéis é "o documento". Ver tipoBate.
-const ACESSORIO_NO_NOME_RE = /\+\s*(BOL|BOLETO|AUT|AUTORIZACAO|PV|COMP|COMPROVANTE)\b|\bBOL\b\s*$/;
+//
+// AMPLIADA em 21/09/2026 (`_medir/_bil-boil-sao-boleto.js`). A versão anterior
+// exigia `+ BOL`, e o arquivista não é consistente: separa com ponto ou hífen e
+// erra a grafia. Só no acervo de jan–jun há 66 arquivos assim —
+//
+//   "SANTEC RECAP. NFS 137. BOL.pdf"        ← ponto no lugar do +
+//   "INGA- NF 67034- BOL.pdf"               ← hífen
+//   "UNIFORMES . NF 775+ BIL.pdf"           ← BIL
+//   "FARO . NF 14853+ BOIL.pdf"             ← BOIL
+//
+// São o MESMO pacote nota+boleto. Medido: a regex ampla pega os 3.143 que a antiga
+// já pegava (não perde nenhum) mais 66, e absolve 3 alertas de tipo — nenhum deles
+// com marcador no papel contradizendo o banco, ou seja, custo zero.
+const ACESSORIO_NO_NOME_RE = /[+\-.]\s*(BOL|BOLETO|BOLET|BIL|BOIL|BOLL|AUT|AUTORIZACAO|PV|COMP|COMPROVANTE)\b|\b(BOL|BIL|BOIL)\b\s*$/;
 function temAcessorioNoNome(arquivo) {
     return ACESSORIO_NO_NOME_RE.test(norm(arquivo));
 }
